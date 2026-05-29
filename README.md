@@ -148,7 +148,7 @@ The agent runs a per-block loop over every tracked borrower:
 3. **Alert** — emit a plain-English notification (the deterministic core decided; the LLM only wrote the copy).
 4. **Liquidate** — only as a last resort, below health factor 1.0, with the same audited safety order.
 
-Every action is appended to a public JSONL log surfaced in the app's [transparency](#) feed.
+Every action is appended to a public JSONL log surfaced in the app's transparency feed and on the status page.
 
 ---
 
@@ -239,6 +239,8 @@ pwsh scripts/e2e-loop.ps1         # lend → borrow → price drop → agent liq
 
 ---
 
+<a id="testing"></a>
+
 ## ✅ Testing
 
 | Suite | Coverage |
@@ -272,6 +274,8 @@ cargo test -p interest-model
 The product must never feel like AI-generated slop. Every feature is fully implemented, connected end-to-end, and documentation-driven — see [`CLAUDE.md`](CLAUDE.md), [`PRD/`](PRD), and [`TDD/`](TDD).
 
 ---
+
+<a id="license"></a>
 
 ## 📜 License
 
