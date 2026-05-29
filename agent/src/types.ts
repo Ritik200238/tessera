@@ -37,6 +37,16 @@ export type Action =
       status: "simulated" | "submitted" | "confirmed" | "reverted" | "skipped";
       reason?: string;
     }
+  | {
+      ts: string;
+      kind: "auto_repay";
+      user: Address;
+      tx: Hex;
+      repay: string;
+      hfBefore: string;
+      status: "submitted" | "reverted" | "skipped";
+      reason?: string;
+    }
   | { ts: string; kind: "error"; where: string; message: string };
 
 /**

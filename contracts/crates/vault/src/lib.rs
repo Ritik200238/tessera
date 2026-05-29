@@ -300,6 +300,45 @@ impl TesseraVault {
             q.saturating_add(U256::from(1u64))
         }
     }
+
+    /// Repay `amount` of `user`'s debt, pulling USDC from `user`'s allowance to
+    /// the vault. Shared by `repay` (msg.sender repays self) and
+    /// `agent_repay_for` (agent triggers a protective repay from the user's own
+    /// pre-approved USDC). Caller MUST already hold the reentrancy lock.
+    fn repay_internal(&mut self, user: Address, amount: U256) -> Result<U256, VaultError> {
+        if amount.is_zero() {
+            return Err(VaultError::ZeroAmount(ZeroAmount {}));
+        }
+        self.accrue();
+        let cur_debt = self.user_debt(user);
+        if cur_debt.is_zero() {
+            return Err(VaultError::InsufficientBalance(InsufficientBalance {}));
+        }
+        let pay = core::cmp::min(amount, cur_debt);
+        let new_debt = cur_debt - pay;
+        let idx = interest::current_index(&self.interest);
+
+        let prev_principal = self.debt.principal.get(user);
+        let total = self.lending.total_principal.get();
+        let total_after = total.saturating_sub(prev_principal).saturating_add(new_debt);
+
+        self.debt.principal.setter(user).set(new_debt);
+        self.debt.user_index.setter(user).set(idx);
+        self.lending.total_principal.set(total_after);
+        self.lending
+            .idle_assets
+            .set(self.lending.idle_assets.get().saturating_add(pay));
+
+        let usdc = self.config.usdc.get();
+        self::token::pull(self, usdc, user, pay)?;
+
+        self.vm().log(Repay {
+            user,
+            amount: pay,
+            new_principal: new_debt,
+        });
+        Ok(new_debt)
+    }
 }
 
 // ---------- Public entrypoints ----------
@@ -961,40 +1000,27 @@ impl TesseraVault {
         // Repay is allowed even when paused (TDD §3.7 — pause stops new
         // borrows / withdrawals; users can always reduce debt).
         self.lock_reentrancy()?;
+        let user = self.vm().msg_sender();
+        let r = self.repay_internal(user, amount);
+        self.unlock_reentrancy();
+        r
+    }
+
+    /// Agent-triggered protective repay — auto-repay ("AI Protects") Layer 3.
+    ///
+    /// The agent reduces `user`'s debt using `user`'s OWN pre-approved USDC: the
+    /// user's ERC-20 allowance to the vault is both the spending cap AND the
+    /// kill switch (revoke the allowance to disable protection instantly).
+    /// Agent-only, never custodial: this entrypoint can only *reduce* a user's
+    /// debt with that user's approved funds — it can never extract value. The
+    /// deterministic core (the agent's HF check + caps) decides *whether* to
+    /// call this; the contract enforces *who* may call it and *whose* funds move.
+    /// Allowed while paused, since reducing debt is always safe.
+    pub fn agent_repay_for(&mut self, user: Address, amount: U256) -> Result<U256, VaultError> {
+        self.lock_reentrancy()?;
         let r = (|| -> Result<U256, VaultError> {
-            if amount.is_zero() {
-                return Err(VaultError::ZeroAmount(ZeroAmount {}));
-            }
-            self.accrue();
-            let user = self.vm().msg_sender();
-            let cur_debt = self.user_debt(user);
-            if cur_debt.is_zero() {
-                return Err(VaultError::InsufficientBalance(InsufficientBalance {}));
-            }
-            let pay = core::cmp::min(amount, cur_debt);
-            let new_debt = cur_debt - pay;
-            let idx = interest::current_index(&self.interest);
-
-            let prev_principal = self.debt.principal.get(user);
-            let total = self.lending.total_principal.get();
-            let total_after = total.saturating_sub(prev_principal).saturating_add(new_debt);
-
-            self.debt.principal.setter(user).set(new_debt);
-            self.debt.user_index.setter(user).set(idx);
-            self.lending.total_principal.set(total_after);
-            self.lending
-                .idle_assets
-                .set(self.lending.idle_assets.get().saturating_add(pay));
-
-            let usdc = self.config.usdc.get();
-            self::token::pull(self, usdc, user, pay)?;
-
-            self.vm().log(Repay {
-                user,
-                amount: pay,
-                new_principal: new_debt,
-            });
-            Ok(new_debt)
+            self.only_agent()?;
+            self.repay_internal(user, amount)
         })();
         self.unlock_reentrancy();
         r

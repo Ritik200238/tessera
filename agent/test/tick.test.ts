@@ -35,8 +35,13 @@ function makeMockClient(hfByUser: Map<Address, bigint>, debtByUser?: Map<Address
   return {
     getBlockNumber: async () => 100n,
     getGasPrice: async () => 1_000_000_000n,
-    readContract: async (args: { functionName: string; args: unknown[] }) => {
-      const u = (args.args[0] as string).toLowerCase() as Address;
+    readContract: async (args: { functionName: string; args?: unknown[] }) => {
+      // Collateral discovery (used by the liquidation path): one listed asset
+      // that the borrower holds a non-zero balance in.
+      if (args.functionName === "listedAssetCount") return 1n;
+      if (args.functionName === "listedAssetAt") return "0xdddddddddddddddddddddddddddddddddddddddd" as Address;
+      if (args.functionName === "collateralOf") return 1_000_000_000_000_000_000n;
+      const u = (args.args?.[0] as string).toLowerCase() as Address;
       if (args.functionName === "getHealthFactor") return hfByUser.get(u) ?? 2_000_000_000_000_000_000n;
       if (args.functionName === "debtOf") return debtByUser?.get(u) ?? 0n;
       return 0n;

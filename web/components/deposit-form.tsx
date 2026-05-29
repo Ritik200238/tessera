@@ -197,8 +197,8 @@ export function DepositForm({ tokens }: { tokens: CollateralToken[] }) {
           <Row label="Current supply APY">
             {supplyBps !== undefined ? formatBps(supplyBps as bigint) : "—"}
           </Row>
-          <Row label="Liquidation threshold">80%</Row>
-          <Row label="Max LTV">70%</Row>
+          <Row label="Max LTV">40–60% · per asset</Row>
+          <Row label="Liquidation threshold">55–70% · per asset</Row>
           <p className="pt-3 text-xs text-[color:var(--color-muted-foreground)]">
             Yields are variable and depend on lender-pool utilization. Your collateral does not
             earn yield directly — it unlocks USDC borrow power. The AI agent watches your

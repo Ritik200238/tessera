@@ -210,3 +210,26 @@ export const vault: VaultRef = {
 export function isVaultDeployed(): boolean {
   return addresses.vault !== null;
 }
+
+/** Minimal MockOracle surface used by the Status page to read price freshness. */
+export const oracleAbi = [
+  { type: "function", name: "maxAge", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] },
+  { type: "function", name: "DECIMALS", stateMutability: "view", inputs: [], outputs: [{ type: "uint8" }] },
+  {
+    type: "function",
+    name: "getFeed",
+    stateMutability: "view",
+    inputs: [{ name: "token", type: "address" }],
+    outputs: [
+      { name: "answer", type: "int256" },
+      { name: "updatedAt", type: "uint64" },
+      { name: "roundId", type: "uint80" },
+      { name: "initialized", type: "bool" },
+    ],
+  },
+] as const satisfies Abi;
+
+export const oracle: { address: Address | null; abi: Abi } = {
+  address: addresses.oracle,
+  abi: oracleAbi,
+};
