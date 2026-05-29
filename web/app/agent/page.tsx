@@ -1,4 +1,5 @@
 import { ActionLog } from "@/components/action-log";
+import { AgentControls } from "@/components/agent-controls";
 import { AgentConfigPanel } from "@/components/agent-config-panel";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
@@ -16,8 +17,11 @@ export default async function AgentPage() {
       <header className="space-y-2">
         <h1 className="text-3xl font-semibold tracking-tight">Risk agent</h1>
         <p className="text-sm text-[color:var(--color-muted-foreground)] max-w-2xl">
-          Tessera&apos;s autonomous agent polls the vault, alerts on at-risk positions, and
-          executes liquidations when a position drops below health factor 1.0.
+          Tessera&apos;s autonomous agent polls the vault every block, alerts you in plain English
+          when risk rises, and — when you enable Active Protection — auto-repays from your
+          pre-approved USDC to prevent a liquidation. It liquidates only as a last resort below
+          health factor 1.0. The deterministic core decides what to do; the agent can only act
+          within the on-chain limits you set.
         </p>
       </header>
 
@@ -53,6 +57,7 @@ export default async function AgentPage() {
               <Row label="Errors (24h)" value={String(health.errors24h)} />
             </CardContent>
           </Card>
+          <AgentControls />
           <AgentConfigPanel />
         </div>
       </div>

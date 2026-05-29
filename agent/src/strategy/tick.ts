@@ -14,10 +14,19 @@ import type { Address, PublicClient } from "viem";
 import { classify } from "./health-classifier.js";
 import { emitAlert, type AlerterDeps } from "./alerter.js";
 import { tryLiquidate, type LiquidatorDeps } from "./liquidator.js";
+import { tryAutoRepay, type AutoRepayDeps } from "./auto-repay.js";
 import { vaultAbi } from "../vault-client.js";
 import { action } from "../log/action.js";
 import type { JsonlLog } from "../log/jsonl.js";
 import type { AgentConfig } from "../types.js";
+
+/**
+ * Health-factor the protective auto-repay aims to restore a position to. Repay
+ * size is derived deterministically: repay = debt * (TARGET - hf) / TARGET,
+ * which brings (collateral·threshold)/debt back up to TARGET. 1.4e18 leaves a
+ * comfortable buffer above the default 1.1e18 alert band.
+ */
+const PROTECT_TARGET_HF = 1_400_000_000_000_000_000n;
 
 export interface TickDeps {
   publicClient: PublicClient;
@@ -27,6 +36,9 @@ export interface TickDeps {
   getTrackedUsers: () => Promise<Address[]>;
   alerter: AlerterDeps;
   liquidator: LiquidatorDeps;
+  /** Optional protective layer. When present, at-risk users who opted in
+   *  (pre-approved USDC) get an auto-repay attempt before being alerted. */
+  autoRepay?: AutoRepayDeps;
   log: JsonlLog;
   config: AgentConfig;
 }
@@ -36,6 +48,7 @@ export interface TickResult {
   usersChecked: number;
   alerted: number;
   liquidated: number;
+  autoRepaid: number;
   durationMs: number;
 }
 
@@ -76,12 +89,50 @@ async function readDebt(
   }
 }
 
+/**
+ * Find a collateral token the borrower actually holds a balance in.
+ * Enumerates the vault's listed assets and returns the first with non-zero
+ * collateral. Returns null when there is nothing to seize. This replaces the
+ * old zero-address sentinel, which the vault rejects (`AssetNotEnabled`).
+ */
+async function findCollateralToken(
+  publicClient: PublicClient,
+  vaultAddress: Address,
+  user: Address,
+): Promise<Address | null> {
+  try {
+    const count = (await publicClient.readContract({
+      address: vaultAddress,
+      abi: vaultAbi,
+      functionName: "listedAssetCount",
+    })) as bigint;
+    for (let i = 0n; i < count; i += 1n) {
+      const token = (await publicClient.readContract({
+        address: vaultAddress,
+        abi: vaultAbi,
+        functionName: "listedAssetAt",
+        args: [i],
+      })) as Address;
+      const bal = (await publicClient.readContract({
+        address: vaultAddress,
+        abi: vaultAbi,
+        functionName: "collateralOf",
+        args: [user, token],
+      })) as bigint;
+      if (bal > 0n) return token;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
 /** Execute a single tick. Never throws — errors are logged as Actions. */
 export async function runTick(deps: TickDeps): Promise<TickResult> {
   const start = Date.now();
   if (deps.config.paused) {
     deps.log.append(action.tick(0, Date.now() - start));
-    return { block: 0, usersChecked: 0, alerted: 0, liquidated: 0, durationMs: Date.now() - start };
+    return { block: 0, usersChecked: 0, alerted: 0, liquidated: 0, autoRepaid: 0, durationMs: Date.now() - start };
   }
 
   let blockNumber = 0;
@@ -90,7 +141,7 @@ export async function runTick(deps: TickDeps): Promise<TickResult> {
   } catch (e) {
     deps.log.append(action.error("tick.getBlockNumber", (e as Error).message));
     deps.log.append(action.tick(0, Date.now() - start));
-    return { block: 0, usersChecked: 0, alerted: 0, liquidated: 0, durationMs: Date.now() - start };
+    return { block: 0, usersChecked: 0, alerted: 0, liquidated: 0, autoRepaid: 0, durationMs: Date.now() - start };
   }
 
   let users: Address[] = [];
@@ -102,6 +153,7 @@ export async function runTick(deps: TickDeps): Promise<TickResult> {
 
   let alerted = 0;
   let liquidated = 0;
+  let autoRepaid = 0;
 
   for (const user of users) {
     const hf = await readHealth(deps.publicClient, deps.vaultAddress, user);
@@ -120,15 +172,23 @@ export async function runTick(deps: TickDeps): Promise<TickResult> {
       }
       // 50% close factor per TDD §3.4.4
       const repay = debt / 2n;
-      // collateral token: caller must inject discovery; for MVP we read first
-      // entry from `tokens_of`. With the minimal ABI here we cannot enumerate;
-      // we pass the zero-address as a sentinel meaning "vault picks default".
-      // Phase 2 ABI will expose `firstCollateralOf(user)`.
-      const ZERO_ADDR = "0x0000000000000000000000000000000000000000" as Address;
+      // Discover the borrower's actual collateral token (the vault rejects the
+      // zero address). For MVP this seizes the first asset the borrower holds.
+      const collateralToken = await findCollateralToken(
+        deps.publicClient,
+        deps.vaultAddress,
+        user,
+      );
+      if (!collateralToken) {
+        deps.log.append(
+          action.error("tick.liquidate", `no collateral token found for ${user}`),
+        );
+        continue;
+      }
       try {
         const outcome = await tryLiquidate(
           deps.liquidator,
-          { borrower: user, repayAmount: repay, collateralToken: ZERO_ADDR },
+          { borrower: user, repayAmount: repay, collateralToken },
           blockNumber,
         );
         if (outcome.kind === "submitted") liquidated++;
@@ -138,8 +198,29 @@ export async function runTick(deps: TickDeps): Promise<TickResult> {
       continue;
     }
 
-    // Alert path
+    // At-risk band (above liquidation, below alert threshold): protect, then alert.
     if (hf < deps.config.alertThreshold) {
+      // Protective auto-repay — only fires if the user opted in (has a USDC
+      // allowance to the vault). Size is deterministic: bring HF up to TARGET,
+      // capped by the user's own allowance + balance inside tryAutoRepay.
+      if (deps.autoRepay && hf < PROTECT_TARGET_HF) {
+        const debt = await readDebt(deps.publicClient, deps.vaultAddress, user);
+        const repayAmount = debt > 0n ? (debt * (PROTECT_TARGET_HF - hf)) / PROTECT_TARGET_HF : 0n;
+        if (repayAmount > 0n) {
+          try {
+            const outcome = await tryAutoRepay(
+              deps.autoRepay,
+              { user, repayAmount, hfBefore: hf },
+              blockNumber,
+            );
+            if (outcome.kind === "submitted") autoRepaid++;
+          } catch (e) {
+            deps.log.append(action.error("tick.autoRepay", (e as Error).message));
+          }
+        }
+      }
+      // Always alert so the user is notified — the activity feed shows the
+      // alert and (when it fired) the auto-repay action side by side.
       try {
         await emitAlert(deps.alerter, user, c);
         alerted++;
@@ -154,5 +235,5 @@ export async function runTick(deps: TickDeps): Promise<TickResult> {
 
   const durationMs = Date.now() - start;
   deps.log.append(action.tick(users.length, durationMs));
-  return { block: blockNumber, usersChecked: users.length, alerted, liquidated, durationMs };
+  return { block: blockNumber, usersChecked: users.length, alerted, liquidated, autoRepaid, durationMs };
 }

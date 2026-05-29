@@ -2,14 +2,15 @@
 
 import Link from "next/link";
 import { useAccount, useReadContract, useReadContracts, useWatchBlockNumber } from "wagmi";
-import { ArrowRight, Activity, Wallet, TrendingUp } from "lucide-react";
+import { ArrowRight, Activity } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { vault, isVaultDeployed } from "@/lib/contracts";
 import { activeChain } from "@/lib/chain";
 import { env } from "@/lib/env";
-import { formatBps, formatHealthFactor, formatUsd8 } from "@/lib/format";
-import { SafetyScore } from "@/components/safety-score";
-import { HealthMeter } from "@/components/health-meter";
+import { formatBps, formatUsd8 } from "@/lib/format";
+import { formatUsdcUsd } from "@/lib/protocol";
+import { PositionTile } from "@/components/position-tile";
+import { Mark } from "@/components/mark";
 import { ValueCard } from "@/components/value-card";
 import { ConnectButton } from "@/components/connect-button";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
@@ -76,63 +77,54 @@ export function DashboardClient({ agentStatus }: { agentStatus: AgentStatusSumma
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_1fr]">
+      <div className="space-y-3">
+        <PositionTile
+          glyph={<Mark size={22} color="#fff" />}
+          title="Your borrow position"
+          subtitle={activeChain.name}
+          collateral={formatUsd8(collateralValue)}
+          debt={formatUsdcUsd(debt)}
+          hf={hf}
+        />
+        <div className="grid grid-cols-2 gap-3">
+          <ValueCard label="Lending APY" value={formatBps(supplyBps)} tone="muted" />
+          <ValueCard label="Utilization" value={formatBps(util)} tone="muted" />
+        </div>
+      </div>
+
       <Card>
         <CardHeader>
-          <CardTitle>Portfolio Safety</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <Activity aria-hidden className="size-5" />
+            Agent status
+          </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-6">
-          <SafetyScore hf={hf} />
-          <HealthMeter hf={hf} />
-          <div className="grid grid-cols-2 gap-3">
-            <ValueCard label="Health factor" value={formatHealthFactor(hf)} tone="muted" />
-            <ValueCard label="Lending APY" value={formatBps(supplyBps)} tone="muted" />
+        <CardContent className="space-y-3 text-sm">
+          <AgentStatusRow status={agentStatus} />
+          <div className="text-[color:var(--color-muted-foreground)]">Network · {activeChain.name}</div>
+          <div className="flex flex-wrap gap-2 pt-2">
+            <Link
+              href="/borrow"
+              className="inline-flex h-10 items-center gap-2 rounded-md bg-[color:var(--color-primary)] px-4 text-sm font-medium text-[color:var(--color-primary-foreground)] hover:opacity-90"
+            >
+              Borrow
+              <ArrowRight aria-hidden className="size-4" />
+            </Link>
+            <Link
+              href="/lend"
+              className="inline-flex h-10 items-center rounded-md border border-[color:var(--color-border)] px-4 text-sm font-medium hover:bg-[color:var(--color-muted)]"
+            >
+              Lend
+            </Link>
+            <Link
+              href="/agent"
+              className="inline-flex h-10 items-center rounded-md border border-[color:var(--color-border)] px-4 text-sm font-medium hover:bg-[color:var(--color-muted)]"
+            >
+              Activity
+            </Link>
           </div>
         </CardContent>
       </Card>
-
-      <div className="space-y-4">
-        <div className="grid grid-cols-2 gap-3">
-          <ValueCard
-            icon={<Wallet aria-hidden className="size-4" />}
-            label="Collateral value"
-            value={formatUsd8(collateralValue)}
-          />
-          <ValueCard
-            icon={<TrendingUp aria-hidden className="size-4" />}
-            label="Outstanding debt"
-            value={formatUsd8(debt)}
-          />
-        </div>
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Activity aria-hidden className="size-5" />
-              Agent status
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3 text-sm">
-            <AgentStatusRow status={agentStatus} />
-            <div className="text-[color:var(--color-muted-foreground)]">
-              Utilization {formatBps(util)} · Network {activeChain.name}
-            </div>
-            <div className="flex gap-2 pt-2">
-              <Link
-                href="/deposit"
-                className="inline-flex h-10 items-center gap-2 rounded-md bg-[color:var(--color-primary)] px-4 text-sm font-medium text-[color:var(--color-primary-foreground)] hover:opacity-90"
-              >
-                Deposit
-                <ArrowRight aria-hidden className="size-4" />
-              </Link>
-              <Link
-                href="/agent"
-                className="inline-flex h-10 items-center rounded-md border border-[color:var(--color-border)] px-4 text-sm font-medium hover:bg-[color:var(--color-muted)]"
-              >
-                View agent log
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
     </div>
   );
 }
@@ -147,9 +139,9 @@ export interface AgentStatusSummary {
 function AgentStatusRow({ status }: { status: AgentStatusSummary }) {
   const dot = status.available
     ? status.ok
-      ? "bg-emerald-500"
-      : "bg-amber-500"
-    : "bg-zinc-400";
+      ? "bg-[color:var(--color-safe-fg)]"
+      : "bg-[color:var(--color-watch-fg)]"
+    : "bg-[color:var(--faint)]";
   const label = status.available ? (status.ok ? "Active — protecting" : "Degraded") : "Offline";
   return (
     <div className="flex items-center gap-3">
@@ -219,11 +211,15 @@ function Landing() {
             Use tAAPL, tTSLA, or tSPY as collateral.
           </Step>
           <Step n={2} title="Borrow USDC">
-            Up to 70% of your collateral value, at a dynamic rate.
+            Up to 40–60% of your collateral value — a conservative, per-asset limit that
+            accounts for overnight and weekend gap risk — at a dynamic rate.
           </Step>
-          <Step n={3} title="AI keeps an eye on it">
-            If markets move against you, the agent alerts you and acts before you&apos;re
-            liquidated by someone else.
+          <Step n={3} title="AI keeps an eye on it — 24/7">
+            The agent watches your health factor every block and alerts you in plain English
+            when risk rises. Switch on{" "}
+            <span className="font-medium text-[color:var(--color-foreground)]">Active Protection</span>{" "}
+            and it can auto-repay from USDC you pre-approve, restoring your position before a
+            liquidation. It can only ever reduce your debt with funds you approved — revoke anytime.
           </Step>
         </CardContent>
       </Card>

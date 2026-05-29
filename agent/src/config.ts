@@ -41,6 +41,12 @@ const envSchema = z.object({
     .string()
     .regex(/^0x[a-fA-F0-9]{40}$/)
     .default("0x0000000000000000000000000000000000000000"),
+  // USDC (the debt asset) — the liquidator reads its own balance here before
+  // attempting a liquidation. Sourced from shared/addresses/<env>.json.
+  USDC_ADDRESS: z
+    .string()
+    .regex(/^0x[a-fA-F0-9]{40}$/)
+    .default("0x0000000000000000000000000000000000000000"),
 
   // Agent
   AGENT_PRIVATE_KEY: z
@@ -54,7 +60,10 @@ const envSchema = z.object({
   AGENT_ADMIN_SECRET: z.string().min(8).default("dev-admin-secret-change-me"),
   AGENT_LOG_RETENTION_DAYS: z.coerce.number().int().min(1).max(365).default(7),
 
-  // LLM
+  // LLM — Kimi K2 via NVIDIA NIM is primary; Anthropic Claude is the fallback.
+  NVIDIA_API_KEY: z.string().optional(),
+  NVIDIA_BASE_URL: z.string().url().default("https://integrate.api.nvidia.com/v1"),
+  KIMI_MODEL: z.string().default("moonshotai/kimi-k2-instruct"),
   ANTHROPIC_API_KEY: z.string().optional(),
   LLM_MODEL: z.string().default("claude-haiku-4-5"),
 

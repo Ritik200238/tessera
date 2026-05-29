@@ -16,13 +16,23 @@ export type AgentAction =
       repay: string;
       seized: string;
       token: string;
-      status: "submitted" | "confirmed" | "reverted";
+      status: "simulated" | "submitted" | "confirmed" | "reverted" | "skipped";
+    }
+  | {
+      ts: string;
+      kind: "auto_repay";
+      user: string;
+      tx: string;
+      repay: string;
+      hfBefore: string;
+      status: "submitted" | "reverted" | "skipped";
     }
   | { ts: string; kind: "error"; where: string; message: string };
 
 const KIND_LABEL: Record<AgentAction["kind"], string> = {
   tick: "Tick",
   alert: "Alert",
+  auto_repay: "Auto-repay",
   liquidate: "Liquidate",
   error: "Error",
 };
@@ -37,8 +47,8 @@ export function ActionLog({ actions }: { actions: AgentAction[] }) {
     );
   }
   return (
-    <div className="overflow-hidden rounded-xl border border-[color:var(--color-border)]">
-      <table className="w-full text-sm">
+    <div className="overflow-x-auto rounded-xl border border-[color:var(--color-border)]">
+      <table className="w-full min-w-[480px] text-sm">
         <caption className="sr-only">Most recent agent actions</caption>
         <thead className="bg-[color:var(--color-muted)] text-left text-xs uppercase tracking-wide text-[color:var(--color-muted-foreground)]">
           <tr>
@@ -83,6 +93,18 @@ function renderDetail(a: AgentAction): React.ReactNode {
           <span>{a.copy}</span>
         </>
       );
+    case "auto_repay":
+      return (
+        <>
+          Protected <code className="font-mono text-xs">{shortAddr(a.user)}</code>: repaid{" "}
+          <span className="font-medium">{(Number(a.repay) / 1e6).toLocaleString()} USDC</span> from
+          their pre-approved funds to restore health (HF was {(Number(a.hfBefore) / 1e18).toFixed(2)})
+          · <span className="uppercase text-xs">{a.status}</span>{" "}
+          {a.tx && a.status === "submitted" ? (
+            <code className="font-mono text-xs">{shortAddr(a.tx)}</code>
+          ) : null}
+        </>
+      );
     case "liquidate":
       return (
         <>
@@ -102,6 +124,8 @@ function renderDetail(a: AgentAction): React.ReactNode {
 
 function rowTone(a: AgentAction): string {
   switch (a.kind) {
+    case "auto_repay":
+      return "bg-[color:var(--color-brand-wash)]";
     case "liquidate":
       return "bg-[color:var(--color-atrisk-bg)]/20";
     case "alert":

@@ -97,6 +97,11 @@
     "inputs": [{"name": "amount", "type": "uint256"}], "outputs": []},
   {"type": "function", "name": "repay", "stateMutability": "nonpayable",
     "inputs": [{"name": "amount", "type": "uint256"}], "outputs": [{"type": "uint256"}]},
+  {"type": "function", "name": "agentRepayFor", "stateMutability": "nonpayable",
+    "inputs": [
+      {"name": "user", "type": "address"},
+      {"name": "amount", "type": "uint256"}
+    ], "outputs": [{"type": "uint256"}]},
 
   {"type": "function", "name": "liquidate", "stateMutability": "nonpayable",
     "inputs": [

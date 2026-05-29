@@ -45,16 +45,19 @@ contract Deploy is Script {
         string memory aapl = "aapl";
         vm.serializeString(aapl, "symbol", "tAAPL");
         vm.serializeAddress(aapl, "address", address(tAAPL));
+        vm.serializeUint(aapl, "decimals", uint256(18));
         string memory aaplJson = vm.serializeUint(aapl, "priceUsd8", uint256(200_00000000));
 
         string memory tsla = "tsla";
         vm.serializeString(tsla, "symbol", "tTSLA");
         vm.serializeAddress(tsla, "address", address(tTSLA));
+        vm.serializeUint(tsla, "decimals", uint256(18));
         string memory tslaJson = vm.serializeUint(tsla, "priceUsd8", uint256(250_00000000));
 
         string memory spy = "spy";
         vm.serializeString(spy, "symbol", "tSPY");
         vm.serializeAddress(spy, "address", address(tSPY));
+        vm.serializeUint(spy, "decimals", uint256(18));
         string memory spyJson = vm.serializeUint(spy, "priceUsd8", uint256(500_00000000));
 
         string[] memory tokenArr = new string[](3);

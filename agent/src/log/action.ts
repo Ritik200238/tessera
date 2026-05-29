@@ -36,6 +36,25 @@ export const action = {
       ...(args.reason !== undefined ? { reason: args.reason } : {}),
     };
   },
+  autoRepay(args: {
+    user: Address;
+    tx: Hex;
+    repay: bigint;
+    hfBefore: bigint;
+    status: "submitted" | "reverted" | "skipped";
+    reason?: string;
+  }): Action {
+    return {
+      ts: now(),
+      kind: "auto_repay",
+      user: args.user,
+      tx: args.tx,
+      repay: args.repay.toString(),
+      hfBefore: args.hfBefore.toString(),
+      status: args.status,
+      ...(args.reason !== undefined ? { reason: args.reason } : {}),
+    };
+  },
   error(where: string, message: string): Action {
     return { ts: now(), kind: "error", where, message };
   },

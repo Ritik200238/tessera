@@ -23,6 +23,7 @@ import { makeVaultClients } from "./vault-client.js";
 import { makeLLMClient } from "./llm/client.js";
 import { runTick } from "./strategy/tick.js";
 import type { LiquidatorDeps } from "./strategy/liquidator.js";
+import type { AutoRepayDeps } from "./strategy/auto-repay.js";
 import type { AlerterDeps } from "./strategy/alerter.js";
 import { startServer } from "./http/server.js";
 import { metrics } from "./metrics.js";
@@ -50,10 +51,18 @@ async function main(): Promise<void> {
     privateKey: cfg.AGENT_PRIVATE_KEY as Hex,
   });
 
-  // 3. LLM
-  const llm = makeLLMClient({ apiKey: cfg.ANTHROPIC_API_KEY, model: cfg.LLM_MODEL });
-  if (!llm.available) {
-    logger.warn("ANTHROPIC_API_KEY not set — alerts will use template fallback");
+  // 3. LLM — Kimi K2 (NVIDIA NIM) primary, Claude fallback, templates otherwise.
+  const llm = makeLLMClient({
+    nvidiaApiKey: cfg.NVIDIA_API_KEY,
+    nvidiaBaseUrl: cfg.NVIDIA_BASE_URL,
+    kimiModel: cfg.KIMI_MODEL,
+    anthropicApiKey: cfg.ANTHROPIC_API_KEY,
+    anthropicModel: cfg.LLM_MODEL,
+  });
+  if (llm.available) {
+    logger.info({ provider: llm.provider }, "LLM alert copy enabled");
+  } else {
+    logger.warn("no LLM key (NVIDIA_API_KEY / ANTHROPIC_API_KEY) — alerts use template fallback");
   }
 
   // 4. Vibekit registration (shim until upstream package exists)
@@ -79,10 +88,12 @@ async function main(): Promise<void> {
     return errorTimestamps.length;
   };
 
-  // 6. USDC balance reader — placeholder until USDC address is in shared/addresses
+  // 6. USDC balance reader — the liquidator's float check (liquidator.ts step 2).
+  //    USDC address comes from config (shared/addresses/<env>.json), not a bare env var.
+  const ZERO_ADDR = "0x0000000000000000000000000000000000000000";
   const getUsdcBalance = async (): Promise<bigint> => {
-    const usdcAddr = process.env.USDC_ADDRESS as Address | undefined;
-    if (!usdcAddr) return 0n;
+    const usdcAddr = cfg.USDC_ADDRESS as Address;
+    if (usdcAddr === ZERO_ADDR) return 0n;
     try {
       const bal = await publicClient.readContract({
         address: usdcAddr,
@@ -110,6 +121,16 @@ async function main(): Promise<void> {
     db,
     maxGasGwei: currentConfig.maxGasGwei,
   };
+  const autoRepay: AutoRepayDeps = {
+    publicClient,
+    walletClient,
+    account,
+    vaultAddress,
+    usdcAddress: cfg.USDC_ADDRESS as Address,
+    log,
+    db,
+    maxGasGwei: currentConfig.maxGasGwei,
+  };
 
   // 8. HTTP server
   const server = await startServer(cfg.AGENT_HTTP_PORT, {
@@ -126,6 +147,7 @@ async function main(): Promise<void> {
     onConfigUpdate: () => {
       currentConfig = db.getAgentConfig();
       liquidator.maxGasGwei = currentConfig.maxGasGwei;
+      autoRepay.maxGasGwei = currentConfig.maxGasGwei;
       void parseGwei; // keep import in case route handlers need it
       logger.info({ config: currentConfig }, "config reloaded");
     },
@@ -169,6 +191,7 @@ async function main(): Promise<void> {
           getTrackedUsers: indexUsers,
           alerter,
           liquidator,
+          autoRepay,
           log,
           config: currentConfig,
         });

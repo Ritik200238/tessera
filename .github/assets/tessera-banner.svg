@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 400" width="1200" height="400" role="img" aria-label="Tessera">
+  <defs>
+    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+      <path d="M32 0H0V32" fill="none" stroke="#ECECE9" stroke-width="1"/>
+    </pattern>
+    <linearGradient id="fade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FBFBFA" stop-opacity="0"/>
+      <stop offset="1" stop-color="#FBFBFA"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="400" fill="#FBFBFA"/>
+  <rect width="1200" height="400" fill="url(#grid)"/>
+  <rect width="1200" height="400" fill="url(#fade)"/>
+
+  <!-- mark: four tesserae, one laid in Tessera Blue -->
+  <g transform="translate(514, 70)">
+    <rect x="0"  y="0"  width="80" height="80" rx="15" fill="#111214" opacity="0.92"/>
+    <rect x="92" y="0"  width="80" height="80" rx="15" fill="#111214" opacity="0.42"/>
+    <rect x="0"  y="92" width="80" height="80" rx="15" fill="#111214" opacity="0.42"/>
+    <rect x="92" y="92" width="80" height="80" rx="15" fill="#2353E6"/>
+  </g>
+
+  <text x="600" y="300" text-anchor="middle"
+        font-family="'Schibsted Grotesk', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
+        font-size="84" font-weight="800" letter-spacing="-3" fill="#111214">Tessera</text>
+
+  <text x="600" y="346" text-anchor="middle"
+        font-family="'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace"
+        font-size="19" letter-spacing="0.5" fill="#6E727A">Lend against, and borrow against, tokenized equities &#183; watched 24/7</text>
+</svg>

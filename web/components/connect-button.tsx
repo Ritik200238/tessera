@@ -28,7 +28,13 @@ export function ConnectButton({ className }: { className?: string }) {
               className,
             )}
           >
-            <span aria-hidden className={cn("inline-block size-2 rounded-full", isConnected ? "bg-emerald-400" : "bg-zinc-400")} />
+            <span
+              aria-hidden
+              className={cn(
+                "inline-block size-2 rounded-full",
+                isConnected ? "bg-[color:var(--color-safe-fg)]" : "bg-[color:var(--faint)]",
+              )}
+            />
             <span>{label}</span>
             {isConnected && chain ? (
               <span className="hidden sm:inline text-xs opacity-80">· {chain.name}</span>

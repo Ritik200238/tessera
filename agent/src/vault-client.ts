@@ -30,7 +30,10 @@ export const vaultAbi = [
   {
     type: "function",
     name: "getHealthFactor",
-    stateMutability: "nonpayable",
+    // Declared `nonpayable` in the canonical ABI (it lazily accrues interest when
+    // sent as a tx), but the agent only ever reads it via eth_call, so `view`
+    // here lets viem's typed `readContract` accept it. eth_call is read-only.
+    stateMutability: "view",
     inputs: [{ name: "user", type: "address" }],
     outputs: [{ name: "", type: "uint256" }],
   },
@@ -62,6 +65,40 @@ export const vaultAbi = [
       { name: "collateralToken", type: "address" },
     ],
     outputs: [{ name: "seized", type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "agentRepayFor",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "user", type: "address" },
+      { name: "amount", type: "uint256" },
+    ],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "collateralOf",
+    stateMutability: "view",
+    inputs: [
+      { name: "user", type: "address" },
+      { name: "token", type: "address" },
+    ],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "listedAssetCount",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "listedAssetAt",
+    stateMutability: "view",
+    inputs: [{ name: "index", type: "uint256" }],
+    outputs: [{ name: "", type: "address" }],
   },
   {
     type: "event",

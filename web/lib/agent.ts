@@ -31,7 +31,16 @@ const ActionLiquidate = z.object({
   repay: z.string(),
   seized: z.string(),
   token: z.string(),
-  status: z.enum(["submitted", "confirmed", "reverted"]),
+  status: z.enum(["simulated", "submitted", "confirmed", "reverted", "skipped"]),
+});
+const ActionAutoRepay = z.object({
+  ts: z.string(),
+  kind: z.literal("auto_repay"),
+  user: z.string(),
+  tx: z.string(),
+  repay: z.string(),
+  hfBefore: z.string(),
+  status: z.enum(["submitted", "reverted", "skipped"]),
 });
 const ActionError = z.object({
   ts: z.string(),
@@ -40,7 +49,7 @@ const ActionError = z.object({
   message: z.string(),
 });
 
-const ActionSchema = z.union([ActionTick, ActionAlert, ActionLiquidate, ActionError]);
+const ActionSchema = z.union([ActionTick, ActionAlert, ActionLiquidate, ActionAutoRepay, ActionError]);
 const ActionsResponseSchema = z.object({ actions: z.array(ActionSchema) }).or(z.array(ActionSchema));
 
 const HealthSchema = z.object({
