@@ -11,7 +11,7 @@ An autonomous AI agent watches every position **24/7** and acts **before** a liq
 [![Arbitrum Stylus](https://img.shields.io/badge/Arbitrum%20Stylus-Rust%20%E2%86%92%20WASM-2353E6?style=flat-square)](https://docs.arbitrum.io/stylus/stylus-gentle-introduction)
 [![Next.js](https://img.shields.io/badge/Next.js%2016-Turbopack-111214?style=flat-square&logo=nextdotjs&logoColor=white)](https://nextjs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org)
-[![Tests](https://img.shields.io/badge/tests-152%20passing-0E8A5F?style=flat-square)](#testing)
+[![Tests](https://img.shields.io/badge/tests-117%20passing-0E8A5F?style=flat-square)](#testing)
 [![License](https://img.shields.io/badge/license-MIT-111214?style=flat-square)](#license)
 <br/>
 [![Network](https://img.shields.io/badge/Arbitrum%20Sepolia-live-0E8A5F?style=flat-square)](https://sepolia.arbiscan.io/address/0x579a81d009068f69dab03ef080d24806c30b9ad5)
