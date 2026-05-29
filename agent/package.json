@@ -1,0 +1,43 @@
+{
+  "name": "@tessera/agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Tessera Risk Agent — autonomous DeFi monitoring + liquidation runtime",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint \"src/**/*.ts\" \"test/**/*.ts\"",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.65.0",
+    "@hono/node-server": "^1.13.0",
+    "better-sqlite3": "^12.4.0",
+    "dotenv": "^17.0.0",
+    "hono": "^4.12.0",
+    "pino": "^10.0.0",
+    "prom-client": "^15.1.3",
+    "viem": "^2.50.0",
+    "zod": "^4.4.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@vitest/coverage-v8": "^4.1.0",
+    "@types/node": "^25.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.59.0",
+    "@typescript-eslint/parser": "^8.59.0",
+    "eslint": "^9.0.0",
+    "tsx": "^4.22.0",
+    "typescript": "^5.6.0",
+    "vitest": "^4.1.0"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  }
+}

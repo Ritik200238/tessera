@@ -1,0 +1,60 @@
+# Node
+node_modules/
+.pnpm-store/
+.npm/
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build artifacts
+dist/
+build/
+.next/
+out/
+.turbo/
+*.tsbuildinfo
+
+# Rust / Cargo
+target/
+**/target/
+Cargo.lock.bak
+
+# Foundry
+contracts/solidity/cache/
+contracts/solidity/out/
+contracts/solidity/broadcast/
+contracts/solidity/.gas-snapshot
+
+# Env & secrets — ignore ALL dotenv files EXCEPT *.example templates
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Local data
+.data/
+*.sqlite
+*.sqlite-journal
+*.db
+
+# Logs
+logs/
+*.log
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# Coverage
+coverage/
+lcov.info
+
+# Local reference clones (source-of-truth docs, reproducible upstream — not part of the product)
+docs/
+
+# Foundry installed dependencies (restore with `forge install`)
+contracts/solidity/lib/

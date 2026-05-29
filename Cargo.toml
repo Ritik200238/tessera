@@ -1,0 +1,37 @@
+[workspace]
+resolver = "2"
+members = ["contracts/crates/*"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+authors = ["Tessera contributors"]
+
+[workspace.dependencies]
+# Stylus / Arbitrum. We use stylus-sdk 0.10 because it is the first version
+# whose `alloy-primitives` is on the 1.x line, matching the version already
+# baked into the `interest-model` crate. This keeps `U256` and `Address` types
+# binary-identical across the vault entrypoint and the pure-math primitives,
+# which is the whole point of having a separate `interest-model` crate.
+#
+# openzeppelin-stylus 0.3 hard-pins stylus-sdk 0.9 / alloy 0.8 and therefore
+# cannot share types with `interest-model`. The vault crate intentionally does
+# NOT depend on openzeppelin-stylus; the ERC-4626 lender surface is
+# implemented in-house against the same OZ Solidity semantics (rounding
+# direction, share accounting). When a future openzeppelin-stylus release
+# tracks alloy 1.x we can revisit this.
+stylus-sdk = { version = "0.10", default-features = false, features = ["mini-alloc"] }
+alloy-primitives = { version = "1", default-features = false }
+alloy-sol-types = { version = "1", default-features = false }
+
+# Common
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[profile.release]
+codegen-units = 1
+strip = true
+lto = true
+panic = "abort"
+opt-level = "z"
