@@ -1,0 +1,23 @@
+# Use rust-lld + xwin-downloaded Windows SDK/CRT so we don't need MSVC Build Tools.
+# xwin splat target: C:\Users\ritik\.xwin (CRT + UCRT + Windows SDK, no admin required).
+
+[target.x86_64-pc-windows-msvc]
+linker = "rust-lld.exe"
+rustflags = [
+  "-C", "target-feature=+crt-static",
+  "-L", "C:\\Users\\ritik\\.xwin\\crt\\lib\\x86_64",
+  "-L", "C:\\Users\\ritik\\.xwin\\sdk\\lib\\ucrt\\x86_64",
+  "-L", "C:\\Users\\ritik\\.xwin\\sdk\\lib\\um\\x86_64",
+]
+
+# When cross-compiling to wasm32 (`cargo build --target wasm32-unknown-unknown`,
+# `cargo stylus`), Cargo builds host build-scripts/proc-macros (paste, quote,
+# proc-macro2, ...) for x86_64-pc-windows-msvc but does NOT apply the [target.*]
+# rustflags above to those host units in cross mode. They therefore fall back to
+# the DYNAMIC CRT (/defaultlib:msvcrt) and need msvcrt.lib + vcruntime.lib on the
+# linker search path. rust-lld (link flavor) honours the LIB env var, so we set it
+# here. The dynamic CRT import libs were splatted via `xwin --arch x86_64 splat`
+# (xwin 0.9.0) and copied into the crt lib dir alongside the static libcmt.lib.
+# Without this, only host-target builds (cargo check/test) work; the wasm build fails.
+[env]
+LIB = "C:\\Users\\ritik\\.xwin\\crt\\lib\\x86_64;C:\\Users\\ritik\\.xwin\\sdk\\lib\\ucrt\\x86_64;C:\\Users\\ritik\\.xwin\\sdk\\lib\\um\\x86_64"

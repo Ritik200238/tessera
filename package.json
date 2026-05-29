@@ -1,0 +1,38 @@
+{
+  "name": "tessera",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Tessera — AI-protected lending protocol for tokenized stocks on Robinhood Chain",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22",
+    "pnpm": ">=10"
+  },
+  "scripts": {
+    "runbook:price": "tsx scripts/runbook/price.ts",
+    "runbook:demo:setup": "tsx scripts/runbook/demo-setup.ts",
+    "runbook:vault:pause": "tsx scripts/runbook/vault-pause.ts",
+    "runbook:vault:unpause": "tsx scripts/runbook/vault-unpause.ts",
+    "contracts:build": "cd contracts/solidity && forge build",
+    "contracts:test": "cd contracts/solidity && forge test",
+    "contracts:coverage": "cd contracts/solidity && forge coverage --ir-minimum --no-match-coverage \"(script|test|lib)\"",
+    "contracts:deploy:local": "cd contracts/solidity && forge script script/Deploy.s.sol:Deploy --rpc-url $RPC_URL_LOCAL --broadcast"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3",
+    "viem": "^2.21.55",
+    "dotenv": "^16.4.7"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "better-sqlite3",
+      "esbuild",
+      "keccak",
+      "sharp",
+      "bufferutil",
+      "utf-8-validate",
+      "unrs-resolver"
+    ]
+  }
+}
