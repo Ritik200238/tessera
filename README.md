@@ -95,7 +95,7 @@ sequenceDiagram
   participant U as You
   O->>V: tokenized stock gaps down over the weekend
   V-->>A: health factor drifts toward 1.0
-  A->>U: plain-English alert (Kimi K2)
+  A->>U: plain-English alert (NVIDIA NIM)
   A->>V: agentRepayFor(you, amount) — from your pre-approved USDC
   V-->>U: debt reduced · health restored · no liquidation
 ```
@@ -123,7 +123,7 @@ flowchart TB
   end
   subgraph Offchain
     AGENT[AI Risk Agent · TypeScript<br/>deterministic core + LLM copy]
-    LLM[(Kimi K2 via NVIDIA NIM<br/>Claude fallback)]
+    LLM[(NVIDIA NIM open models<br/>Llama 3.3 70B · auto-fallback)]
     AGENT -.-> LLM
   end
   WEB <-->|reads + writes| VAULT
@@ -134,7 +134,7 @@ flowchart TB
 Three surfaces, one source of truth (the vault):
 
 - **Contracts** — a Stylus vault (ERC-4626 lender surface + multi-asset collateral + borrow/repay + partial liquidation + `agentRepayFor`) built on a pure-Rust `interest-model` crate (Compound-style borrow index, Aave-style two-slope rate curve). Solidity mocks (USDC, tokenized stocks, oracle) for testnet.
-- **Agent** — a TypeScript service. A **deterministic core** decides *whether* and *how much* to act (health classification, 5-step safety order: idempotency → balance → gas cap → simulate → submit). An **LLM layer** (Kimi K2 via NVIDIA NIM, Claude as fallback) only phrases alerts in plain English — it never moves money.
+- **Agent** — a TypeScript service. A **deterministic core** decides *whether* and *how much* to act (health classification, 5-step safety order: idempotency → balance → gas cap → simulate → submit). An **LLM layer** (open models on NVIDIA NIM — Llama 3.3 70B with an automatic fallback chain, Claude as cross-provider backup, and a deterministic template if every model is down) only phrases alerts in plain English — it never moves money.
 - **Web** — Next.js App Router with a brand-native design system; live on-chain reads; a guided lend/borrow flow; transparency & status pages.
 
 ---
@@ -163,7 +163,7 @@ The brand is **quiet institutional minimalism** — paper-and-ink neutrals, a si
 | Layer | Stack |
 |---|---|
 | **Contracts** | Arbitrum Stylus · Rust → WASM · `stylus-sdk` · `alloy` · Foundry (mocks) |
-| **Agent** | TypeScript · viem · Hono · better-sqlite3 · Kimi K2 (NVIDIA NIM) / Claude |
+| **Agent** | TypeScript · viem · Hono · better-sqlite3 · NVIDIA NIM (Llama 3.3 70B) / Claude |
 | **Web** | Next.js 16 (Turbopack) · React · wagmi v2 · viem · ConnectKit · Tailwind v4 |
 | **Chain** | Arbitrum Sepolia (Robinhood Chain as the long-term target) |
 | **Tooling** | pnpm/npm · Vitest · cargo · xwin + wasm-opt (Windows toolchain) |

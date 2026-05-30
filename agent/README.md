@@ -101,8 +101,15 @@ allowed to read `process.env`).
 | `AGENT_HTTP_PORT` | no | `8787` | HTTP port |
 | `AGENT_ADMIN_SECRET` | yes | dev | bearer for `/config` |
 | `AGENT_LOG_RETENTION_DAYS` | no | `7` | rotation policy |
-| `ANTHROPIC_API_KEY` | recommended | unset | optional; falls back to template copy |
-| `LLM_MODEL` | no | `claude-haiku-4-5` | per TDD §20.3 |
+| `AGENT_TRACKED_USERS` | no | unset | comma-separated addresses to always watch |
+| `AGENT_START_BLOCK` | no | `0` | indexer start block (`0` ⇒ use lookback) |
+| `AGENT_LOG_LOOKBACK` | no | `50000` | blocks scanned back on a cold start |
+| `AGENT_LOG_CHUNK` | no | `9000` | per-`getLogs` span (RPC range cap) |
+| `NVIDIA_API_KEY` | recommended | unset | NVIDIA NIM key; enables LLM alert copy |
+| `NIM_MODELS` | no | `llama-3.3-70b…,qwen3.5…,kimi-k2.6` | ordered NIM fallback chain |
+| `NIM_TIMEOUT_MS` | no | `12000` | per-model attempt timeout (cold-start guard) |
+| `ANTHROPIC_API_KEY` | optional | unset | cross-provider fallback; also NL `/config` |
+| `LLM_MODEL` | no | `claude-haiku-4-5` | Anthropic model id |
 | `LOG_LEVEL` | no | `info` | pino level |
 
 ## Action log rotation
