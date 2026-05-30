@@ -60,10 +60,25 @@ const envSchema = z.object({
   AGENT_ADMIN_SECRET: z.string().min(8).default("dev-admin-secret-change-me"),
   AGENT_LOG_RETENTION_DAYS: z.coerce.number().int().min(1).max(365).default(7),
 
-  // LLM — Kimi K2 via NVIDIA NIM is primary; Anthropic Claude is the fallback.
+  // User discovery (event indexer). Public RPCs are non-archive and cap getLogs
+  // ranges, so the indexer scans in bounded chunks from a recent lookback window
+  // (or AGENT_START_BLOCK) and persists progress. Known borrowers can be pinned
+  // so they are watched immediately, independent of log retention.
+  AGENT_TRACKED_USERS: z.string().default(""), // comma-separated addresses to always watch
+  AGENT_START_BLOCK: z.coerce.number().int().min(0).default(0), // 0 => use lookback
+  AGENT_LOG_LOOKBACK: z.coerce.number().int().min(0).default(50_000), // blocks back on a cold start
+  AGENT_LOG_CHUNK: z.coerce.number().int().min(100).max(50_000).default(9_000), // per-getLogs span
+
+  // LLM — open models on NVIDIA NIM are primary; Anthropic Claude is the fallback.
+  // NIM endpoints cold-start, so we ship an ordered chain and bound each attempt.
+  // Reliability-first order: Llama 3.3 70B and Qwen 3.5 answer in ~2s; Kimi K2.6
+  // is kept last (Moonshot's current model, but frequently cold on NIM).
   NVIDIA_API_KEY: z.string().optional(),
   NVIDIA_BASE_URL: z.string().url().default("https://integrate.api.nvidia.com/v1"),
-  KIMI_MODEL: z.string().default("moonshotai/kimi-k2-instruct"),
+  NIM_MODELS: z
+    .string()
+    .default("meta/llama-3.3-70b-instruct,qwen/qwen3.5-122b-a10b,moonshotai/kimi-k2.6"),
+  NIM_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(60_000).default(12_000),
   ANTHROPIC_API_KEY: z.string().optional(),
   LLM_MODEL: z.string().default("claude-haiku-4-5"),
 

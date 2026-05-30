@@ -51,11 +51,12 @@ async function main(): Promise<void> {
     privateKey: cfg.AGENT_PRIVATE_KEY as Hex,
   });
 
-  // 3. LLM — Kimi K2 (NVIDIA NIM) primary, Claude fallback, templates otherwise.
+  // 3. LLM — NVIDIA NIM open-model chain primary, Claude fallback, templates otherwise.
   const llm = makeLLMClient({
     nvidiaApiKey: cfg.NVIDIA_API_KEY,
     nvidiaBaseUrl: cfg.NVIDIA_BASE_URL,
-    kimiModel: cfg.KIMI_MODEL,
+    nimModels: cfg.NIM_MODELS.split(",").map((m) => m.trim()).filter(Boolean),
+    nimTimeoutMs: cfg.NIM_TIMEOUT_MS,
     anthropicApiKey: cfg.ANTHROPIC_API_KEY,
     anthropicModel: cfg.LLM_MODEL,
   });
@@ -154,23 +155,56 @@ async function main(): Promise<void> {
   });
   logger.info({ port: server.port }, "http server listening");
 
-  // 9. user discovery — Phase 2 will wire the event-log indexer; for MVP we
-  // tail Borrow/Repay/Liquidate events since the last checkpoint.
+  // 9. user discovery — lightweight event indexer. Public RPCs are non-archive
+  // and cap getLogs ranges, so we scan in bounded chunks from a recent lookback
+  // (or AGENT_START_BLOCK) and persist the checkpoint after every chunk. Known
+  // borrowers can be pinned via AGENT_TRACKED_USERS and are watched immediately.
+  const ADDR_RE = /^0x[a-fA-F0-9]{40}$/;
   const trackedUsers = new Set<Address>();
+  for (const raw of cfg.AGENT_TRACKED_USERS.split(",").map((s) => s.trim())) {
+    if (ADDR_RE.test(raw)) trackedUsers.add(raw.toLowerCase() as Address);
+  }
+  if (trackedUsers.size > 0) logger.info({ pinned: [...trackedUsers] }, "pinned tracked users");
+
+  const START_BLOCK = BigInt(cfg.AGENT_START_BLOCK);
+  const LOOKBACK = BigInt(cfg.AGENT_LOG_LOOKBACK);
+  const CHUNK = BigInt(cfg.AGENT_LOG_CHUNK);
   const indexUsers = async (): Promise<Address[]> => {
     try {
       const head = await publicClient.getBlockNumber();
-      const from = BigInt(Math.max(0, db.getCheckpoint() - 5));
-      const logs = await publicClient.getLogs({
-        address: vaultAddress,
-        fromBlock: from,
-        toBlock: head,
-      });
-      for (const ev of logs) {
-        const user = (ev.topics[1] ?? "0x").slice(-40);
-        if (user.length === 40) trackedUsers.add(`0x${user}` as Address);
+      const checkpoint = BigInt(db.getCheckpoint());
+      // Resume from the checkpoint (with a small reorg overlap) once we have one;
+      // otherwise cold-start from the lookback window (or the configured start).
+      let cursor =
+        checkpoint > 0n
+          ? checkpoint > 5n
+            ? checkpoint - 5n
+            : 0n
+          : head > LOOKBACK
+            ? head - LOOKBACK
+            : 0n;
+      if (cursor < START_BLOCK) cursor = START_BLOCK;
+
+      while (cursor <= head) {
+        const to = cursor + CHUNK > head ? head : cursor + CHUNK;
+        const logs = await publicClient.getLogs({
+          address: vaultAddress,
+          fromBlock: cursor,
+          toBlock: to,
+        });
+        for (const ev of logs) {
+          // The first indexed topic is the acting user for every user-bearing
+          // vault event (Borrow/Repay/Deposit/Withdraw/AgentRepay). Over-including
+          // a non-user address is harmless: it simply reads as having no debt.
+          const t1 = ev.topics[1];
+          if (t1 && t1.length === 66) {
+            const user = `0x${t1.slice(26)}`.toLowerCase() as Address;
+            if (user !== ZERO_ADDR) trackedUsers.add(user);
+          }
+        }
+        db.setCheckpoint(Number(to));
+        cursor = to + 1n;
       }
-      db.setCheckpoint(Number(head));
     } catch (e) {
       trackError("indexUsers", (e as Error).message);
     }
