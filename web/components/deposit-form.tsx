@@ -7,8 +7,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 import { vault, isVaultDeployed } from "@/lib/contracts";
 import { formatBps, formatToken } from "@/lib/format";
+import { decodeTxError } from "@/lib/errors";
 import { ConnectButton } from "./connect-button";
 
 interface CollateralToken {
@@ -162,14 +165,19 @@ export function DepositForm({ tokens }: { tokens: CollateralToken[] }) {
           {error ? (
             <Alert tone="danger">
               <AlertTitle>Transaction failed</AlertTitle>
-              <AlertDescription>{shortenError(error)}</AlertDescription>
+              <AlertDescription>{decodeTxError(error)}</AlertDescription>
             </Alert>
           ) : null}
 
           {isMined ? (
             <Alert tone="success">
               <AlertTitle>Deposit confirmed</AlertTitle>
-              <AlertDescription>Your collateral is now backing your borrowing power.</AlertDescription>
+              <AlertDescription>
+                Your collateral is now backing your borrowing power.{" "}
+                <Link href="/borrow" className="inline-flex items-center gap-1 font-medium underline">
+                  Next: borrow USDC <ArrowRight aria-hidden className="size-3.5" />
+                </Link>
+              </AlertDescription>
             </Alert>
           ) : null}
 
@@ -217,9 +225,4 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
       <span className="font-medium tabular-nums">{children}</span>
     </div>
   );
-}
-
-function shortenError(err: { message?: string } | Error): string {
-  const msg = "message" in err && err.message ? err.message : "Unknown error";
-  return msg.length > 200 ? `${msg.slice(0, 200)}…` : msg;
 }

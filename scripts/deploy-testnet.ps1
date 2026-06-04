@@ -116,7 +116,9 @@ Log "4/5  initialize + listCollateral"
 # ---------------------------------------------------------------------------
 Log "5/5  Write vault address into testnet.json"
 $j.vault = $VAULT
-$j | ConvertTo-Json -Depth 8 | Set-Content $ADDRABS -Encoding utf8
+# WriteAllText emits UTF-8 without a BOM (PS 5.1 `-Encoding utf8` adds one, which
+# breaks Turbopack's JSON import of this file).
+[System.IO.File]::WriteAllText($ADDRABS, ($j | ConvertTo-Json -Depth 8))
 
 Log "DONE"
 Write-Host "VAULT  : $VAULT"

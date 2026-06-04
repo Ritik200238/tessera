@@ -32,9 +32,30 @@ import type { AgentConfig } from "./types.js";
 
 const ERRORS_24H_WINDOW_MS = 24 * 60 * 60 * 1000;
 
+const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+
 async function main(): Promise<void> {
   const cfg = loadConfig();
   const logger = getLogger();
+
+  // Fail fast on a misconfigured deployment rather than silently ticking against
+  // the zero address (which reverts every read and looks like a dead chain).
+  if (cfg.VAULT_ADDRESS.toLowerCase() === ZERO_ADDRESS) {
+    throw new Error(
+      "VAULT_ADDRESS is unset (zero address). Set it from shared/addresses/<env>.json in .env before starting the agent.",
+    );
+  }
+  if (cfg.USDC_ADDRESS.toLowerCase() === ZERO_ADDRESS) {
+    throw new Error(
+      "USDC_ADDRESS is unset (zero address). The liquidator and auto-repay need it — set it in .env.",
+    );
+  }
+  if (!cfg.NVIDIA_API_KEY && !cfg.ANTHROPIC_API_KEY) {
+    logger.warn(
+      "No LLM key set (NVIDIA_API_KEY / ANTHROPIC_API_KEY). Alerts will use the deterministic template fallback.",
+    );
+  }
+
   logger.info({ port: cfg.AGENT_HTTP_PORT }, "tessera-agent: starting");
 
   // 1. state

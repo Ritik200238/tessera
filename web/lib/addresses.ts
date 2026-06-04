@@ -16,6 +16,8 @@ export interface AddressBook {
   vault: `0x${string}` | null;
   usdc: `0x${string}` | null;
   oracle: `0x${string}` | null;
+  /** Testnet faucet (mints test USDC + stocks). Null on mainnet. */
+  faucet: `0x${string}` | null;
   collateralTokens: {
     symbol: string;
     address: `0x${string}`;
@@ -27,6 +29,7 @@ const empty: AddressBook = {
   vault: null,
   usdc: null,
   oracle: null,
+  faucet: null,
   collateralTokens: [],
 };
 
@@ -43,6 +46,7 @@ function tryLoad(envKey: string): AddressBook {
       vault: (data.vault ?? null) as AddressBook["vault"],
       usdc: (data.usdc ?? null) as AddressBook["usdc"],
       oracle: (data.oracle ?? null) as AddressBook["oracle"],
+      faucet: (data.faucet ?? null) as AddressBook["faucet"],
       collateralTokens: data.collateralTokens ?? [],
     };
   } catch {

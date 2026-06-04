@@ -12,6 +12,7 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { ValueCard } from "./value-card";
 import { ConnectButton } from "./connect-button";
 import { formatBps } from "@/lib/format";
+import { decodeTxError } from "@/lib/errors";
 
 type Mode = "deposit" | "withdraw";
 
@@ -31,6 +32,7 @@ export function LendForm() {
           { address: vaultAddr, abi: vault.abi, functionName: "supplyRateBps" },
           { address: vaultAddr, abi: vault.abi, functionName: "utilizationBps" },
           { address: vaultAddr, abi: vault.abi, functionName: "totalAssets" },
+          { address: vaultAddr, abi: vault.abi, functionName: "idleAssets" },
         ]
       : [],
     query: { enabled: vaultAddr !== undefined },
@@ -39,6 +41,7 @@ export function LendForm() {
   const supplyBps = (poolData?.[0]?.result as bigint | undefined) ?? 0n;
   const utilBps = (poolData?.[1]?.result as bigint | undefined) ?? 0n;
   const totalAssets = (poolData?.[2]?.result as bigint | undefined) ?? 0n;
+  const idleAssets = (poolData?.[3]?.result as bigint | undefined) ?? 0n;
   const utilPct = Math.min(100, Math.max(0, Number(utilBps) / 100));
 
   const { data: balance } = useReadContract({
@@ -102,7 +105,11 @@ export function LendForm() {
     }
   }
 
-  const canSubmit = isConnected && isVaultDeployed() && parsed > 0n && !isPending && !isMining;
+  // Withdrawals can only draw on idle (un-borrowed) USDC. Block before submit so
+  // the user gets a clear message instead of an on-chain InsufficientLiquidity revert.
+  const exceedsLiquidity = mode === "withdraw" && parsed > 0n && parsed > idleAssets;
+  const canSubmit =
+    isConnected && isVaultDeployed() && parsed > 0n && !exceedsLiquidity && !isPending && !isMining;
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1.2fr_1fr]">
@@ -155,6 +162,11 @@ export function LendForm() {
                 ? `${formatUnits(balance as bigint, USDC_DECIMALS)} USDC`
                 : "—"}
             </p>
+            {mode === "withdraw" ? (
+              <p className="text-xs text-[color:var(--color-muted-foreground)]">
+                Available in pool now: {formatUnits(idleAssets, USDC_DECIMALS)} USDC
+              </p>
+            ) : null}
           </div>
 
           {!isVaultDeployed() ? (
@@ -166,16 +178,29 @@ export function LendForm() {
             </Alert>
           ) : null}
 
+          {exceedsLiquidity ? (
+            <Alert tone="warning">
+              <AlertTitle>Exceeds available liquidity</AlertTitle>
+              <AlertDescription>
+                Only {formatUnits(idleAssets, USDC_DECIMALS)} USDC is idle in the pool right now
+                (the rest is lent out). Withdraw that much or less, or wait for borrowers to repay.
+              </AlertDescription>
+            </Alert>
+          ) : null}
           {error ? (
             <Alert tone="danger">
               <AlertTitle>Transaction failed</AlertTitle>
-              <AlertDescription>{(error as Error).message}</AlertDescription>
+              <AlertDescription>{decodeTxError(error)}</AlertDescription>
             </Alert>
           ) : null}
           {isMined ? (
             <Alert tone="success">
               <AlertTitle>{mode === "deposit" ? "Supplied" : "Withdrawn"}</AlertTitle>
-              <AlertDescription>The action confirmed on-chain.</AlertDescription>
+              <AlertDescription>
+                {mode === "deposit"
+                  ? "You're now earning the supply APY. Your USDC keeps earning until you withdraw."
+                  : "The withdrawal confirmed on-chain."}
+              </AlertDescription>
             </Alert>
           ) : null}
 

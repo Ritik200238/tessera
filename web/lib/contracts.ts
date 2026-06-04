@@ -233,3 +233,25 @@ export const oracle: { address: Address | null; abi: Abi } = {
   address: addresses.oracle,
   abi: oracleAbi,
 };
+
+/** Testnet Faucet — mints a fixed bundle of test USDC + stocks per address. */
+export const faucetAbi = [
+  { type: "function", name: "drip", stateMutability: "nonpayable", inputs: [], outputs: [] },
+  { type: "function", name: "cooldown", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] },
+  {
+    type: "function",
+    name: "nextDripAt",
+    stateMutability: "view",
+    inputs: [{ name: "user", type: "address" }],
+    outputs: [{ type: "uint256" }],
+  },
+] as const satisfies Abi;
+
+export const faucet: { address: Address | null; abi: Abi } = {
+  address: addresses.faucet,
+  abi: faucetAbi,
+};
+
+export function isFaucetAvailable(): boolean {
+  return addresses.faucet !== null;
+}

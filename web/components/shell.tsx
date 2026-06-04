@@ -72,7 +72,13 @@ export function Shell({ children }: { children: ReactNode }) {
               <Link
                 key={item.href}
                 href={item.href}
-                className="shrink-0 rounded-md px-3 py-1.5 text-[color:var(--color-muted-foreground)] hover:text-[color:var(--color-foreground)] hover:bg-[color:var(--color-muted)]"
+                aria-current={pathname === item.href ? "page" : undefined}
+                className={
+                  "shrink-0 rounded-md px-3 py-1.5 transition-colors " +
+                  (pathname === item.href
+                    ? "bg-[color:var(--color-muted)] text-[color:var(--color-foreground)] font-medium"
+                    : "text-[color:var(--color-muted-foreground)] hover:text-[color:var(--color-foreground)] hover:bg-[color:var(--color-muted)]")
+                }
               >
                 {item.label}
               </Link>
@@ -100,9 +106,14 @@ export function Shell({ children }: { children: ReactNode }) {
             <Link className="hover:text-[color:var(--color-foreground)]" href="/agent">
               Agent log
             </Link>
-            <Link className="hover:text-[color:var(--color-foreground)]" href="/admin">
-              Admin
+            <Link className="hover:text-[color:var(--color-foreground)]" href="/status">
+              Status
             </Link>
+            {isAdmin ? (
+              <Link className="hover:text-[color:var(--color-foreground)]" href="/admin">
+                Admin
+              </Link>
+            ) : null}
           </div>
         </div>
       </footer>

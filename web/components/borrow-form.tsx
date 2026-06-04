@@ -10,8 +10,11 @@ import { Button } from "@/components/ui/button";
 import { SafetyScore } from "./safety-score";
 import { HealthBadge } from "./health-badge";
 import { ConnectButton } from "./connect-button";
+import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 import { classify, projectHealthFactor } from "@/lib/health";
 import { formatBps, formatHealthFactor, formatUsd8 } from "@/lib/format";
+import { decodeTxError } from "@/lib/errors";
 
 /**
  * Borrow form.
@@ -108,6 +111,19 @@ export function BorrowForm() {
             <Stat label="Borrow APR" value={formatBps(borrowRateBps)} />
           </div>
 
+          {isConnected && collateralValue === 0n ? (
+            <Alert tone="warning">
+              <AlertTitle>No collateral yet</AlertTitle>
+              <AlertDescription>
+                Deposit tAAPL, tTSLA, or tSPY as collateral first — that unlocks your USDC
+                borrowing power. Each $100 of collateral lets you borrow roughly $40–60 depending
+                on the asset.{" "}
+                <Link href="/borrow" className="font-medium underline">Deposit collateral</Link>{" "}
+                in step 1 above.
+              </AlertDescription>
+            </Alert>
+          ) : null}
+
           <div className="space-y-2">
             <div className="flex items-baseline justify-between text-sm">
               <label htmlFor="ltv" className="font-medium">
@@ -166,13 +182,18 @@ export function BorrowForm() {
           {error ? (
             <Alert tone="danger">
               <AlertTitle>Transaction failed</AlertTitle>
-              <AlertDescription>{(error as Error).message}</AlertDescription>
+              <AlertDescription>{decodeTxError(error)}</AlertDescription>
             </Alert>
           ) : null}
           {isMined ? (
             <Alert tone="success">
               <AlertTitle>Borrow confirmed</AlertTitle>
-              <AlertDescription>USDC has been sent to your wallet.</AlertDescription>
+              <AlertDescription>
+                USDC has been sent to your wallet.{" "}
+                <Link href="/dashboard" className="inline-flex items-center gap-1 font-medium underline">
+                  View your position <ArrowRight aria-hidden className="size-3.5" />
+                </Link>
+              </AlertDescription>
             </Alert>
           ) : null}
 

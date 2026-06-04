@@ -5,6 +5,7 @@ import { useAccount, useReadContract, useReadContracts, useWatchBlockNumber } fr
 import { ArrowRight, Activity } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { vault, isVaultDeployed } from "@/lib/contracts";
+import { addresses } from "@/lib/addresses";
 import { activeChain } from "@/lib/chain";
 import { env } from "@/lib/env";
 import { formatBps, formatUsd8 } from "@/lib/format";
@@ -13,6 +14,9 @@ import { PositionTile } from "@/components/position-tile";
 import { Mark } from "@/components/mark";
 import { ValueCard } from "@/components/value-card";
 import { ConnectButton } from "@/components/connect-button";
+import { FaucetButton } from "@/components/faucet-button";
+import { RepayForm } from "@/components/repay-form";
+import { WithdrawCollateralForm } from "@/components/withdraw-collateral-form";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -74,58 +78,110 @@ export function DashboardClient({ agentStatus }: { agentStatus: AgentStatusSumma
   const debt = (aggregate?.[1]?.result as bigint | undefined) ?? 0n;
   const supplyBps = (aggregate?.[2]?.result as bigint | undefined) ?? 0n;
   const util = (aggregate?.[3]?.result as bigint | undefined) ?? 0n;
+  const hasPosition = collateralValue > 0n || debt > 0n;
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1fr_1fr]">
-      <div className="space-y-3">
-        <PositionTile
-          glyph={<Mark size={22} color="#fff" />}
-          title="Your borrow position"
-          subtitle={activeChain.name}
-          collateral={formatUsd8(collateralValue)}
-          debt={formatUsdcUsd(debt)}
-          hf={hf}
-        />
-        <div className="grid grid-cols-2 gap-3">
-          <ValueCard label="Lending APY" value={formatBps(supplyBps)} tone="muted" />
-          <ValueCard label="Utilization" value={formatBps(util)} tone="muted" />
+    <div className="space-y-6">
+      <div className="grid gap-6 lg:grid-cols-[1fr_1fr]">
+        <div className="space-y-3">
+          {hasPosition ? (
+            <>
+              <PositionTile
+                glyph={<Mark size={22} color="#fff" />}
+                title="Your borrow position"
+                subtitle={activeChain.name}
+                collateral={formatUsd8(collateralValue)}
+                debt={formatUsdcUsd(debt)}
+                hf={hf}
+              />
+              <div className="grid grid-cols-2 gap-3">
+                <ValueCard label="Lending APY" value={formatBps(supplyBps)} tone="muted" />
+                <ValueCard label="Utilization" value={formatBps(util)} tone="muted" />
+              </div>
+            </>
+          ) : (
+            <GetStarted />
+          )}
         </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Activity aria-hidden className="size-5" />
+              Agent status
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm">
+            <AgentStatusRow status={agentStatus} />
+            <div className="text-[color:var(--color-muted-foreground)]">Network · {activeChain.name}</div>
+            <div className="flex flex-wrap gap-2 pt-2">
+              <Link
+                href="/borrow"
+                className="inline-flex h-10 items-center gap-2 rounded-md bg-[color:var(--color-primary)] px-4 text-sm font-medium text-[color:var(--color-primary-foreground)] hover:opacity-90"
+              >
+                Borrow
+                <ArrowRight aria-hidden className="size-4" />
+              </Link>
+              <Link
+                href="/lend"
+                className="inline-flex h-10 items-center rounded-md border border-[color:var(--color-border)] px-4 text-sm font-medium hover:bg-[color:var(--color-muted)]"
+              >
+                Lend
+              </Link>
+              <Link
+                href="/agent"
+                className="inline-flex h-10 items-center rounded-md border border-[color:var(--color-border)] px-4 text-sm font-medium hover:bg-[color:var(--color-muted)]"
+              >
+                Activity
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Activity aria-hidden className="size-5" />
-            Agent status
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3 text-sm">
-          <AgentStatusRow status={agentStatus} />
-          <div className="text-[color:var(--color-muted-foreground)]">Network · {activeChain.name}</div>
-          <div className="flex flex-wrap gap-2 pt-2">
-            <Link
-              href="/borrow"
-              className="inline-flex h-10 items-center gap-2 rounded-md bg-[color:var(--color-primary)] px-4 text-sm font-medium text-[color:var(--color-primary-foreground)] hover:opacity-90"
-            >
-              Borrow
-              <ArrowRight aria-hidden className="size-4" />
-            </Link>
-            <Link
-              href="/lend"
-              className="inline-flex h-10 items-center rounded-md border border-[color:var(--color-border)] px-4 text-sm font-medium hover:bg-[color:var(--color-muted)]"
-            >
-              Lend
-            </Link>
-            <Link
-              href="/agent"
-              className="inline-flex h-10 items-center rounded-md border border-[color:var(--color-border)] px-4 text-sm font-medium hover:bg-[color:var(--color-muted)]"
-            >
-              Activity
-            </Link>
+      {hasPosition ? (
+        <section className="space-y-3">
+          <h2 className="text-lg font-semibold tracking-tight">Manage your position</h2>
+          <div className="grid gap-6 md:grid-cols-2">
+            <RepayForm />
+            <WithdrawCollateralForm tokens={addresses.collateralTokens} />
           </div>
-        </CardContent>
-      </Card>
+        </section>
+      ) : null}
     </div>
+  );
+}
+
+/** Shown when a connected wallet has no collateral and no debt yet. */
+function GetStarted() {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>No position yet</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4 text-sm">
+        <p className="text-[color:var(--color-muted-foreground)]">
+          Grab test funds, deposit a tokenized stock as collateral, and borrow USDC — the AI agent
+          starts watching the moment you have a position.
+        </p>
+        <FaucetButton />
+        <div className="flex flex-wrap gap-2 pt-1">
+          <Link
+            href="/borrow"
+            className="inline-flex h-10 items-center gap-2 rounded-md bg-[color:var(--color-primary)] px-4 text-sm font-medium text-[color:var(--color-primary-foreground)] hover:opacity-90"
+          >
+            Deposit &amp; borrow
+            <ArrowRight aria-hidden className="size-4" />
+          </Link>
+          <Link
+            href="/lend"
+            className="inline-flex h-10 items-center rounded-md border border-[color:var(--color-border)] px-4 text-sm font-medium hover:bg-[color:var(--color-muted)]"
+          >
+            Supply USDC instead
+          </Link>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -194,10 +250,10 @@ function Landing() {
           <div className="flex flex-wrap gap-3 pt-2">
             <ConnectButton />
             <Link
-              href="/deposit"
+              href="/borrow"
               className="inline-flex h-10 items-center rounded-md border border-[color:var(--color-border)] px-4 text-sm font-medium hover:bg-[color:var(--color-muted)]"
             >
-              Explore depositing
+              Explore borrowing
             </Link>
           </div>
         </CardContent>
