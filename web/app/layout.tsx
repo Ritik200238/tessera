@@ -20,13 +20,30 @@ const mono = IBM_Plex_Mono({
   display: "swap",
 });
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+const DESCRIPTION =
+  "The safest venue to lend USDC or borrow against tokenized equities. An AI agent watches every position 24/7 and acts before a liquidation, not after. No token, ever.";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: {
     default: "Tessera — Borrow against tokenized stocks, safely",
     template: "%s · Tessera",
   },
-  description:
-    "The safest venue to lend USDC or borrow against tokenized equities. An AI agent watches every position 24/7 and acts before a liquidation, not after. No token, ever.",
+  description: DESCRIPTION,
+  applicationName: "Tessera",
+  openGraph: {
+    type: "website",
+    siteName: "Tessera",
+    title: "Tessera — Borrow against tokenized stocks, safely",
+    description: DESCRIPTION,
+    url: SITE_URL,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Tessera — Borrow against tokenized stocks, safely",
+    description: DESCRIPTION,
+  },
 };
 
 export const viewport: Viewport = {

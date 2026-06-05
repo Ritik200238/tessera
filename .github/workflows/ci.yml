@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Cancel superseded runs on the same ref.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  agent:
+    name: Agent (typecheck + tests)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --no-frozen-lockfile
+      - run: pnpm --filter @tessera/agent run typecheck
+      - run: pnpm --filter @tessera/agent run test
+      - run: pnpm --filter @tessera/agent run lint
+
+  web:
+    name: Web (typecheck + tests + build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --no-frozen-lockfile
+      - run: pnpm --filter @tessera/web run typecheck
+      - run: pnpm --filter @tessera/web run test
+      - run: pnpm --filter @tessera/web run build
+
+  contracts-rust:
+    name: Contracts — Rust (vault + interest-model)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      # Host tests (TestVM) run natively on Linux — these are the suites that
+      # cannot run on the Windows dev box (no MSVC C++ build tools there).
+      - run: cargo test --workspace
+
+  contracts-solidity:
+    name: Contracts — Solidity (forge)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: foundry-rs/foundry-toolchain@v1
+      # Dependencies are not vendored into the repo; fetch them for the test run.
+      - name: Install forge libraries
+        working-directory: contracts/solidity
+        run: |
+          forge install foundry-rs/forge-std OpenZeppelin/openzeppelin-contracts
+      - name: forge test
+        working-directory: contracts/solidity
+        run: forge test -vvv
