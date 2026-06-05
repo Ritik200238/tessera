@@ -234,8 +234,29 @@ cargo stylus check --wasm-file vault.wasm --endpoint <rpc>
 ```powershell
 # fund the deployer, then:
 pwsh scripts/deploy-testnet.ps1   # deploy mocks + vault, init, list collateral → testnet.json
+pwsh scripts/deploy-faucet.ps1    # deploy the public test-funds faucet
 pwsh scripts/e2e-loop.ps1         # lend → borrow → price drop → agent liquidates, on-chain
 ```
+
+> The `.ps1` deploy scripts are Windows-oriented (they drive the no-admin Stylus
+> wasm toolchain). On macOS/Linux the **web, agent, and test suites are fully
+> cross-platform** (see [CONTRIBUTING.md](./CONTRIBUTING.md)); the contract deploy
+> can be run with the equivalent `cast`/`forge`/`cargo stylus` commands.
+
+### Operating the testnet
+
+```bash
+# Oracle keeper (Chainlink stand-in) — keeps mock prices fresh so reads don't go
+# stale. Cross-platform and hostable (Railway/Render/cron):
+KEEPER_PRIVATE_KEY=0x... node scripts/keeper.mjs           # loop every 30 min
+KEEPER_PRIVATE_KEY=0x... node scripts/keeper.mjs --once    # single refresh
+```
+
+- **Faucet** — visitors click **Get test funds** in the app to mint test USDC +
+  tokenized stocks (no manual minting required).
+- **Agent hosting** — for the live "Agent / Activity" surfaces, run the agent on
+  any always-on host and point `NEXT_PUBLIC_AGENT_URL` at it. Until then the app
+  degrades gracefully and shows the agent as "Offline".
 
 ---
 

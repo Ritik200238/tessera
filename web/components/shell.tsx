@@ -17,6 +17,7 @@ const BASE_NAV: { href: string; label: string }[] = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/lend", label: "Lend" },
   { href: "/borrow", label: "Borrow" },
+  { href: "/risk", label: "Risk" },
   { href: "/agent", label: "Activity" },
 ];
 
