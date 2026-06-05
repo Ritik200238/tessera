@@ -58,3 +58,6 @@ docs/
 
 # Foundry installed dependencies (restore with `forge install`)
 contracts/solidity/lib/
+
+# Vercel CLI link
+.vercel

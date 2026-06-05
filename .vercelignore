@@ -1,0 +1,29 @@
+# Vercel only needs the web app + shared/ (addresses, ABI) + workspace config.
+# Exclude everything sensitive or heavy from the upload.
+
+# Secrets — NEVER upload local env files (these hold private keys).
+**/.env
+**/.env.*
+!**/.env*.example
+
+# Heavy / irrelevant to the web build
+.git
+**/node_modules
+docs
+target
+**/target
+.next
+**/.next
+**/coverage
+agent/.data
+agent/logs
+*.log
+
+# Local scratch / non-app dirs
+PRD
+TDD
+buildathon
+arb_dex.json
+arb_fees.json
+arb_tvl.json
+research.md
