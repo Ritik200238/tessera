@@ -98,6 +98,35 @@ export class AgentDB {
     return row !== undefined;
   }
 
+  /** Record a discovered borrower (active by default). Re-activates if seen again. */
+  upsertBorrower(user: string, block: number): void {
+    this.db
+      .prepare(
+        "INSERT INTO borrowers (user, first_seen_block, active) VALUES (?, ?, 1) " +
+          "ON CONFLICT(user) DO UPDATE SET active = 1, updated_at = datetime('now')",
+      )
+      .run(user.toLowerCase(), block);
+  }
+
+  /** Flip a borrower active/inactive (a tick sets inactive once debt hits zero). */
+  setBorrowerActive(user: string, active: boolean): void {
+    this.db
+      .prepare("UPDATE borrowers SET active = ?, updated_at = datetime('now') WHERE user = ?")
+      .run(active ? 1 : 0, user.toLowerCase());
+  }
+
+  /** All borrowers currently believed to carry debt. */
+  getActiveBorrowers(): string[] {
+    return (this.db.prepare("SELECT user FROM borrowers WHERE active = 1").all() as { user: string }[]).map(
+      (r) => r.user,
+    );
+  }
+
+  /** True once at least one borrower has ever been recorded (for cold-start backfill). */
+  hasAnyBorrower(): boolean {
+    return this.db.prepare("SELECT 1 FROM borrowers LIMIT 1").get() !== undefined;
+  }
+
   /** Loads persisted AgentConfig or returns defaults. */
   getAgentConfig(): AgentConfig {
     const row = this.db

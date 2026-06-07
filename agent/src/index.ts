@@ -189,11 +189,11 @@ async function main(): Promise<void> {
   // (or AGENT_START_BLOCK) and persist the checkpoint after every chunk. Known
   // borrowers can be pinned via AGENT_TRACKED_USERS and are watched immediately.
   const ADDR_RE = /^0x[a-fA-F0-9]{40}$/;
-  const trackedUsers = new Set<Address>();
+  const pinned = new Set<Address>();
   for (const raw of cfg.AGENT_TRACKED_USERS.split(",").map((s) => s.trim())) {
-    if (ADDR_RE.test(raw)) trackedUsers.add(raw.toLowerCase() as Address);
+    if (ADDR_RE.test(raw)) pinned.add(raw.toLowerCase() as Address);
   }
-  if (trackedUsers.size > 0) logger.info({ pinned: [...trackedUsers] }, "pinned tracked users");
+  if (pinned.size > 0) logger.info({ pinned: [...pinned] }, "pinned tracked users");
 
   const START_BLOCK = BigInt(cfg.AGENT_START_BLOCK);
   const LOOKBACK = BigInt(cfg.AGENT_LOG_LOOKBACK);
@@ -228,7 +228,7 @@ async function main(): Promise<void> {
           const t1 = ev.topics[1];
           if (t1 && t1.length === 66) {
             const user = `0x${t1.slice(26)}`.toLowerCase() as Address;
-            if (user !== ZERO_ADDR) trackedUsers.add(user);
+            if (user !== ZERO_ADDR) db.upsertBorrower(user, Number(to));
           }
         }
         db.setCheckpoint(Number(to));
@@ -237,7 +237,10 @@ async function main(): Promise<void> {
     } catch (e) {
       trackError("indexUsers", (e as Error).message);
     }
-    return [...trackedUsers];
+    // Durable active borrower set (persisted, survives restart) ∪ pinned (always
+    // watched). A repaid borrower is evicted by the tick but the row remains, so
+    // a re-borrow re-activates them instantly.
+    return [...new Set<Address>([...(db.getActiveBorrowers() as Address[]), ...pinned])];
   };
 
   // 10. tick loop with exponential backoff
@@ -255,6 +258,7 @@ async function main(): Promise<void> {
           alerter,
           liquidator,
           autoRepay,
+          markInactive: (u) => db.setBorrowerActive(u, false),
           log,
           config: currentConfig,
         });

@@ -36,4 +36,16 @@ export const MIGRATIONS: readonly string[] = Object.freeze([
     applied_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
   `,
+  // 002 — durable borrower set. Survives restart so a borrower who went quiet is
+  // never dropped from monitoring; `active` is flipped off once a tick observes
+  // zero debt, keeping the per-tick scan O(active borrowers).
+  `
+  CREATE TABLE IF NOT EXISTS borrowers (
+    user TEXT PRIMARY KEY,
+    first_seen_block INTEGER NOT NULL DEFAULT 0,
+    active INTEGER NOT NULL DEFAULT 1,
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_borrowers_active ON borrowers (active);
+  `,
 ]);

@@ -72,7 +72,8 @@ describe("runTick", () => {
   });
 
   it("alerts user with HF below alertThreshold", async () => {
-    const pub = makeMockClient(new Map([[USER, 1_050_000_000_000_000_000n]]));
+    // HF below 1.0 implies non-zero debt; zero-debt users are evicted, not alerted.
+    const pub = makeMockClient(new Map([[USER, 1_050_000_000_000_000_000n]]), new Map([[USER, 5_000n]]));
     const result = await runTick({
       publicClient: pub as never,
       vaultAddress: VAULT,

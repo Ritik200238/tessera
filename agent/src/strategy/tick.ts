@@ -2,10 +2,11 @@
  * Single tick of the agent run-loop (TDD §4.2).
  *
  * Responsibilities:
- *   1. Get current block
- *   2. Resolve the set of tracked users (those with non-zero debt)
- *   3. For each: read HF -> classify -> alert and/or liquidate
- *   4. Persist checkpoint
+ *   1. Get current block (pinned for the whole tick — one coherent snapshot)
+ *   2. Resolve the set of tracked borrowers
+ *   3. Batch-read HF + debt for all of them (multicall), then act only on the
+ *      at-risk subset, most-endangered first
+ *   4. Evict zero-debt borrowers from the active set
  *
  * All decisions deterministic. LLM is only invoked on the alert-copy path.
  */
@@ -22,9 +23,8 @@ import type { AgentConfig } from "../types.js";
 
 /**
  * Health-factor the protective auto-repay aims to restore a position to. Repay
- * size is derived deterministically: repay = debt * (TARGET - hf) / TARGET,
- * which brings (collateral·threshold)/debt back up to TARGET. 1.4e18 leaves a
- * comfortable buffer above the default 1.1e18 alert band.
+ * size is derived deterministically: repay = debt * (TARGET - hf) / TARGET.
+ * 1.4e18 leaves a comfortable buffer above the default 1.1e18 alert band.
  */
 const PROTECT_TARGET_HF = 1_400_000_000_000_000_000n;
 
@@ -39,6 +39,9 @@ export interface TickDeps {
   /** Optional protective layer. When present, at-risk users who opted in
    *  (pre-approved USDC) get an auto-repay attempt before being alerted. */
   autoRepay?: AutoRepayDeps;
+  /** Optional eviction hook — called when a tracked user is observed with zero
+   *  debt, so the indexer can drop them from the active scan. */
+  markInactive?: (user: Address) => void;
   log: JsonlLog;
   config: AgentConfig;
 }
@@ -52,59 +55,90 @@ export interface TickResult {
   durationMs: number;
 }
 
-/** Read HF for one user via the public client; tolerates errors. */
-async function readHealth(
+interface UserSnap {
+  hf: bigint | null;
+  debt: bigint;
+}
+
+/** Read one view at a pinned block; returns null on failure. */
+async function readOne(
   publicClient: PublicClient,
   vaultAddress: Address,
+  functionName: "getHealthFactor" | "debtOf",
   user: Address,
+  blockNumber: bigint,
 ): Promise<bigint | null> {
   try {
-    const hf = await publicClient.readContract({
+    const v = await publicClient.readContract({
       address: vaultAddress,
       abi: vaultAbi,
-      functionName: "getHealthFactor",
+      functionName,
       args: [user],
+      blockNumber,
     });
-    return hf as bigint;
+    return v as bigint;
   } catch {
     return null;
   }
 }
 
-async function readDebt(
+/**
+ * Batch-read HF + debt for every tracked user at a single pinned block. Uses
+ * multicall so RPC cost is O(1) calls instead of O(2N); falls back to per-user
+ * reads if multicall3 is unavailable (keeps determinism and the tests honest).
+ */
+async function readSnapshot(
   publicClient: PublicClient,
   vaultAddress: Address,
-  user: Address,
-): Promise<bigint> {
+  users: Address[],
+  blockNumber: bigint,
+): Promise<Map<Address, UserSnap>> {
+  const out = new Map<Address, UserSnap>();
+  if (users.length === 0) return out;
+
+  const contracts = users.flatMap((u) => [
+    { address: vaultAddress, abi: vaultAbi, functionName: "getHealthFactor", args: [u] } as const,
+    { address: vaultAddress, abi: vaultAbi, functionName: "debtOf", args: [u] } as const,
+  ]);
+
   try {
-    const d = await publicClient.readContract({
-      address: vaultAddress,
-      abi: vaultAbi,
-      functionName: "debtOf",
-      args: [user],
+    const results = await publicClient.multicall({ contracts, allowFailure: true, blockNumber });
+    users.forEach((u, i) => {
+      const hfR = results[i * 2];
+      const debtR = results[i * 2 + 1];
+      out.set(u, {
+        hf: hfR && hfR.status === "success" ? (hfR.result as bigint) : null,
+        debt: debtR && debtR.status === "success" ? (debtR.result as bigint) : 0n,
+      });
     });
-    return d as bigint;
+    return out;
   } catch {
-    return 0n;
+    // Fallback: per-user reads at the same pinned block.
+    for (const u of users) {
+      const hf = await readOne(publicClient, vaultAddress, "getHealthFactor", u, blockNumber);
+      const debt = (await readOne(publicClient, vaultAddress, "debtOf", u, blockNumber)) ?? 0n;
+      out.set(u, { hf, debt });
+    }
+    return out;
   }
 }
 
 /**
- * Find a collateral token the borrower actually holds a balance in.
- * Enumerates the vault's listed assets and returns the first with non-zero
- * collateral. Returns null when there is nothing to seize. This replaces the
- * old zero-address sentinel, which the vault rejects (`AssetNotEnabled`).
+ * Find a collateral token the borrower actually holds a balance in. Enumerates
+ * the vault's listed assets and returns the first with non-zero collateral.
  */
 async function findCollateralToken(
   publicClient: PublicClient,
   vaultAddress: Address,
   user: Address,
+  blockNumber: bigint,
 ): Promise<Address | null> {
   try {
     const count = (await publicClient.readContract({
       address: vaultAddress,
       abi: vaultAbi,
       functionName: "listedAssetCount",
+      blockNumber,
     })) as bigint;
     for (let i = 0n; i < count; i += 1n) {
       const token = (await publicClient.readContract({
@@ -112,12 +146,14 @@ async function findCollateralToken(
         abi: vaultAbi,
         functionName: "listedAssetAt",
         args: [i],
+        blockNumber,
       })) as Address;
       const bal = (await publicClient.readContract({
         address: vaultAddress,
         abi: vaultAbi,
         functionName: "collateralOf",
         args: [user, token],
+        blockNumber,
       })) as bigint;
       if (bal > 0n) return token;
     }
@@ -130,19 +166,29 @@ async function findCollateralToken(
 /** Execute a single tick. Never throws — errors are logged as Actions. */
 export async function runTick(deps: TickDeps): Promise<TickResult> {
   const start = Date.now();
+  const empty = (block: number): TickResult => ({
+    block,
+    usersChecked: 0,
+    alerted: 0,
+    liquidated: 0,
+    autoRepaid: 0,
+    durationMs: Date.now() - start,
+  });
+
   if (deps.config.paused) {
     deps.log.append(action.tick(0, Date.now() - start));
-    return { block: 0, usersChecked: 0, alerted: 0, liquidated: 0, autoRepaid: 0, durationMs: Date.now() - start };
+    return empty(0);
   }
 
-  let blockNumber = 0;
+  let blockNumber = 0n;
   try {
-    blockNumber = Number(await deps.publicClient.getBlockNumber());
+    blockNumber = await deps.publicClient.getBlockNumber();
   } catch (e) {
     deps.log.append(action.error("tick.getBlockNumber", (e as Error).message));
     deps.log.append(action.tick(0, Date.now() - start));
-    return { block: 0, usersChecked: 0, alerted: 0, liquidated: 0, autoRepaid: 0, durationMs: Date.now() - start };
+    return empty(0);
   }
+  const blockNum = Number(blockNumber);
 
   let users: Address[] = [];
   try {
@@ -151,46 +197,50 @@ export async function runTick(deps: TickDeps): Promise<TickResult> {
     deps.log.append(action.error("tick.getTrackedUsers", (e as Error).message));
   }
 
+  // One coherent, pinned-block snapshot of every tracked user.
+  const snap = await readSnapshot(deps.publicClient, deps.vaultAddress, users, blockNumber);
+
   let alerted = 0;
   let liquidated = 0;
   let autoRepaid = 0;
 
+  // Triage: evict zero-debt, clear recovered, collect the at-risk subset.
+  const atRisk: { user: Address; hf: bigint; debt: bigint }[] = [];
   for (const user of users) {
-    const hf = await readHealth(deps.publicClient, deps.vaultAddress, user);
-    if (hf === null) {
+    const s = snap.get(user);
+    if (!s || s.hf === null) {
       deps.log.append(action.error("tick.readHealth", `failed for ${user}`));
       continue;
     }
+    if (s.debt === 0n) {
+      // Repaid / closed — drop from the active set so the scan stays O(active).
+      deps.alerter.alerts.clear(user);
+      deps.markInactive?.(user);
+      continue;
+    }
+    if (s.hf < deps.config.alertThreshold) {
+      atRisk.push({ user, hf: s.hf, debt: s.debt });
+    } else {
+      deps.alerter.alerts.clear(user); // healthy
+    }
+  }
+
+  // Act on the most-endangered first.
+  atRisk.sort((a, b) => (a.hf < b.hf ? -1 : a.hf > b.hf ? 1 : 0));
+
+  for (const { user, hf, debt } of atRisk) {
     const c = classify(hf);
 
-    // Liquidation path
+    // Liquidation path.
     if (hf < deps.config.liquidationThreshold) {
-      const debt = await readDebt(deps.publicClient, deps.vaultAddress, user);
-      if (debt === 0n) {
-        deps.alerter.alerts.clear(user);
-        continue;
-      }
-      // 50% close factor per TDD §3.4.4
-      const repay = debt / 2n;
-      // Discover the borrower's actual collateral token (the vault rejects the
-      // zero address). For MVP this seizes the first asset the borrower holds.
-      const collateralToken = await findCollateralToken(
-        deps.publicClient,
-        deps.vaultAddress,
-        user,
-      );
+      const repay = debt / 2n; // 50% close factor (TDD §3.4.4)
+      const collateralToken = await findCollateralToken(deps.publicClient, deps.vaultAddress, user, blockNumber);
       if (!collateralToken) {
-        deps.log.append(
-          action.error("tick.liquidate", `no collateral token found for ${user}`),
-        );
+        deps.log.append(action.error("tick.liquidate", `no collateral token found for ${user}`));
         continue;
       }
       try {
-        const outcome = await tryLiquidate(
-          deps.liquidator,
-          { borrower: user, repayAmount: repay, collateralToken },
-          blockNumber,
-        );
+        const outcome = await tryLiquidate(deps.liquidator, { borrower: user, repayAmount: repay, collateralToken }, blockNum);
         if (outcome.kind === "submitted") liquidated++;
       } catch (e) {
         deps.log.append(action.error("tick.liquidate", (e as Error).message));
@@ -198,42 +248,27 @@ export async function runTick(deps: TickDeps): Promise<TickResult> {
       continue;
     }
 
-    // At-risk band (above liquidation, below alert threshold): protect, then alert.
-    if (hf < deps.config.alertThreshold) {
-      // Protective auto-repay — only fires if the user opted in (has a USDC
-      // allowance to the vault). Size is deterministic: bring HF up to TARGET,
-      // capped by the user's own allowance + balance inside tryAutoRepay.
-      if (deps.autoRepay && hf < PROTECT_TARGET_HF) {
-        const debt = await readDebt(deps.publicClient, deps.vaultAddress, user);
-        const repayAmount = debt > 0n ? (debt * (PROTECT_TARGET_HF - hf)) / PROTECT_TARGET_HF : 0n;
-        if (repayAmount > 0n) {
-          try {
-            const outcome = await tryAutoRepay(
-              deps.autoRepay,
-              { user, repayAmount, hfBefore: hf },
-              blockNumber,
-            );
-            if (outcome.kind === "submitted") autoRepaid++;
-          } catch (e) {
-            deps.log.append(action.error("tick.autoRepay", (e as Error).message));
-          }
+    // At-risk band: protect (if opted in), then alert.
+    if (deps.autoRepay && hf < PROTECT_TARGET_HF) {
+      const repayAmount = (debt * (PROTECT_TARGET_HF - hf)) / PROTECT_TARGET_HF;
+      if (repayAmount > 0n) {
+        try {
+          const outcome = await tryAutoRepay(deps.autoRepay, { user, repayAmount, hfBefore: hf }, blockNum);
+          if (outcome.kind === "submitted") autoRepaid++;
+        } catch (e) {
+          deps.log.append(action.error("tick.autoRepay", (e as Error).message));
         }
       }
-      // Always alert so the user is notified — the activity feed shows the
-      // alert and (when it fired) the auto-repay action side by side.
-      try {
-        await emitAlert(deps.alerter, user, c);
-        alerted++;
-      } catch (e) {
-        deps.log.append(action.error("tick.alert", (e as Error).message));
-      }
-    } else {
-      // user recovered — drop any stale alert
-      deps.alerter.alerts.clear(user);
+    }
+    try {
+      await emitAlert(deps.alerter, user, c);
+      alerted++;
+    } catch (e) {
+      deps.log.append(action.error("tick.alert", (e as Error).message));
     }
   }
 
   const durationMs = Date.now() - start;
   deps.log.append(action.tick(users.length, durationMs));
-  return { block: blockNumber, usersChecked: users.length, alerted, liquidated, autoRepaid, durationMs };
+  return { block: blockNum, usersChecked: users.length, alerted, liquidated, autoRepaid, durationMs };
 }
