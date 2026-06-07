@@ -12,6 +12,7 @@ import { ArrowRight } from "lucide-react";
 import { vault, isVaultDeployed } from "@/lib/contracts";
 import { formatBps, formatToken } from "@/lib/format";
 import { decodeTxError } from "@/lib/errors";
+import { track } from "@/lib/analytics";
 import { ConnectButton } from "./connect-button";
 
 interface CollateralToken {
@@ -97,6 +98,7 @@ export function DepositForm({ tokens }: { tokens: CollateralToken[] }) {
   function deposit() {
     if (!vault.address) return;
     reset();
+    track("first_action", { kind: "deposit" });
     writeContract({
       address: vault.address,
       abi: vault.abi,

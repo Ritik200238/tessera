@@ -1,14 +1,20 @@
 # Tessera — Product Requirements Document
 
-**Version:** 1.0  
-**Date:** 2026-05-22  
-**Status:** Draft — Arbitrum Open House London submission
+**Version:** 1.1  
+**Date:** 2026-06-07  
+**Status:** Living document. The strategic blueprint is the current source of truth for persona, risk parameters, and scope; read the corrections below first.
+
+> **Corrections (v1.1) — read first.** Some v1.0 framing was superseded by the locked strategic blueprint and the shipped product:
+> - **Primary user is the DeFi-native USDC yield seeker (the "Aave migrator")**, not Robinhood retail. Tokenized-equity holders are a *secondary* persona.
+> - **Risk parameters are conservative and per-asset:** max LTV **40–60%** and liquidation threshold **55–70%** (not the 70%/85% in some legacy tables below), reflecting overnight/weekend equity gap risk.
+> - **The agent does not "rebalance yield" or run a strategy optimizer.** Its real actions are: monitor health, send plain-English alerts, **auto-repay** from a user's pre-approved USDC, and **partial liquidation** as a last resort. Any "yield rebalancing / strategy optimizer" language below is V2 aspiration, not shipped.
+> - **No token, ever** — Tessera is a pure protocol-revenue business (15% reserve factor).
 
 ---
 
 ## 1. Executive Summary
 
-Tessera is the first yield and lending protocol purpose-built for tokenized stocks on Robinhood Chain. Users deposit tokenized equities (AAPL, TSLA, SPY, etc.) into a Stylus-powered vault and earn passive yield through peer-to-peer securities lending — the same mechanism that generates billions annually for prime brokers in traditional finance. An AI agent built on Arbitrum Vibekit monitors positions 24/7, rebalances collateral ratios autonomously, and reacts to market-moving events during weekends and off-hours when traditional finance is closed.
+Tessera is the first yield and lending protocol purpose-built for tokenized stocks on Robinhood Chain. Users deposit tokenized equities (AAPL, TSLA, SPY, etc.) into a Stylus-powered vault and earn passive yield through peer-to-peer securities lending — the same mechanism that generates billions annually for prime brokers in traditional finance. An AI agent built on Arbitrum Vibekit monitors positions 24/7, auto-repays from a user's pre-approved USDC and liquidates only as a last resort, reacting to market-moving events during weekends and off-hours when traditional finance is closed.
 
 **The macro thesis:** DTCC — which processes $114 trillion in annual securities transactions — is launching tokenized asset settlement in July 2026, with Robinhood as its retail gateway. Tessera is the DeFi yield infrastructure those assets need when they arrive.
 
@@ -47,14 +53,17 @@ A Vibekit-based autonomous AI agent that monitors vault health around the clock.
 
 ## 4. Target Users
 
-### Primary: European Retail Stock Holder
-- Holds tokenized US stocks via Robinhood Chain
-- Wants passive yield without selling their position
-- Analogy: The Robinhood user who already uses the Cash Sweep feature — they want their assets to "work"
-- Acquisition channel: Robinhood Chain ecosystem, Open House London community
+### Primary: DeFi-native USDC yield seeker (the "Aave migrator")
+- Already supplies USDC on Aave / Spark / Morpho; comfortable with HF, LTV, oracle, and liquidation
+- Wants higher USDC yield against tokenized-equity borrow demand — at acceptable risk, with an AI safety net
+- Decision lever: Tessera's USDC supply APY beats incumbents with a comparable, AI-backed safety story
+- Acquisition channel: build-in-public on X, engineering content, Arbitrum / Stylus ecosystem
 
-### Secondary: DeFi Yield Seeker
-- Already uses Aave, Compound, Kamino on other chains
+### Secondary: Tokenized-equity holder ("leveraged long")
+- Holds tokenized US stocks via Robinhood Chain; wants to borrow USDC against them without selling
+- Wants overnight/weekend gap protection on a leveraged equity position
+- Acquisition channel: Robinhood Chain ecosystem, Open House London community
+- Also relevant: DeFi users of Aave, Compound, Kamino on other chains
 - Wants exposure to tokenized equity yield as a new asset class
 - Understands collateral and liquidation mechanics
 - Acquisition channel: Arbitrum DeFi communities, Vibekit ecosystem
@@ -194,8 +203,8 @@ This is the same model Aave uses — Stylus makes it 10–100x cheaper to comput
 
 | Parameter | Value | Rationale |
 |-----------|-------|-----------|
-| Max LTV | 70% | Conservative for volatile equities |
-| Liquidation threshold | 85% | Standard Aave-style buffer |
+| Max LTV | 40–60% (per asset) | Conservative for volatile equities; accounts for overnight/weekend gap risk |
+| Liquidation threshold | 55–70% (per asset) | Buffer above max LTV so a fresh loan has room before liquidation |
 | Liquidation bonus | 5% | Incentivizes liquidators (agent) |
 | Base borrow rate | 2% APY | Competitive with TradFi margin |
 | Optimal utilization | 80% | Balances yield and liquidity |

@@ -2,6 +2,8 @@ import type { ReactNode } from "react";
 import { DepositForm } from "@/components/deposit-form";
 import { BorrowForm } from "@/components/borrow-form";
 import { AgentControls } from "@/components/agent-controls";
+import { FaucetButton } from "@/components/faucet-button";
+import { ManagePosition } from "@/components/manage-position";
 import { addresses } from "@/lib/addresses";
 
 export const metadata = { title: "Borrow" };
@@ -24,7 +26,10 @@ export default function BorrowPage() {
         title="Deposit collateral"
         desc="Pledge tokenized stocks as collateral. This unlocks your USDC borrowing power — you keep the upside."
       >
-        <DepositForm tokens={addresses.collateralTokens} />
+        <div className="space-y-4">
+          <FaucetButton variant="outline" />
+          <DepositForm tokens={addresses.collateralTokens} />
+        </div>
       </Step>
 
       <Step
@@ -42,6 +47,8 @@ export default function BorrowPage() {
       >
         <AgentControls />
       </Step>
+
+      <ManagePosition />
     </div>
   );
 }

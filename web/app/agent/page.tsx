@@ -1,6 +1,7 @@
 import { ActionLog } from "@/components/action-log";
 import { AgentControls } from "@/components/agent-controls";
 import { AgentConfigPanel } from "@/components/agent-config-panel";
+import { AdminOnly } from "@/components/admin-only";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { getAgentActions, getAgentHealth } from "@/lib/agent";
@@ -26,11 +27,12 @@ export default async function AgentPage() {
       </header>
 
       {!env.agentUrl ? (
-        <Alert tone="warning">
-          <AlertTitle>Agent URL not configured</AlertTitle>
+        <Alert tone="info">
+          <AlertTitle>Live activity feed isn&apos;t connected to this view</AlertTitle>
           <AlertDescription>
-            Set <code className="font-mono">NEXT_PUBLIC_AGENT_URL</code> in this app&apos;s env to
-            connect to the agent&apos;s HTTP server (default port 8787, TDD §4.7).
+            Your protection is enforced on-chain regardless of this feed: your approved cap, your
+            health factor, and every past agent action are always verifiable on the{" "}
+            <a className="font-medium underline" href="/transparency">Transparency</a> page.
           </AlertDescription>
         </Alert>
       ) : null}
@@ -58,7 +60,9 @@ export default async function AgentPage() {
             </CardContent>
           </Card>
           <AgentControls />
-          <AgentConfigPanel />
+          <AdminOnly>
+            <AgentConfigPanel />
+          </AdminOnly>
         </div>
       </div>
     </div>

@@ -1,10 +1,25 @@
 "use client";
 
-import { ReactNode, useState } from "react";
+import { ReactNode, useEffect, useRef, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { WagmiProvider } from "wagmi";
+import { WagmiProvider, useAccount } from "wagmi";
 import { ConnectKitProvider } from "connectkit";
 import { wagmiConfig } from "@/lib/wagmi";
+import { track } from "@/lib/analytics";
+
+/** Fires the `wallet_connected` funnel event once per connection. */
+function FunnelTracker() {
+  const { isConnected, address } = useAccount();
+  const fired = useRef(false);
+  useEffect(() => {
+    if (isConnected && address && !fired.current) {
+      fired.current = true;
+      track("wallet_connected");
+    }
+    if (!isConnected) fired.current = false;
+  }, [isConnected, address]);
+  return null;
+}
 
 /**
  * Client-side providers: wagmi (RPC + wallet state), react-query (data
@@ -37,6 +52,7 @@ export function Providers({ children }: { children: ReactNode }) {
           }}
           theme="auto"
         >
+          <FunnelTracker />
           {children}
         </ConnectKitProvider>
       </QueryClientProvider>

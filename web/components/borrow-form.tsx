@@ -3,7 +3,8 @@
 import { useMemo, useState } from "react";
 import { useAccount, useReadContracts, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { formatUnits } from "viem";
-import { vault, isVaultDeployed } from "@/lib/contracts";
+import { vault, oracle, isVaultDeployed } from "@/lib/contracts";
+import { addresses } from "@/lib/addresses";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -15,6 +16,7 @@ import { ArrowRight } from "lucide-react";
 import { classify, projectHealthFactor } from "@/lib/health";
 import { formatBps, formatHealthFactor, formatUsd8 } from "@/lib/format";
 import { decodeTxError } from "@/lib/errors";
+import { track } from "@/lib/analytics";
 
 /**
  * Borrow form.
@@ -30,6 +32,8 @@ export function BorrowForm() {
   const { address, isConnected } = useAccount();
   const [ltvBps, setLtvBps] = useState<number>(2500); // start at 25%
 
+  const tokens = addresses.collateralTokens;
+  const BASE = 4; // index where the per-token reads begin
   const enabled = isConnected && vault.address !== null && address !== undefined;
   const { data } = useReadContracts({
     contracts: enabled
@@ -38,33 +42,57 @@ export function BorrowForm() {
           { address: vault.address!, abi: vault.abi, functionName: "debtOf", args: [address!] },
           { address: vault.address!, abi: vault.abi, functionName: "borrowRateBps" },
           { address: vault.address!, abi: vault.abi, functionName: "getHealthFactor", args: [address!] },
+          ...tokens.flatMap((t) => [
+            { address: vault.address!, abi: vault.abi, functionName: "collateralOf", args: [address!, t.address] },
+            ...(oracle.address
+              ? [{ address: oracle.address, abi: oracle.abi, functionName: "getFeed", args: [t.address] }]
+              : []),
+          ]),
         ]
       : [],
     query: { enabled },
   });
 
   const accountData = data?.[0]?.result as readonly [bigint, bigint, bigint] | undefined;
-  const collateralValue = accountData?.[0] ?? 0n;
+  // getAccountData[0] is collateral ALREADY weighted by each asset's liquidation
+  // threshold — that's borrowing power (risk-adjusted), not raw market value.
+  const weightedCollateral = accountData?.[0] ?? 0n;
   const currentDebt = (data?.[1]?.result as bigint | undefined) ?? 0n;
   const borrowRateBps = (data?.[2]?.result as bigint | undefined) ?? 0n;
   const currentHf = (data?.[3]?.result as bigint | undefined) ?? 2n ** 200n;
 
+  // Raw market value = Σ collateralOf × oracle price (USD, 8-dec). This is what
+  // the user actually deposited and the correct denominator for an LTV slider.
+  const rawCollateral = useMemo(() => {
+    if (!oracle.address) return weightedCollateral; // no oracle wired -> fall back
+    let sum = 0n;
+    tokens.forEach((t, i) => {
+      const bal = data?.[BASE + i * 2]?.result as bigint | undefined;
+      const feed = data?.[BASE + i * 2 + 1]?.result as
+        | readonly [bigint, bigint, bigint, boolean]
+        | undefined;
+      if (!bal || !feed) return;
+      const price8 = feed[0] > 0n ? feed[0] : 0n;
+      sum += (bal * price8) / 10n ** BigInt(t.decimals);
+    });
+    return sum;
+  }, [data, tokens, weightedCollateral]);
+
   const additionalUsd8 = useMemo(() => {
-    // ltvBps% of collateralValueUsd is the max user can borrow under
-    // protocol limits — we just project from there.
-    const target = (collateralValue * BigInt(ltvBps)) / 10_000n;
+    // Target borrow = LTV% of RAW market value (standard LTV semantics).
+    const target = (rawCollateral * BigInt(ltvBps)) / 10_000n;
     if (target <= currentDebt) return 0n;
     return target - currentDebt;
-  }, [collateralValue, currentDebt, ltvBps]);
+  }, [rawCollateral, currentDebt, ltvBps]);
 
   const projectedHf = useMemo(
     () =>
       projectHealthFactor({
-        collateralValueUsd8: collateralValue,
+        collateralValueUsd8: weightedCollateral, // HF uses the risk-weighted value
         currentDebtUsd8: currentDebt,
         additionalBorrowUsd8: additionalUsd8,
       }),
-    [collateralValue, currentDebt, additionalUsd8],
+    [weightedCollateral, currentDebt, additionalUsd8],
   );
 
   const projected = classify(projectedHf);
@@ -85,6 +113,7 @@ export function BorrowForm() {
   function borrow() {
     if (!vault.address) return;
     reset();
+    track("first_action", { kind: "borrow" });
     writeContract({
       address: vault.address,
       abi: vault.abi,
@@ -105,13 +134,14 @@ export function BorrowForm() {
         </CardHeader>
         <CardContent className="space-y-5">
           <div className="grid grid-cols-2 gap-3 text-sm">
-            <Stat label="Collateral value" value={formatUsd8(collateralValue)} />
+            <Stat label="Collateral value" value={formatUsd8(rawCollateral)} />
+            <Stat label="Borrowing power" value={formatUsd8(weightedCollateral)} hint="risk-adjusted" />
             <Stat label="Current debt" value={formatUsd8(currentDebt)} />
             <Stat label="Current health" value={formatHealthFactor(currentHf)} />
             <Stat label="Borrow APR" value={formatBps(borrowRateBps)} />
           </div>
 
-          {isConnected && collateralValue === 0n ? (
+          {isConnected && rawCollateral === 0n ? (
             <Alert tone="warning">
               <AlertTitle>No collateral yet</AlertTitle>
               <AlertDescription>
@@ -222,10 +252,13 @@ export function BorrowForm() {
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
     <div className="rounded-md bg-[color:var(--color-muted)] px-3 py-2">
-      <p className="text-xs text-[color:var(--color-muted-foreground)]">{label}</p>
+      <p className="text-xs text-[color:var(--color-muted-foreground)]">
+        {label}
+        {hint ? <span className="ml-1 opacity-70">· {hint}</span> : null}
+      </p>
       <p className="font-medium tabular-nums">{value}</p>
     </div>
   );

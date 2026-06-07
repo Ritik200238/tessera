@@ -1,4 +1,5 @@
 import { createConfig, http } from "wagmi";
+import { fallback } from "viem";
 import { injected, walletConnect } from "wagmi/connectors";
 import { arbitrumSepolia } from "wagmi/chains";
 import { getDefaultConfig } from "connectkit";
@@ -10,7 +11,22 @@ import { env } from "./env";
  *
  * We expose two entry points so non-browser code paths (server components,
  * tests) don't pull WalletConnect's IIFE which expects `window`.
+ *
+ * Privacy/resilience: reads/writes are spread across several RPC providers via
+ * fallback() so no single provider sees every user's (IP, wallet, query) and a
+ * single provider can't censor or break the app. Set NEXT_PUBLIC_RPC_URL to your
+ * own node to keep your traffic fully private (it is tried first).
  */
+
+// Public Arbitrum Sepolia endpoints used as fallbacks behind the configured RPC.
+const SEPOLIA_RPCS = [
+  env.rpcUrl,
+  activeChain.rpcUrls.default.http[0],
+  "https://arbitrum-sepolia-rpc.publicnode.com",
+  "https://arbitrum-sepolia.drpc.org",
+].filter((u, i, a): u is string => !!u && a.indexOf(u) === i);
+
+const activeTransport = fallback(SEPOLIA_RPCS.map((u) => http(u)));
 
 const transports = Object.fromEntries(
   supportedChains.map((c) => [c.id, http()]),
@@ -20,9 +36,9 @@ export const wagmiConfig = createConfig(
   getDefaultConfig({
     chains: supportedChains,
     transports: {
-      [activeChain.id]: http(activeChain.rpcUrls.default.http[0]),
-      [arbitrumSepolia.id]: http(),
       ...transports,
+      [activeChain.id]: activeTransport,
+      [arbitrumSepolia.id]: activeTransport,
     },
     walletConnectProjectId: env.walletConnectProjectId || "tessera-dev",
     appName: "Tessera",

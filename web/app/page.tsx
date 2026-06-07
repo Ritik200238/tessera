@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Mark } from "@/components/mark";
 import { useProtocolStats, formatUsdcUsd } from "@/lib/protocol";
+import { track } from "@/lib/analytics";
 import "./landing.css";
 
 /* ----------------------------------------------------------------------------
@@ -92,7 +93,7 @@ const TL_STEPS = [
     time: "15:41 UTC",
     body: (
       <>
-        HF crossed your <span className="hfb">1.10</span> trigger. Tessera repaid{" "}
+        HF crossed the <span className="hfb">1.10</span> protection trigger. Tessera repaid{" "}
         <span className="hfb" style={{ color: "var(--blue)" }}>420.00 USDC</span> from your approved allowance.
       </>
     ),
@@ -365,7 +366,7 @@ export default function LandingPage() {
                 AI agent monitors every position around the clock — and acts before a liquidation, not after.
               </p>
               <div className="hero-cta">
-                <Link className="lbtn brand lg arrow" href="/borrow">
+                <Link className="lbtn brand lg arrow" href="/borrow" onClick={() => track("landing_cta_click", { cta: "borrow" })}>
                   I want to borrow {ARROW}
                 </Link>
                 <a className="lbtn ghost lg" href="#how">
@@ -945,10 +946,10 @@ export default function LandingPage() {
                 </h2>
                 <p>Connect a wallet to see live rates. Non-custodial, geo-compliant, and watched around the clock.</p>
                 <div className="cta-btns">
-                  <Link className="lbtn primary lg" href="/lend">
+                  <Link className="lbtn primary lg" href="/lend" onClick={() => track("landing_cta_click", { cta: "lend" })}>
                     I want to lend
                   </Link>
-                  <Link className="lbtn ghost lg arrow" href="/borrow">
+                  <Link className="lbtn ghost lg arrow" href="/borrow" onClick={() => track("landing_cta_click", { cta: "borrow" })}>
                     I want to borrow {ARROW}
                   </Link>
                 </div>

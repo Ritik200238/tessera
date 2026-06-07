@@ -9,9 +9,12 @@ import { Button } from "@/components/ui/button";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { vault, isVaultDeployed } from "@/lib/contracts";
 import { addresses } from "@/lib/addresses";
+import { decodeTxError } from "@/lib/errors";
+import { track } from "@/lib/analytics";
 import { ConnectButton } from "./connect-button";
 
 const USDC_DECIMALS = 6;
+const fmtUsdc = (v: bigint) => Number(formatUnits(v, USDC_DECIMALS)).toLocaleString("en-US", { maximumFractionDigits: 2 });
 
 /**
  * Active Protection control (auto-repay opt-in).
@@ -39,8 +42,20 @@ export function AgentControls() {
     query: { enabled: ready },
   });
 
+  const { data: debt } = useReadContract({
+    address: vault.address ?? undefined,
+    abi: vault.abi,
+    functionName: "debtOf",
+    args: address ? [address] : undefined,
+    query: { enabled: ready },
+  });
+
   const cap = (allowance as bigint | undefined) ?? 0n;
   const protectionOn = cap > 0n;
+  const debtBn = (debt as bigint | undefined) ?? 0n;
+  // Recommended cap: ~125% of current debt — enough headroom for the agent to
+  // restore health after a gap, without a scary unbounded approval.
+  const suggested = debtBn > 0n ? (debtBn * 125n) / 100n : 0n;
 
   const parsed = useMemo(() => {
     if (!amount) return 0n;
@@ -54,6 +69,7 @@ export function AgentControls() {
   function setCap(value: bigint) {
     if (!vault.address || !usdc) return;
     reset();
+    if (value > 0n) track("protection_enabled");
     writeContract({
       address: usdc,
       abi: erc20Abi,
@@ -76,15 +92,22 @@ export function AgentControls() {
         <div className="flex items-center gap-3">
           <span
             aria-hidden
-            className={`size-2.5 rounded-full ${protectionOn ? "bg-emerald-500" : "bg-zinc-400"}`}
+            className="size-2.5 rounded-full"
+            style={{ background: protectionOn ? "var(--color-safe-fg)" : "var(--faint)" }}
           />
-          <span className="font-medium">{protectionOn ? "Protected" : "Off"}</span>
+          <span className="font-medium">{protectionOn ? "Protected — this wallet is covered" : "Off"}</span>
           {protectionOn ? (
             <span className="text-[color:var(--color-muted-foreground)] tabular-nums">
-              cap {Number(formatUnits(cap, USDC_DECIMALS)).toLocaleString()} USDC
+              cap {fmtUsdc(cap)} USDC
             </span>
           ) : null}
         </div>
+        {protectionOn ? (
+          <p className="text-xs text-[color:var(--color-muted-foreground)]">
+            The agent can draw up to {fmtUsdc(cap)} USDC from your wallet, and only ever to repay your
+            own loan. Enforced on-chain — revoke any time with the kill switch below.
+          </p>
+        ) : null}
 
         <p className="text-[color:var(--color-muted-foreground)]">
           The agent can <strong>only reduce your debt</strong> with the USDC you approve here — it can
@@ -95,17 +118,33 @@ export function AgentControls() {
         </p>
 
         <div className="space-y-2">
-          <label htmlFor="cap" className="font-medium">
-            Approve up to (USDC)
-          </label>
+          <div className="flex items-center justify-between">
+            <label htmlFor="cap" className="font-medium">
+              Approve up to (USDC)
+            </label>
+            {suggested > 0n ? (
+              <button
+                type="button"
+                onClick={() => setAmount(formatUnits(suggested, USDC_DECIMALS))}
+                className="rounded-full border border-[color:var(--color-border)] px-2.5 py-0.5 text-xs font-medium hover:bg-[color:var(--color-muted)]"
+              >
+                Recommended · {fmtUsdc(suggested)}
+              </button>
+            ) : null}
+          </div>
           <Input
             id="cap"
             inputMode="decimal"
-            placeholder="e.g. 5000"
+            placeholder={suggested > 0n ? fmtUsdc(suggested) : "e.g. 5000"}
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             autoComplete="off"
           />
+          <p className="text-xs text-[color:var(--color-muted-foreground)]">
+            {suggested > 0n
+              ? `Recommended ≈ 125% of your current debt (${fmtUsdc(debtBn)} USDC) — leaves the agent room to restore your health after a gap.`
+              : "Tip: approve a little more than your loan so the agent has room to act."}
+          </p>
         </div>
 
         {!isVaultDeployed() ? (
@@ -120,14 +159,17 @@ export function AgentControls() {
         {error ? (
           <Alert tone="danger">
             <AlertTitle>Transaction failed</AlertTitle>
-            <AlertDescription>{shortenError(error)}</AlertDescription>
+            <AlertDescription>{decodeTxError(error)}</AlertDescription>
           </Alert>
         ) : null}
 
         {isMined ? (
           <Alert tone="success">
-            <AlertTitle>Saved on-chain</AlertTitle>
-            <AlertDescription>Your protection setting is now live.</AlertDescription>
+            <AlertTitle>Protection is live for this wallet</AlertTitle>
+            <AlertDescription>
+              The agent is now watching this position and can auto-repay up to your approved cap to
+              prevent a liquidation. You can revoke any time.
+            </AlertDescription>
           </Alert>
         ) : null}
 
@@ -159,9 +201,4 @@ export function AgentControls() {
       </CardContent>
     </Card>
   );
-}
-
-function shortenError(err: { message?: string } | Error): string {
-  const msg = "message" in err && err.message ? err.message : "Unknown error";
-  return msg.length > 200 ? `${msg.slice(0, 200)}…` : msg;
 }

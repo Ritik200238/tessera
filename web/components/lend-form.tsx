@@ -13,6 +13,7 @@ import { ValueCard } from "./value-card";
 import { ConnectButton } from "./connect-button";
 import { formatBps } from "@/lib/format";
 import { decodeTxError } from "@/lib/errors";
+import { track } from "@/lib/analytics";
 
 type Mode = "deposit" | "withdraw";
 
@@ -89,6 +90,7 @@ export function LendForm() {
     if (!vaultAddr || !address) return;
     reset();
     if (mode === "deposit") {
+      track("first_action", { kind: "lend" });
       writeContract({
         address: vaultAddr,
         abi: vault.abi,
