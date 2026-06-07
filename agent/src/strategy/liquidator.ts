@@ -60,9 +60,11 @@ export async function tryLiquidate(
   input: LiquidateInput,
   blockNumber: number,
 ): Promise<LiquidationOutcome> {
-  // 1. idempotency
-  if (!deps.db.recordIdempotency(input.borrower, blockNumber, "attempt")) {
-    const outcome: LiquidationOutcome = { kind: "skipped", reason: "already attempted this block" };
+  // 1. idempotency — read-only guard. We only RECORD after the tx is broadcast
+  // (below), so a transient pre-submit failure (RPC/gas/balance) does not burn
+  // the block and the user stays retryable on the next tick.
+  if (deps.db.hasIdempotency(input.borrower, blockNumber)) {
+    const outcome: LiquidationOutcome = { kind: "skipped", reason: "already acted this block" };
     deps.log.append(
       action.liquidate({
         user: input.borrower,
@@ -141,7 +143,7 @@ export async function tryLiquidate(
     return { kind: "reverted", reason };
   }
 
-  // 5. submit
+  // 5. submit — record idempotency now that a tx is actually being broadcast.
   const tx = await deps.walletClient.writeContract({
     address: deps.vaultAddress,
     abi: vaultAbi,
@@ -150,16 +152,36 @@ export async function tryLiquidate(
     account: deps.account,
     chain: null,
   });
+  deps.db.recordIdempotency(input.borrower, blockNumber, "submitted");
 
+  // 6. confirm — wait for the receipt (bounded) so an on-chain revert isn't
+  // recorded as a successful liquidation, and a stuck tx can't hang the tick.
+  const settled = await confirm(deps.publicClient, tx);
+  const status = settled === "confirmed" ? "confirmed" : settled === "reverted" ? "reverted" : "submitted";
   deps.log.append(
     action.liquidate({
       user: input.borrower,
       tx,
       repay: input.repayAmount,
-      seized: seizedEstimate,
+      seized: settled === "reverted" ? 0n : seizedEstimate,
       token: input.collateralToken,
-      status: "submitted",
+      status,
+      ...(settled === "reverted" ? { reason: "reverted on-chain" } : {}),
     }),
   );
+  if (settled === "reverted") return { kind: "reverted", reason: "reverted on-chain" };
   return { kind: "submitted", tx, seizedEstimate };
+}
+
+/** Wait for a receipt with a bounded timeout. "unknown" = not mined in time. */
+async function confirm(
+  publicClient: PublicClient,
+  tx: Hex,
+): Promise<"confirmed" | "reverted" | "unknown"> {
+  try {
+    const rcpt = await publicClient.waitForTransactionReceipt({ hash: tx, timeout: 60_000 });
+    return rcpt.status === "success" ? "confirmed" : "reverted";
+  } catch {
+    return "unknown";
+  }
 }

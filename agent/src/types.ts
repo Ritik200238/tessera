@@ -44,7 +44,7 @@ export type Action =
       tx: Hex;
       repay: string;
       hfBefore: string;
-      status: "submitted" | "reverted" | "skipped";
+      status: "submitted" | "confirmed" | "reverted" | "skipped";
       reason?: string;
     }
   | { ts: string; kind: "error"; where: string; message: string };

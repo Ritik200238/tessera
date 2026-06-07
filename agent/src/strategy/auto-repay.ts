@@ -112,9 +112,10 @@ export async function tryAutoRepay(
     return { kind: "skipped", reason };
   };
 
-  // 1. idempotency — one attempt per user per block.
-  if (!deps.db.recordIdempotency(input.user, blockNumber, "auto_repay")) {
-    return { kind: "skipped", reason: "already attempted this block" };
+  // 1. idempotency — read-only guard. Recorded only after broadcast (below), so a
+  // transient pre-submit failure leaves the user retryable on the next tick.
+  if (deps.db.hasIdempotency(input.user, blockNumber)) {
+    return { kind: "skipped", reason: "already acted this block" };
   }
 
   // 2. budget — bounded by the user's own allowance + balance (the cap).
@@ -159,7 +160,7 @@ export async function tryAutoRepay(
     return { kind: "reverted", reason };
   }
 
-  // 5. submit.
+  // 5. submit — record idempotency now that a tx is actually being broadcast.
   const tx = await deps.walletClient.writeContract({
     address: deps.vaultAddress,
     abi: vaultAbi,
@@ -168,15 +169,27 @@ export async function tryAutoRepay(
     account: deps.account,
     chain: null,
   });
+  deps.db.recordIdempotency(input.user, blockNumber, "submitted");
 
+  // 6. confirm — bounded receipt wait so an on-chain revert isn't logged as a
+  // successful repay and a stuck tx can't hang the tick.
+  let settled: "confirmed" | "reverted" | "unknown" = "unknown";
+  try {
+    const rcpt = await deps.publicClient.waitForTransactionReceipt({ hash: tx, timeout: 60_000 });
+    settled = rcpt.status === "success" ? "confirmed" : "reverted";
+  } catch {
+    settled = "unknown";
+  }
   deps.log.append(
     action.autoRepay({
       user: input.user,
       tx,
       repay: pull,
       hfBefore: input.hfBefore,
-      status: "submitted",
+      status: settled === "confirmed" ? "confirmed" : settled === "reverted" ? "reverted" : "submitted",
+      ...(settled === "reverted" ? { reason: "reverted on-chain" } : {}),
     }),
   );
+  if (settled === "reverted") return { kind: "reverted", reason: "reverted on-chain" };
   return { kind: "submitted", tx, repaid: pull };
 }

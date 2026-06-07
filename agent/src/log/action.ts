@@ -59,7 +59,7 @@ export const action = {
     tx: Hex;
     repay: bigint;
     hfBefore: bigint;
-    status: "submitted" | "reverted" | "skipped";
+    status: "submitted" | "confirmed" | "reverted" | "skipped";
     reason?: string;
   }): Action {
     return {

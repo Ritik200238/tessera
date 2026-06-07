@@ -78,7 +78,7 @@ export class AgentDB {
       .run(blockNumber);
   }
 
-  /** Records a liquidation attempt; returns false if (user, block) already seen. */
+  /** Records a money-moving action; returns false if (user, block) already seen. */
   recordIdempotency(user: string, blockNumber: number, status: string): boolean {
     const res = this.db
       .prepare(
@@ -86,6 +86,16 @@ export class AgentDB {
       )
       .run(user.toLowerCase(), blockNumber, status);
     return res.changes > 0;
+  }
+
+  /** Read-only: has a money-moving action already been recorded for (user, block)?
+   *  Used as the per-block dedupe guard so transient pre-submit failures (RPC/gas/
+   *  balance) do NOT burn the block — only a *broadcast* tx records idempotency. */
+  hasIdempotency(user: string, blockNumber: number): boolean {
+    const row = this.db
+      .prepare("SELECT 1 FROM idempotency WHERE user = ? AND block_number = ?")
+      .get(user.toLowerCase(), blockNumber);
+    return row !== undefined;
   }
 
   /** Loads persisted AgentConfig or returns defaults. */

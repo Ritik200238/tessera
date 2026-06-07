@@ -95,6 +95,6 @@ describe("tryLiquidate", () => {
     const r2 = await tryLiquidate(deps, { borrower: USER, repayAmount: 100n, collateralToken: TOKEN }, 99);
     expect(r1.kind).toBe("submitted");
     expect(r2.kind).toBe("skipped");
-    if (r2.kind === "skipped") expect(r2.reason).toMatch(/already attempted/);
+    if (r2.kind === "skipped") expect(r2.reason).toMatch(/already acted/);
   });
 });
