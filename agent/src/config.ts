@@ -58,6 +58,9 @@ const envSchema = z.object({
   AGENT_DB_PATH: z.string().default("./.data/state.sqlite"),
   AGENT_HTTP_PORT: z.coerce.number().int().min(1).max(65_535).default(8787),
   AGENT_ADMIN_SECRET: z.string().min(8).default("dev-admin-secret-change-me"),
+  // Comma-separated browser origins allowed to read the public agent endpoints.
+  // Empty => permissive (fine on testnet); set to your web origin in production.
+  AGENT_CORS_ORIGINS: z.string().default(""),
   AGENT_LOG_RETENTION_DAYS: z.coerce.number().int().min(1).max(365).default(7),
 
   // User discovery (event indexer). Public RPCs are non-archive and cap getLogs

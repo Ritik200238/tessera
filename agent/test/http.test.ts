@@ -91,15 +91,17 @@ describe("HTTP server", () => {
     expect(j.entries.length).toBe(200);
   });
 
-  it("GET /alerts/latest returns alerts array", async () => {
-    const r = await fetch(url("/alerts/latest"));
+  it("GET /alerts/latest requires bearer (live distressed-user list)", async () => {
+    expect((await fetch(url("/alerts/latest"))).status).toBe(401);
+    const r = await fetch(url("/alerts/latest"), { headers: { authorization: `Bearer ${ADMIN}` } });
     expect(r.status).toBe(200);
     const j = (await r.json()) as { alerts: unknown[] };
     expect(Array.isArray(j.alerts)).toBe(true);
   });
 
-  it("GET /metrics returns Prometheus format", async () => {
-    const r = await fetch(url("/metrics"));
+  it("GET /metrics requires bearer (leaks agent float)", async () => {
+    expect((await fetch(url("/metrics"))).status).toBe(401);
+    const r = await fetch(url("/metrics"), { headers: { authorization: `Bearer ${ADMIN}` } });
     expect(r.status).toBe(200);
     const body = await r.text();
     expect(body).toMatch(/# HELP/);

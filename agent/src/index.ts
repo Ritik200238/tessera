@@ -55,6 +55,13 @@ async function main(): Promise<void> {
       "No LLM key set (NVIDIA_API_KEY / ANTHROPIC_API_KEY). Alerts will use the deterministic template fallback.",
     );
   }
+  // Never ship the insecure default admin secret in production — /config can
+  // pause the agent and mutate thresholds, so an unset secret is a real footgun.
+  if (cfg.NODE_ENV === "production" && cfg.AGENT_ADMIN_SECRET === "dev-admin-secret-change-me") {
+    throw new Error(
+      "AGENT_ADMIN_SECRET is the insecure default. Set a strong AGENT_ADMIN_SECRET before running in production.",
+    );
+  }
 
   logger.info({ port: cfg.AGENT_HTTP_PORT }, "tessera-agent: starting");
 
@@ -161,6 +168,7 @@ async function main(): Promise<void> {
     db,
     llm,
     adminSecret: cfg.AGENT_ADMIN_SECRET,
+    corsOrigins: cfg.AGENT_CORS_ORIGINS.split(",").map((s) => s.trim()).filter(Boolean),
     healthSource: {
       getLastTickAt: () => lastTickAt,
       getErrors24h: () => recentErrors(),

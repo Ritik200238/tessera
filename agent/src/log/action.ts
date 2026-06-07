@@ -8,12 +8,30 @@ import type { Action, AlertLevel } from "../types.js";
 
 const now = (): string => new Date().toISOString();
 
+// Privacy: the PUBLIC action log must not be a clean, machine-readable list of
+// (address, debt, HF) for distressed borrowers. We truncate the address and
+// round amounts; the exact, full-address truth stays verifiable via the on-chain
+// tx hash that accompanies every money-moving action.
+function shortAddr(a: Address): Address {
+  return (a.length > 12 ? `${a.slice(0, 6)}…${a.slice(-4)}` : a) as Address;
+}
+// Round USDC (6-dec) to the nearest 100 USDC.
+function roundUsdc(v: bigint): string {
+  const unit = 100_000000n;
+  return (((v + unit / 2n) / unit) * unit).toString();
+}
+// Round a 1e18-scaled health factor to 2 decimals.
+function roundHf(v: bigint): string {
+  const unit = 10_000_000_000_000_000n; // 1e16
+  return (((v + unit / 2n) / unit) * unit).toString();
+}
+
 export const action = {
   tick(usersChecked: number, durationMs: number): Action {
     return { ts: now(), kind: "tick", usersChecked, durationMs };
   },
   alert(user: Address, hf: bigint, level: AlertLevel, copy: string): Action {
-    return { ts: now(), kind: "alert", user, hf: hf.toString(), level, copy };
+    return { ts: now(), kind: "alert", user: shortAddr(user), hf: roundHf(hf), level, copy };
   },
   liquidate(args: {
     user: Address;
@@ -27,9 +45,9 @@ export const action = {
     return {
       ts: now(),
       kind: "liquidate",
-      user: args.user,
+      user: shortAddr(args.user),
       tx: args.tx,
-      repay: args.repay.toString(),
+      repay: roundUsdc(args.repay),
       seized: args.seized.toString(),
       token: args.token,
       status: args.status,
@@ -47,10 +65,10 @@ export const action = {
     return {
       ts: now(),
       kind: "auto_repay",
-      user: args.user,
+      user: shortAddr(args.user),
       tx: args.tx,
-      repay: args.repay.toString(),
-      hfBefore: args.hfBefore.toString(),
+      repay: roundUsdc(args.repay),
+      hfBefore: roundHf(args.hfBefore),
       status: args.status,
       ...(args.reason !== undefined ? { reason: args.reason } : {}),
     };
