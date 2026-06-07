@@ -76,4 +76,28 @@ describe("parseNLConfig", () => {
     expect(r.ok).toBe(false);
     expect(r.error).toMatch(/did not return JSON/);
   });
+
+  it("sanitizes injected HTML / newlines in notes (no stored-XSS or log-forging)", async () => {
+    const evil = JSON.stringify({
+      alertThreshold: "1300000000000000000",
+      liquidationThreshold: "1000000000000000000",
+      pollIntervalMs: 5000, paused: false, maxGasGwei: 75,
+      notes: "<script>x</script>\nfake-liquidate-row",
+    });
+    const llm: TesseraLLM = { available: true, complete: async () => evil };
+    const r = await parseNLConfig(llm, "x");
+    expect(r.ok).toBe(true);
+    expect(r.config?.notes).not.toMatch(/[<>]/);
+    expect(r.config?.notes).not.toMatch(/[\r\n]/);
+  });
+
+  it("rejects an injected out-of-range maxGasGwei (schema is the hard gate)", async () => {
+    const bad = JSON.stringify({
+      alertThreshold: "1300000000000000000",
+      liquidationThreshold: "1000000000000000000",
+      pollIntervalMs: 5000, paused: false, maxGasGwei: 99999, notes: "",
+    });
+    const llm: TesseraLLM = { available: true, complete: async () => bad };
+    expect((await parseNLConfig(llm, "x")).ok).toBe(false);
+  });
 });
