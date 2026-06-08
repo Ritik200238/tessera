@@ -2,6 +2,7 @@ import { ActionLog } from "@/components/action-log";
 import { AgentControls } from "@/components/agent-controls";
 import { AgentConfigPanel } from "@/components/agent-config-panel";
 import { AgentInternals } from "@/components/agent-internals";
+import { ApprovalsPanel } from "@/components/approvals-panel";
 import { AdminOnly } from "@/components/admin-only";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
@@ -61,6 +62,7 @@ export default async function AgentPage() {
             </CardContent>
           </Card>
           <AgentControls />
+          <ApprovalsPanel />
           <AdminOnly>
             <AgentConfigPanel />
             <AgentInternals />

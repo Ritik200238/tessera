@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { LendForm } from "@/components/lend-form";
 import { LenderEarnings } from "@/components/lender-earnings";
 import { ApyComparison } from "@/components/apy-comparison";
@@ -14,6 +15,15 @@ export default function LendPage() {
           pool by liquidating undercollateralized positions before they go bad.
         </p>
       </header>
+      <div className="rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-brand-wash)] p-4 text-sm">
+        <p className="font-medium">🛡 Your USDC funds an AI-protected pool.</p>
+        <p className="mt-1 text-[color:var(--color-muted-foreground)]">
+          Every borrower position is watched 24/7 — the agent auto-repays and, only as a last
+          resort, liquidates risk <em>before</em> it becomes bad debt. That is what keeps lender
+          funds safe and the supply APY real.{" "}
+          <Link href="/agent" className="font-medium underline">See live agent activity →</Link>
+        </p>
+      </div>
       <LenderEarnings />
       <LendForm />
       <ApyComparison />
