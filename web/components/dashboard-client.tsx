@@ -12,6 +12,7 @@ import { formatBps, formatUsd8 } from "@/lib/format";
 import { formatUsdcUsd } from "@/lib/protocol";
 import { PositionTile } from "@/components/position-tile";
 import { HealthHistory } from "@/components/health-history";
+import { TransactionHistory } from "@/components/transaction-history";
 import { Mark } from "@/components/mark";
 import { ValueCard } from "@/components/value-card";
 import { ConnectButton } from "@/components/connect-button";
@@ -150,6 +151,8 @@ export function DashboardClient({ agentStatus }: { agentStatus: AgentStatusSumma
           </div>
         </section>
       ) : null}
+
+      <TransactionHistory />
     </div>
   );
 }
