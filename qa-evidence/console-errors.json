@@ -1,0 +1,20 @@
+{
+  "desktop /": [],
+  "mobile /": [],
+  "desktop /lend": [],
+  "mobile /lend": [],
+  "desktop /borrow": [],
+  "mobile /borrow": [],
+  "desktop /dashboard": [],
+  "mobile /dashboard": [],
+  "desktop /risk": [],
+  "mobile /risk": [],
+  "desktop /status": [],
+  "mobile /status": [],
+  "desktop /transparency": [],
+  "mobile /transparency": [],
+  "desktop /security": [],
+  "mobile /security": [],
+  "desktop /agent": [],
+  "mobile /agent": []
+}

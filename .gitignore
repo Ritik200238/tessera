@@ -66,3 +66,11 @@ contracts/solidity/lib/
 /vault-opt.wasm
 /vault-build.log
 /vault-deploy.log
+
+# E2E / QA transient artifacts (Playwright internals + ad-hoc MCP captures).
+# The curated audit evidence in qa-evidence/ IS committed; these are not.
+web/e2e/.artifacts/
+web/test-results/
+web/playwright-report/
+/.playwright-mcp/
+/preflight-landing.png
