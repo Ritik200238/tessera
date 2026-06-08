@@ -1,0 +1,10 @@
+{
+  "//": "Build-only config: rootDir=src and tests excluded so `tsc` emits the runtime entry at dist/index.js (matching package.json `main`/`start` and the Dockerfile CMD). Typecheck/test still use the broader tsconfig.json (which includes test/).",
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "noEmit": false
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "test", "**/*.test.ts"]
+}
