@@ -17,6 +17,8 @@ import { emitAlert, type AlerterDeps } from "./alerter.js";
 import { tryLiquidate, type LiquidatorDeps } from "./liquidator.js";
 import { tryAutoRepay, type AutoRepayDeps } from "./auto-repay.js";
 import { vaultAbi } from "../vault-client.js";
+import { assessRegime } from "./regime.js";
+import { EARNINGS_CALENDAR } from "../data/earnings.js";
 import { action } from "../log/action.js";
 import type { JsonlLog } from "../log/jsonl.js";
 import type { AgentConfig } from "../types.js";
@@ -200,6 +202,16 @@ export async function runTick(deps: TickDeps): Promise<TickResult> {
   // One coherent, pinned-block snapshot of every tracked user.
   const snap = await readSnapshot(deps.publicClient, deps.vaultAddress, users, blockNumber);
 
+  // Equity-event-aware regime: widen the protect target + alert band when the
+  // underlying market is closed / weekend / near earnings, so the agent acts
+  // AHEAD of the gap. Deterministic — the LLM never participates.
+  const reg = assessRegime({
+    now: new Date(),
+    baseProtectHf: PROTECT_TARGET_HF,
+    baseAlertHf: deps.config.alertThreshold,
+    earningsCal: EARNINGS_CALENDAR,
+  });
+
   let alerted = 0;
   let liquidated = 0;
   let autoRepaid = 0;
@@ -218,10 +230,10 @@ export async function runTick(deps: TickDeps): Promise<TickResult> {
       deps.markInactive?.(user);
       continue;
     }
-    if (s.hf < deps.config.alertThreshold) {
+    if (s.hf < reg.alertThresholdHf) {
       atRisk.push({ user, hf: s.hf, debt: s.debt });
     } else {
-      deps.alerter.alerts.clear(user); // healthy
+      deps.alerter.alerts.clear(user); // healthy (for the current regime)
     }
   }
 
@@ -248,9 +260,11 @@ export async function runTick(deps: TickDeps): Promise<TickResult> {
       continue;
     }
 
-    // At-risk band: protect (if opted in), then alert.
-    if (deps.autoRepay && hf < PROTECT_TARGET_HF) {
-      const repayAmount = (debt * (PROTECT_TARGET_HF - hf)) / PROTECT_TARGET_HF;
+    // At-risk band: protect (if opted in), then alert. The protect target is
+    // regime-widened, so a weekend/earnings position is restored to a bigger
+    // buffer and protection triggers earlier than the static band would.
+    if (deps.autoRepay && hf < reg.protectTargetHf) {
+      const repayAmount = (debt * (reg.protectTargetHf - hf)) / reg.protectTargetHf;
       if (repayAmount > 0n) {
         try {
           const outcome = await tryAutoRepay(deps.autoRepay, { user, repayAmount, hfBefore: hf }, blockNum);
