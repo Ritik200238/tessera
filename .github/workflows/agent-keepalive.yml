@@ -1,0 +1,35 @@
+name: Agent keep-alive
+
+# Render's free tier spins a service down after ~15 min idle. This pings the
+# agent's /health every 10 min to hold it awake. It reads the repo variable
+# AGENT_PING_URL and no-ops until you set it, so it's safe to merge before deploy.
+#
+# Set it at: repo Settings -> Secrets and variables -> Actions -> Variables ->
+#   AGENT_PING_URL = https://<your-render-app>.onrender.com/health
+#
+# (A purpose-built monitor like UptimeRobot's free 5-min check is more reliable if
+# you'd rather not depend on GitHub's cron timing.)
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping agent /health
+        env:
+          URL: ${{ vars.AGENT_PING_URL }}
+        run: |
+          if [ -z "$URL" ]; then
+            echo "AGENT_PING_URL not set — skipping (set it once the agent is deployed)."
+            exit 0
+          fi
+          echo "Pinging $URL"
+          # Don't fail the run on a cold-start miss; the next tick wakes it.
+          if curl -fsS --max-time 40 "$URL" > /dev/null; then
+            echo "OK"
+          else
+            echo "ping did not return 2xx (service may be cold-starting) — non-fatal"
+          fi

@@ -1,0 +1,42 @@
+# Render Blueprint for the Tessera Risk Agent (free tier).
+#
+# Deploy: Render dashboard -> New + -> Blueprint -> connect this GitHub repo.
+# Render reads this file, builds agent/Dockerfile, and provisions the service.
+# You'll be prompted for the two secret env vars (sync:false) on first deploy.
+#
+# Free-tier notes: no persistent disk (SQLite state is ephemeral — fine; the agent
+# rebuilds its borrower set from on-chain logs on restart, and on-chain idempotency
+# prevents double-actions). The service spins down after ~15 min idle, so a
+# keep-alive pinger (see .github/workflows/agent-keepalive.yml) holds it awake.
+services:
+  - type: web
+    name: tessera-agent
+    runtime: docker
+    plan: free
+    rootDir: agent
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: CHAIN_ID
+        value: "421614"
+      - key: RPC_URL
+        value: https://sepolia-rollup.arbitrum.io/rpc
+      - key: VAULT_ADDRESS
+        value: "0x72adaa00e2eaa98f62ee1c77e9b7714e0db57ba7"
+      - key: USDC_ADDRESS
+        value: "0xf10aCF61b480c24102B303ebAFB97d9392d693F2"
+      - key: AGENT_CORS_ORIGINS
+        value: https://tessera-web-delta.vercel.app
+      # Secrets — entered in the Render dashboard on first deploy (never committed):
+      - key: AGENT_PRIVATE_KEY
+        sync: false
+      - key: AGENT_ADMIN_SECRET
+        sync: false
+      - key: NVIDIA_API_KEY
+        sync: false
+      - key: AGENT_INCIDENT_WEBHOOK_URL
+        sync: false
