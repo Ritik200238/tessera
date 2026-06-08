@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { ConnectButton } from "./connect-button";
 import { HealthBadge } from "./health-badge";
 import { vault, isVaultDeployed } from "@/lib/contracts";
+import { addresses } from "@/lib/addresses";
 import { env } from "@/lib/env";
 import { classify } from "@/lib/health";
 import { formatHealthFactor, formatUsd8 } from "@/lib/format";
@@ -134,6 +135,8 @@ export function AdminPanel() {
       ) : null}
 
       <PrivilegedControls disabled={!isPrivileged} onRefresh={() => refetch()} />
+
+      <AssetAndAgentControls disabled={!isPrivileged} />
 
       <Card>
         <CardHeader className="flex-row items-start justify-between gap-3">
@@ -288,6 +291,113 @@ function ManualLiquidate({ row, disabled }: { row: UserRow; disabled: boolean })
         </div>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * Owner setters added in the Sprint C contract redeploy that previously had no UI:
+ * per-asset freeze (setAssetFrozen), feed-decimals (setFeedDecimals), and the
+ * on-chain agent per-day repay cap (setMaxAgentRepayPerDay). All owner-gated writes.
+ */
+function AssetAndAgentControls({ disabled }: { disabled: boolean }) {
+  const tokens = addresses.collateralTokens;
+  const { writeContract, isPending, error, data: hash, reset } = useWriteContract();
+  const { isLoading: mining, isSuccess: mined } = useWaitForTransactionReceipt({ hash });
+  const [cap, setCap] = useState("");
+  const [decimals, setDecimals] = useState<Record<string, string>>({});
+  const busy = disabled || isPending || mining;
+
+  function freeze(token: Address, frozen: boolean) {
+    if (!vault.address) return;
+    reset();
+    writeContract({ address: vault.address, abi: vault.abi, functionName: "setAssetFrozen", args: [token, frozen] });
+  }
+  function setFeedDec(token: Address, symbol: string) {
+    if (!vault.address) return;
+    const n = Number(decimals[symbol]);
+    if (!Number.isInteger(n) || n < 0 || n > 36) return;
+    reset();
+    writeContract({ address: vault.address, abi: vault.abi, functionName: "setFeedDecimals", args: [token, n] });
+  }
+  function setCapUsdc() {
+    if (!vault.address) return;
+    let amt: bigint;
+    try {
+      amt = parseUnits(cap || "0", 6);
+    } catch {
+      return;
+    }
+    reset();
+    writeContract({ address: vault.address, abi: vault.abi, functionName: "setMaxAgentRepayPerDay", args: [amt] });
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Asset &amp; agent controls</CardTitle>
+        <CardDescription>
+          Freeze a collateral asset (blocks new deposits; existing positions keep their value), set a
+          price-feed&apos;s decimals (for non-8-decimal mainnet feeds), or cap the agent&apos;s daily
+          auto-repay per user.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="space-y-2">
+          {tokens.length === 0 ? (
+            <p className="text-sm text-[color:var(--color-muted-foreground)]">No collateral listed.</p>
+          ) : (
+            tokens.map((t) => (
+              <div key={t.symbol} className="flex flex-wrap items-center gap-2 text-sm">
+                <span className="w-16 font-mono">{t.symbol}</span>
+                <Button size="sm" variant="outline" disabled={busy} onClick={() => freeze(t.address, true)}>
+                  Freeze
+                </Button>
+                <Button size="sm" variant="outline" disabled={busy} onClick={() => freeze(t.address, false)}>
+                  Unfreeze
+                </Button>
+                <Input
+                  className="w-24"
+                  inputMode="numeric"
+                  placeholder="feed dec"
+                  value={decimals[t.symbol] ?? ""}
+                  onChange={(e) => setDecimals((d) => ({ ...d, [t.symbol]: e.currentTarget.value }))}
+                />
+                <Button size="sm" variant="ghost" disabled={busy} onClick={() => setFeedDec(t.address, t.symbol)}>
+                  Set decimals
+                </Button>
+              </div>
+            ))
+          )}
+        </div>
+        <div className="flex flex-wrap items-end gap-2 border-t border-[color:var(--color-border)] pt-3">
+          <label className="text-xs">
+            Max agent auto-repay / user / day (USDC · 0 = unlimited)
+            <Input
+              className="w-40"
+              inputMode="decimal"
+              placeholder="e.g. 50000"
+              value={cap}
+              onChange={(e) => setCap(e.currentTarget.value)}
+            />
+          </label>
+          <Button size="sm" disabled={busy} onClick={setCapUsdc}>
+            Set cap
+          </Button>
+        </div>
+        {error ? (
+          <Alert tone="danger">
+            <AlertTitle>Action failed</AlertTitle>
+            <AlertDescription>{(error as Error).message}</AlertDescription>
+          </Alert>
+        ) : null}
+        {mined ? (
+          <Alert tone="success">
+            <AlertTitle>Confirmed</AlertTitle>
+            <AlertDescription>The change is on-chain.</AlertDescription>
+          </Alert>
+        ) : null}
+      </CardContent>
+    </Card>
   );
 }
 
