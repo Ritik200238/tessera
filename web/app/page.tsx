@@ -657,7 +657,7 @@ export default function LandingPage() {
             <p className="sec-sub reveal">
               When your health factor drifts toward danger, the agent sends a plain-English alert. If you&apos;ve turned
               on Active Protection, it repays from your pre-approved USDC to pull you back to safety — automatically.
-              Watch a real sequence:
+              Here&apos;s how it works:
             </p>
 
             <div className="agent-wrap" style={{ marginTop: 48 }}>
@@ -998,7 +998,7 @@ export default function LandingPage() {
               </div>
             </div>
             <div className="foot-bot">
-              <span className="mono">© 2026 Tessera · Built on Robinhood Chain &amp; Arbitrum</span>
+              <span className="mono">© 2026 Tessera · Built on Arbitrum · Stylus</span>
               <span className="mono">Testnet · Arbitrum Sepolia · No token, ever</span>
             </div>
           </div>

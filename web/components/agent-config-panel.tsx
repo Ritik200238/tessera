@@ -4,12 +4,18 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { env } from "@/lib/env";
 
 /**
  * Natural-language strategy config + pause toggle. POSTs to the local
  * proxy route handler so the admin secret never reaches the browser.
+ *
+ * When the agent isn't hosted (`NEXT_PUBLIC_AGENT_URL` empty) the proxy returns
+ * 503, so we render the panel read-only with a clear "not connected" notice
+ * instead of buttons that always fail.
  */
 export function AgentConfigPanel() {
+  const connected = Boolean(env.agentUrl);
   const [notes, setNotes] = useState("");
   const [pollMs, setPollMs] = useState<number>(10_000);
   const [alertHfWhole, setAlertHfWhole] = useState<number>(1.1);
@@ -137,11 +143,25 @@ export function AgentConfigPanel() {
             <AlertDescription>{status.msg}</AlertDescription>
           </Alert>
         ) : null}
+        {!connected ? (
+          <Alert tone="info">
+            <AlertTitle>Agent not connected</AlertTitle>
+            <AlertDescription>
+              Host the agent and set <code className="font-mono">NEXT_PUBLIC_AGENT_URL</code> to enable
+              saving config and pausing. This panel is read-only until then. (On-chain protection via your
+              USDC allowance works regardless of the agent UI.)
+            </AlertDescription>
+          </Alert>
+        ) : null}
         <div className="flex flex-wrap items-center gap-3">
-          <Button onClick={submit} disabled={busy}>
+          <Button onClick={submit} disabled={busy || !connected}>
             {busy ? "Saving…" : "Save config"}
           </Button>
-          <Button variant={paused ? "outline" : "destructive"} onClick={() => togglePause(!paused)} disabled={busy}>
+          <Button
+            variant={paused ? "outline" : "destructive"}
+            onClick={() => togglePause(!paused)}
+            disabled={busy || !connected}
+          >
             {paused ? "Resume agent" : "Pause agent"}
           </Button>
         </div>

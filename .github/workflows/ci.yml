@@ -24,6 +24,8 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --no-frozen-lockfile
+      # Fail if the agent's generated ABI/addresses have drifted from shared/.
+      - run: pnpm --filter @tessera/agent run sync:shared:check
       - run: pnpm --filter @tessera/agent run typecheck
       - run: pnpm --filter @tessera/agent run test
       - run: pnpm --filter @tessera/agent run lint

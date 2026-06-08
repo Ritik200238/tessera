@@ -61,3 +61,8 @@ contracts/solidity/lib/
 
 # Vercel CLI link
 .vercel
+
+# Stylus redeploy artifacts (scripts/redeploy-vault.ps1)
+/vault-opt.wasm
+/vault-build.log
+/vault-deploy.log

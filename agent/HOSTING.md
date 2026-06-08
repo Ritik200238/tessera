@@ -64,6 +64,24 @@ curl localhost:8787/health    # { ok: true, ... } once it has ticked
 2. Set `NEXT_PUBLIC_AGENT_URL=https://<your-app>.fly.dev` in the web app's env and redeploy — the agent panel/feed flips from **Offline** to live.
 3. Add an external uptime monitor on `/health` (the in-process incident webhook covers degradation, but a crash-loop needs an outside watcher).
 
+## HTTP endpoints (and who consumes each)
+
+The agent exposes one HTTP surface. Public endpoints feed the web app; the
+bearer-gated ones are **operational** surfaces (consumed by monitoring + on-call,
+deliberately NOT in the public UI — they leak float / distressed-position data).
+
+| Endpoint | Auth | Consumed by |
+|---|---|---|
+| `GET /` | public | liveness ping |
+| `GET /health` | public | uptime monitor + the web dashboard/status "agent" cards |
+| `GET /actions` | public | the web `/agent` + `/transparency` activity feeds |
+| `GET /alerts/latest` | bearer (`AGENT_ADMIN_SECRET`) | on-call: current at-risk snapshot (`curl -H "authorization: Bearer …"`); push alerts go via `AGENT_INCIDENT_WEBHOOK_URL` |
+| `GET /metrics` | bearer | Prometheus / Grafana / Fly metrics scrape (set your scraper's bearer token) |
+| `POST /config` | bearer | the web admin panel, via its server-side `/api/agent/config` proxy |
+
+So `/alerts/latest` and `/metrics` are not dead — they're the on-call + metrics
+surfaces. Point your Prometheus scrape and on-call tooling at them once hosted.
+
 ## Operating notes
 
 - **Key rotation / compromise:** see `SECURITY.md` — `setAgent(0x0)` is the on-chain kill switch.
