@@ -60,6 +60,9 @@ export function BorrowForm() {
   const currentDebt = (data?.[1]?.result as bigint | undefined) ?? 0n;
   const borrowRateBps = (data?.[2]?.result as bigint | undefined) ?? 0n;
   const currentHf = (data?.[3]?.result as bigint | undefined) ?? 2n ** 200n;
+  // debtOf returns 6-dec USDC; ×100 converts to the 8-dec USD scale used by the
+  // collateral values, the HF projection, and the LTV slider math.
+  const currentDebt8 = currentDebt * 100n;
 
   // Raw market value = Σ collateralOf × oracle price (USD, 8-dec). This is what
   // the user actually deposited and the correct denominator for an LTV slider.
@@ -81,19 +84,44 @@ export function BorrowForm() {
   const additionalUsd8 = useMemo(() => {
     // Target borrow = LTV% of RAW market value (standard LTV semantics).
     const target = (rawCollateral * BigInt(ltvBps)) / 10_000n;
-    if (target <= currentDebt) return 0n;
-    return target - currentDebt;
-  }, [rawCollateral, currentDebt, ltvBps]);
+    if (target <= currentDebt8) return 0n;
+    return target - currentDebt8;
+  }, [rawCollateral, currentDebt8, ltvBps]);
 
   const projectedHf = useMemo(
     () =>
       projectHealthFactor({
         collateralValueUsd8: weightedCollateral, // HF uses the risk-weighted value
-        currentDebtUsd8: currentDebt,
+        currentDebtUsd8: currentDebt8,
         additionalBorrowUsd8: additionalUsd8,
       }),
-    [weightedCollateral, currentDebt, additionalUsd8],
+    [weightedCollateral, currentDebt8, additionalUsd8],
   );
+
+  // Liquidation prices: the position liquidates when its risk-weighted collateral
+  // falls to the debt. Under a uniform price move the multiplier is
+  // debt / weightedCollateral, so each held asset liquidates at currentPrice × that
+  // (exact for a single collateral; the proportional-basket case otherwise).
+  const projectedDebt8 = currentDebt8 + additionalUsd8;
+  const liqPrices = useMemo(() => {
+    if (projectedDebt8 <= 0n || weightedCollateral <= projectedDebt8) return [];
+    return tokens
+      .map((t, i) => {
+        const bal = data?.[BASE + i * 2]?.result as bigint | undefined;
+        const feed = data?.[BASE + i * 2 + 1]?.result as
+          | readonly [bigint, bigint, bigint, boolean]
+          | undefined;
+        if (!bal || bal === 0n || !feed) return null;
+        const price8 = feed[0] > 0n ? feed[0] : 0n;
+        if (price8 === 0n) return null;
+        return { symbol: t.symbol, price8, liqPrice8: (price8 * projectedDebt8) / weightedCollateral };
+      })
+      .filter((x): x is { symbol: string; price8: bigint; liqPrice8: bigint } => x !== null);
+  }, [data, tokens, projectedDebt8, weightedCollateral]);
+  const liqDropPct =
+    weightedCollateral > projectedDebt8 && projectedDebt8 > 0n
+      ? Number(((weightedCollateral - projectedDebt8) * 10_000n) / weightedCollateral) / 100
+      : 0;
 
   const projected = classify(projectedHf);
   const willBeUnsafe = projectedHf < 1_100_000_000_000_000_000n; // <1.1e18 = Watch or worse
@@ -136,7 +164,7 @@ export function BorrowForm() {
           <div className="grid grid-cols-2 gap-3 text-sm">
             <Stat label="Collateral value" value={formatUsd8(rawCollateral)} />
             <Stat label="Borrowing power" value={formatUsd8(weightedCollateral)} hint="risk-adjusted" />
-            <Stat label="Current debt" value={formatUsd8(currentDebt)} />
+            <Stat label="Current debt" value={formatUsd8(currentDebt8)} />
             <Stat label="Current health" value={formatHealthFactor(currentHf)} />
             <Stat label="Borrow APR" value={formatBps(borrowRateBps)} />
           </div>
@@ -191,6 +219,32 @@ export function BorrowForm() {
               <HealthBadge tone={projected.tone} label={`After borrow: ${projected.label}`} size="sm" />
             </div>
           </div>
+
+          {liqPrices.length > 0 ? (
+            <div className="rounded-lg border border-[color:var(--color-border)] p-4">
+              <p className="text-xs text-[color:var(--color-muted-foreground)]">
+                Liquidation price{liqPrices.length > 1 ? "s" : ""} after this borrow
+                {liqDropPct > 0 ? ` · roughly a ${liqDropPct.toFixed(0)}% drop away` : ""}
+              </p>
+              <ul className="mt-1 space-y-1 text-sm">
+                {liqPrices.map((p) => (
+                  <li key={p.symbol} className="flex items-baseline justify-between tabular-nums">
+                    <span className="font-medium">{p.symbol}</span>
+                    <span>
+                      {formatUsd8(p.liqPrice8)}{" "}
+                      <span className="text-xs text-[color:var(--color-muted-foreground)]">
+                        from {formatUsd8(p.price8)}
+                      </span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-2 text-xs text-[color:var(--color-muted-foreground)]">
+                If a held asset falls to the price shown, the position becomes liquidatable — the AI
+                agent acts before that.
+              </p>
+            </div>
+          ) : null}
 
           {willBeUnsafe && additionalUsd8 > 0n ? (
             <Alert tone="warning">

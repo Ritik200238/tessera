@@ -18,12 +18,13 @@ import "./landing.css";
 
 type Zone = { k: string; lbl: string; col: string; wash: string };
 
+// The 3 assets actually listed on-chain — LTV/liq match the deployed assetParams
+// (tTSLA 40/55, tAAPL 50/65, tSPY 60/75); prices match the testnet oracle. The
+// simulator is a teaching widget but uses the real listed set, not invented tickers.
 const ASSETS = {
-  TSLA: { name: "Tesla, Inc.", ltv: 0.4, liq: 0.55, px: 342.18, gap: 0.15, sector: "Consumer" },
-  AAPL: { name: "Apple Inc.", ltv: 0.5, liq: 0.65, px: 214.55, gap: 0.08, sector: "Technology" },
-  NVDA: { name: "NVIDIA Corp.", ltv: 0.4, liq: 0.55, px: 131.26, gap: 0.13, sector: "Technology" },
-  SPY: { name: "SPDR S&P 500 ETF", ltv: 0.55, liq: 0.7, px: 588.4, gap: 0.05, sector: "Index ETF" },
-  QQQ: { name: "Invesco QQQ Trust", ltv: 0.5, liq: 0.65, px: 511.92, gap: 0.07, sector: "Index ETF" },
+  TSLA: { name: "Tesla, Inc.", ltv: 0.4, liq: 0.55, px: 250, gap: 0.15, sector: "Consumer" },
+  AAPL: { name: "Apple Inc.", ltv: 0.5, liq: 0.65, px: 200, gap: 0.08, sector: "Technology" },
+  SPY: { name: "SPDR S&P 500 ETF", ltv: 0.6, liq: 0.75, px: 500, gap: 0.05, sector: "Index ETF" },
 };
 type AssetKey = keyof typeof ASSETS;
 
@@ -355,7 +356,7 @@ export default function LandingPage() {
                 <span className="grad">Watched 24/7.</span>
               </h1>
               <p className="hsub">
-                Tessera is the safest venue to lend USDC, or borrow against tokenized TSLA, AAPL, NVDA, SPY and QQQ. An
+                Tessera is the safest venue to lend USDC, or borrow against tokenized TSLA, AAPL and SPY. An
                 AI agent monitors every position around the clock — and acts before a liquidation, not after.
               </p>
               <div className="hero-cta">
@@ -381,13 +382,13 @@ export default function LandingPage() {
                     "ink:TSLA",
                     "",
                     "",
-                    ":NVDA",
+                    "blue:",
                     "blue:SPY",
                     "",
                     "ink:AAPL",
                     "",
                     "",
-                    ":QQQ",
+                    "ink:",
                     "ink:",
                     "blue:",
                     "",
