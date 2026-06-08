@@ -75,9 +75,10 @@ pub enum VaultError {
     Overflow(Overflow),
 }
 
-// Manual `Debug` (the `sol!`-generated variant structs don't derive it). The
-// host tests' `.unwrap()` / `.expect()` / `.unwrap_err()` on `Result<_,
-// VaultError>` require it; this prints the variant name. `no_std` compatible.
+// Manual `Debug` (the `sol!`-generated variant structs don't derive it). Only
+// the host tests need it (`.unwrap()` / `.expect()` / `.unwrap_err()`), so it is
+// `#[cfg(test)]`-gated to keep the deployed wasm under the 24KB code-size limit.
+#[cfg(test)]
 impl core::fmt::Debug for VaultError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.write_str(match self {

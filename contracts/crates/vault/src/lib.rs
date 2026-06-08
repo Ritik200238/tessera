@@ -133,24 +133,6 @@ impl TesseraVault {
         Ok(())
     }
 
-    /// Liquidation access: the agent always; anyone else only via the
-    /// permissionless backstop once the agent has been silent past
-    /// `backstop_delay_secs` (0 disables the backstop — agent-only at MVP).
-    fn require_liquidator(&self) -> Result<(), VaultError> {
-        let agent = self.config.agent.get();
-        if agent != Address::ZERO && self.vm().msg_sender() == agent {
-            return Ok(());
-        }
-        let delay = self.config.backstop_delay_secs.get().to::<u64>();
-        if delay > 0 {
-            let last = self.config.agent_last_heartbeat.get().to::<u64>();
-            if self.now_ts().saturating_sub(last) > delay {
-                return Ok(());
-            }
-        }
-        Err(VaultError::NotAgent(NotAgent {}))
-    }
-
     /// Enforce the on-chain per-(user, UTC-day) auto-repay ceiling and return the
     /// amount the agent is allowed to repay this call. `max == 0` disables the cap.
     fn charge_daily_repay(&mut self, user: Address, amount: U256) -> Result<U256, VaultError> {
@@ -703,57 +685,14 @@ impl TesseraVault {
         Ok(())
     }
 
-    /// Seconds of agent silence after which anyone may liquidate. 0 = backstop
-    /// disabled (agent-only). The named permissionless-backstop gate.
-    #[selector(name = "setBackstopDelay")]
-    pub fn set_backstop_delay(&mut self, secs: U64) -> Result<(), VaultError> {
-        self.only_owner()?;
-        self.config.backstop_delay_secs.set(secs);
-        self.vm().log(ParamUpdate {
-            key: key(b"backstop_delay_secs"),
-            value: U256::from(secs.to::<u64>()),
-        });
-        Ok(())
-    }
-
     /// Per-(user, day) cap on agent auto-repay, in USDC (6dp). 0 = unlimited.
     #[selector(name = "setMaxAgentRepayPerDay")]
     pub fn set_max_agent_repay_per_day(&mut self, amount: U256) -> Result<(), VaultError> {
         self.only_owner()?;
         self.config.max_agent_repay_per_day.set(amount);
-        self.vm().log(ParamUpdate {
-            key: key(b"max_agent_repay_per_day"),
-            value: amount,
-        });
         Ok(())
     }
 
-    /// Withdraw accrued protocol reserve to `to` (owner-only), capped by idle
-    /// liquidity. This is the on-chain substance behind the insurance/safety
-    /// reserve gate — funds it from the reserve factor, never from lender shares.
-    #[selector(name = "withdrawReserve")]
-    pub fn withdraw_reserve(&mut self, to: Address, amount: U256) -> Result<U256, VaultError> {
-        self.lock_reentrancy()?;
-        let r = (|| -> Result<U256, VaultError> {
-            self.only_owner()?;
-            if to.is_zero() {
-                return Err(VaultError::ZeroAddress(ZeroAddress {}));
-            }
-            let reserve = self.lending.reserve_assets.get();
-            let idle = self.lending.idle_assets.get();
-            let pay = core::cmp::min(amount, core::cmp::min(reserve, idle));
-            if pay.is_zero() {
-                return Err(VaultError::InsufficientLiquidity(InsufficientLiquidity {}));
-            }
-            self.lending.reserve_assets.set(reserve - pay);
-            self.lending.idle_assets.set(idle - pay);
-            let usdc = self.config.usdc.get();
-            self::token::push(self, usdc, to, pay)?;
-            Ok(pay)
-        })();
-        self.unlock_reentrancy();
-        r
-    }
 
     pub fn pause(&mut self) -> Result<(), VaultError> {
         self.only_owner()?;
@@ -1208,7 +1147,6 @@ impl TesseraVault {
             // On-chain per-(user, day) cap so a compromised agent KEY — not just
             // compliant agent code — can't drain a user's full allowance at once.
             let capped = self.charge_daily_repay(user, amount)?;
-            self.config.agent_last_heartbeat.set(U64::from(self.now_ts()));
             self.repay_internal(user, capped)
         })();
         self.unlock_reentrancy();
@@ -1226,13 +1164,10 @@ impl TesseraVault {
         // Liquidation is allowed when paused (it's the safety release valve).
         self.lock_reentrancy()?;
         let r = (|| -> Result<U256, VaultError> {
-            // Agent-only at MVP, with a permissionless backstop once the agent
-            // has been silent past `backstop_delay_secs` — so a down/censored
-            // agent can't strand lenders (the named backstop gate, pre-wired).
-            self.require_liquidator()?;
-            if self.vm().msg_sender() == self.config.agent.get() {
-                self.config.agent_last_heartbeat.set(U64::from(self.now_ts()));
-            }
+            // MVP: agent-only (TDD §3.6 / D3). The permissionless heartbeat-gated
+            // backstop is a named pre-mainnet gate; its storage hooks
+            // (agent_last_heartbeat, backstop_delay_secs) are reserved for it.
+            self.only_agent()?;
             if borrower.is_zero() {
                 return Err(VaultError::ZeroAddress(ZeroAddress {}));
             }
@@ -1415,34 +1350,6 @@ impl TesseraVault {
             p.liq_threshold_bps.get().to::<u16>(),
             p.liq_bonus_bps.get().to::<u16>(),
         )
-    }
-
-    /// Per-asset flags appended after the original `assetParams` tuple
-    /// (frozen, feed_decimals) — kept separate so `assetParams`'s ABI is stable.
-    #[selector(name = "assetFlags")]
-    pub fn asset_flags(&self, token: Address) -> (bool, u8) {
-        let p = self.config.asset_whitelist.get(token);
-        (p.frozen.get(), p.feed_decimals.get().to::<u8>())
-    }
-
-    #[selector(name = "backstopDelay")]
-    pub fn backstop_delay(&self) -> U64 {
-        self.config.backstop_delay_secs.get()
-    }
-
-    #[selector(name = "agentLastHeartbeat")]
-    pub fn agent_last_heartbeat(&self) -> U64 {
-        self.config.agent_last_heartbeat.get()
-    }
-
-    #[selector(name = "maxAgentRepayPerDay")]
-    pub fn max_agent_repay_per_day(&self) -> U256 {
-        self.config.max_agent_repay_per_day.get()
-    }
-
-    #[selector(name = "reserveAssets")]
-    pub fn reserve_assets(&self) -> U256 {
-        self.lending.reserve_assets.get()
     }
 
     #[selector(name = "listedAssetCount")]
