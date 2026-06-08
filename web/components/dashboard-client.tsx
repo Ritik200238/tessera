@@ -11,6 +11,7 @@ import { env } from "@/lib/env";
 import { formatBps, formatUsd8 } from "@/lib/format";
 import { formatUsdcUsd } from "@/lib/protocol";
 import { PositionTile } from "@/components/position-tile";
+import { HealthHistory } from "@/components/health-history";
 import { Mark } from "@/components/mark";
 import { ValueCard } from "@/components/value-card";
 import { ConnectButton } from "@/components/connect-button";
@@ -98,6 +99,7 @@ export function DashboardClient({ agentStatus }: { agentStatus: AgentStatusSumma
                 <ValueCard label="Lending APY" value={formatBps(supplyBps)} tone="muted" />
                 <ValueCard label="Utilization" value={formatBps(util)} tone="muted" />
               </div>
+              <HealthHistory address={address!} hf={hf} hasDebt={debt > 0n} />
             </>
           ) : (
             <GetStarted />
