@@ -74,3 +74,32 @@ pub enum VaultError {
     ZeroShares(ZeroShares),
     Overflow(Overflow),
 }
+
+// Manual `Debug` (the `sol!`-generated variant structs don't derive it). The
+// host tests' `.unwrap()` / `.expect()` / `.unwrap_err()` on `Result<_,
+// VaultError>` require it; this prints the variant name. `no_std` compatible.
+impl core::fmt::Debug for VaultError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.write_str(match self {
+            VaultError::NotOwner(_) => "NotOwner",
+            VaultError::NotAgent(_) => "NotAgent",
+            VaultError::Paused(_) => "Paused",
+            VaultError::NotPaused(_) => "NotPaused",
+            VaultError::Reentrancy(_) => "Reentrancy",
+            VaultError::AssetNotEnabled(_) => "AssetNotEnabled",
+            VaultError::AssetAlreadyListed(_) => "AssetAlreadyListed",
+            VaultError::InvalidParameter(_) => "InvalidParameter",
+            VaultError::ZeroAddress(_) => "ZeroAddress",
+            VaultError::ZeroAmount(_) => "ZeroAmount",
+            VaultError::InsufficientBalance(_) => "InsufficientBalance",
+            VaultError::InsufficientLiquidity(_) => "InsufficientLiquidity",
+            VaultError::TokenTransferFailed(_) => "TokenTransferFailed",
+            VaultError::StalePrice(_) => "StalePrice",
+            VaultError::OracleFailure(_) => "OracleFailure",
+            VaultError::HealthFactorTooLow(_) => "HealthFactorTooLow",
+            VaultError::PositionHealthy(_) => "PositionHealthy",
+            VaultError::ZeroShares(_) => "ZeroShares",
+            VaultError::Overflow(_) => "Overflow",
+        })
+    }
+}
