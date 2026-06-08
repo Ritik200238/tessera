@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { Mark } from "@/components/mark";
 import { useProtocolStats, formatUsdcUsd } from "@/lib/protocol";
 import { track } from "@/lib/analytics";
+import { MarketsGrid } from "@/components/markets-grid";
 import "./landing.css";
 
 /* ----------------------------------------------------------------------------
@@ -113,14 +114,6 @@ const TL_STEPS = [
     hf: "1.31",
     col: "var(--safe)",
   },
-];
-
-const MARKETS = [
-  { sym: "TSLA", gl: "TS", nm: "Tesla, Inc.", sector: "Consumer", px: 342.18, ltv: "40%", liq: "55%" },
-  { sym: "AAPL", gl: "AA", nm: "Apple Inc.", sector: "Technology", px: 214.55, ltv: "50%", liq: "65%" },
-  { sym: "NVDA", gl: "NV", nm: "NVIDIA Corp.", sector: "Technology", px: 131.26, ltv: "40%", liq: "55%" },
-  { sym: "SPY", gl: "SP", nm: "SPDR S&P 500 ETF", sector: "Index ETF", px: 588.4, ltv: "55%", liq: "70%" },
-  { sym: "QQQ", gl: "QQ", nm: "Invesco QQQ Trust", sector: "Index ETF", px: 511.92, ltv: "50%", liq: "65%" },
 ];
 
 const CHECK = (
@@ -784,32 +777,12 @@ export default function LandingPage() {
         <section className="sec tight" id="markets">
           <div className="wrap">
             <span className="eyebrow reveal">Supported collateral</span>
-            <h2 className="sec-h reveal">Five blue-chips. Conservative by design.</h2>
+            <h2 className="sec-h reveal">Three blue-chips. Conservative by design.</h2>
             <p className="sec-sub reveal">
               Every asset has its own loan-to-value and liquidation threshold, set to survive the gaps that stocks take
-              overnight and on Mondays. Prices come from Chainlink oracles.
+              overnight and on Mondays. Prices and risk limits below are read live from the on-chain oracle and vault.
             </p>
-            <div className="mkt-grid">
-              {MARKETS.map((m) => (
-                <div className="mcard reveal" key={m.sym}>
-                  <div className="mh">
-                    <div className="gl">{m.gl}</div>
-                    <span className="ut">{m.sector}</span>
-                  </div>
-                  <div className="tk">{m.sym}</div>
-                  <div className="nm">{m.nm}</div>
-                  <div className="px">${m.px.toFixed(2)}</div>
-                  <div className="row">
-                    <span className="k">LTV</span>
-                    <span className="v">{m.ltv}</span>
-                  </div>
-                  <div className="row" style={{ borderTop: 0, paddingTop: 6 }}>
-                    <span className="k">Liq. threshold</span>
-                    <span className="v">{m.liq}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <MarketsGrid />
           </div>
         </section>
 
