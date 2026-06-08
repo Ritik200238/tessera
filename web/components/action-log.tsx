@@ -25,7 +25,7 @@ export type AgentAction =
       tx: string;
       repay: string;
       hfBefore: string;
-      status: "submitted" | "reverted" | "skipped";
+      status: "submitted" | "confirmed" | "reverted" | "skipped";
     }
   | { ts: string; kind: "error"; where: string; message: string };
 
