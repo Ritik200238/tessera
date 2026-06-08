@@ -13,9 +13,9 @@ services:
     name: tessera-agent
     runtime: docker
     plan: free
-    rootDir: agent
-    dockerfilePath: ./Dockerfile
-    dockerContext: .
+    # Paths are relative to the REPO ROOT (Render does not apply rootDir to these).
+    dockerfilePath: ./agent/Dockerfile
+    dockerContext: ./agent
     healthCheckPath: /health
     autoDeploy: true
     envVars:
