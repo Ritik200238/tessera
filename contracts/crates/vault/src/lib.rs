@@ -71,6 +71,44 @@ fn key(name: &[u8]) -> FixedBytes<32> {
     FixedBytes::from(k)
 }
 
+/// `num / den`, truncating (round down). `den` is always non-zero at call sites
+/// (virtual shares/assets guarantee it), but we guard defensively.
+fn mul_div_down(num: U256, den: U256) -> U256 {
+    num.checked_div(den).unwrap_or(U256::ZERO)
+}
+
+/// `num / den`, rounding up.
+fn mul_div_up(num: U256, den: U256) -> U256 {
+    let q = num.checked_div(den).unwrap_or(U256::ZERO);
+    let r = num.checked_rem(den).unwrap_or(U256::ZERO);
+    if r.is_zero() {
+        q
+    } else {
+        q.saturating_add(U256::from(1u64))
+    }
+}
+
+fn pow10_u256(n: u8) -> U256 {
+    let mut acc = U256::from(1u64);
+    for _ in 0..n {
+        acc = acc.saturating_mul(U256::from(10u64));
+    }
+    acc
+}
+
+/// Normalise a raw oracle answer to 8 decimals given the feed's decimals.
+/// `feed_decimals == 0` is treated as 8 (the default for Chainlink and the
+/// testnet MockOracle), so existing listings are unaffected.
+fn normalize_price_8(price: U256, feed_decimals: u8) -> U256 {
+    if feed_decimals == 0 || feed_decimals == 8 {
+        price
+    } else if feed_decimals < 8 {
+        price.saturating_mul(pow10_u256(8 - feed_decimals))
+    } else {
+        price.checked_div(pow10_u256(feed_decimals - 8)).unwrap_or(U256::ZERO)
+    }
+}
+
 // ---------- Internal helpers ----------
 
 impl TesseraVault {
@@ -93,6 +131,54 @@ impl TesseraVault {
             return Err(VaultError::NotAgent(NotAgent {}));
         }
         Ok(())
+    }
+
+    /// Liquidation access: the agent always; anyone else only via the
+    /// permissionless backstop once the agent has been silent past
+    /// `backstop_delay_secs` (0 disables the backstop — agent-only at MVP).
+    fn require_liquidator(&self) -> Result<(), VaultError> {
+        let agent = self.config.agent.get();
+        if agent != Address::ZERO && self.vm().msg_sender() == agent {
+            return Ok(());
+        }
+        let delay = self.config.backstop_delay_secs.get().to::<u64>();
+        if delay > 0 {
+            let last = self.config.agent_last_heartbeat.get().to::<u64>();
+            if self.now_ts().saturating_sub(last) > delay {
+                return Ok(());
+            }
+        }
+        Err(VaultError::NotAgent(NotAgent {}))
+    }
+
+    /// Enforce the on-chain per-(user, UTC-day) auto-repay ceiling and return the
+    /// amount the agent is allowed to repay this call. `max == 0` disables the cap.
+    fn charge_daily_repay(&mut self, user: Address, amount: U256) -> Result<U256, VaultError> {
+        let max = self.config.max_agent_repay_per_day.get();
+        if max.is_zero() {
+            return Ok(amount);
+        }
+        let day = U64::from(self.now_ts() / 86_400);
+        let last_day = self.debt.agent_repaid_day.get(user);
+        let used = if last_day == day {
+            self.debt.agent_repaid_today.get(user)
+        } else {
+            U256::ZERO
+        };
+        if used >= max {
+            return Err(VaultError::InvalidParameter(InvalidParameter {}));
+        }
+        let remaining = max - used;
+        let capped = core::cmp::min(amount, remaining);
+        if capped.is_zero() {
+            return Err(VaultError::InvalidParameter(InvalidParameter {}));
+        }
+        self.debt.agent_repaid_day.setter(user).set(day);
+        self.debt
+            .agent_repaid_today
+            .setter(user)
+            .set(used.saturating_add(capped));
+        Ok(capped)
     }
 
     fn check_not_paused(&self) -> Result<(), VaultError> {
@@ -138,13 +224,29 @@ impl TesseraVault {
         let oracle = self.config.oracle.get();
         let max_age = self.config.max_price_age_secs.get().to::<u64>();
         let now = self.now_ts();
-        oracle::price_usd_8(self, oracle, asset, now, max_age)
+        // Read the configured feed decimals before the (mutable) oracle call.
+        let fd = self.config.asset_whitelist.get(asset).feed_decimals.get().to::<u8>();
+        let raw = oracle::price_usd_8(self, oracle, asset, now, max_age)?;
+        // Normalise any non-8-decimal feed to 8dp. Mainnet Chainlink feeds are
+        // NOT uniformly 8-decimal; the testnet mock is 8 (fd default 0 => 8), so
+        // this is a no-op there and a correctness guard on mainnet.
+        Ok(normalize_price_8(raw, fd))
     }
 
     /// Aggregate the user's collateral into the legs the interest-model needs,
     /// returning the `1e8`-scaled USD value already weighted by each asset's
     /// liquidation threshold.
     fn collateral_legs(&mut self, user: Address) -> Result<U256, VaultError> {
+        self.collateral_legs_weighted(user, false)
+    }
+
+    /// Aggregate the user's collateral, weighted by either each asset's
+    /// liquidation threshold (`use_max_ltv == false`, for HF) or its max LTV
+    /// (`use_max_ltv == true`, for the stricter borrow-open gate). The
+    /// `liq_threshold_bps` field of `CollateralLeg` is just the weight applied by
+    /// `collateral_value_usd_8`, so passing `max_ltv_bps` there yields the
+    /// max-LTV-weighted value.
+    fn collateral_legs_weighted(&mut self, user: Address, use_max_ltv: bool) -> Result<U256, VaultError> {
         let n = self.config.listed_assets.len();
         let mut legs: Vec<CollateralLeg> = Vec::new();
         for i in 0..n {
@@ -160,19 +262,23 @@ impl TesseraVault {
             }
             let params = self.config.asset_whitelist.get(token);
             if !params.enabled.get() {
-                // Disabled assets are valued at zero (TDD §3.6: owner can
-                // freeze a misbehaving asset; existing positions then count
-                // it as worthless until re-enabled).
+                // Disabled (delisted) assets are valued at zero. Note: a *frozen*
+                // asset stays enabled, so existing collateral keeps its value —
+                // a freeze only blocks new deposits (see deposit_collateral).
                 continue;
             }
             let decimals = u32::from(params.decimals.get().to::<u8>());
-            let liq_threshold = u32::from(params.liq_threshold_bps.get().to::<u16>());
+            let weight = if use_max_ltv {
+                u32::from(params.max_ltv_bps.get().to::<u16>())
+            } else {
+                u32::from(params.liq_threshold_bps.get().to::<u16>())
+            };
             let price = self.oracle_price(token)?;
             legs.push(CollateralLeg {
                 amount,
                 decimals,
                 price_usd_8: price,
-                liq_threshold_bps: liq_threshold,
+                liq_threshold_bps: weight,
             });
         }
         Ok(collateral_value_usd_8(&legs))
@@ -200,105 +306,91 @@ impl TesseraVault {
 
     /// Total USDC the lender vault represents (idle + outstanding debt at the
     /// current index). ERC-4626's `totalAssets`.
+    ///
+    /// Outstanding debt is computed EXACTLY as `scaled_total_principal * index /
+    /// WAD`, where `scaled_total_principal = Σ principal[u] * WAD / user_index[u]`
+    /// (Aave's scaledTotalSupply). This is `Σ debt_of(u)` — no over-count of
+    /// accrued interest, so lender share price is correct (invariant I1).
     fn total_assets_internal(&self) -> U256 {
         let idle = self.lending.idle_assets.get();
-        // Outstanding debt at the current index. We approximate with
-        // `total_principal * current_index / WAD` because in MVP every borrow
-        // is normalised against the index at borrow-time via per-user snapshot
-        // and `total_principal` is raw — this overstates by accrued-but-
-        // unrealised interest. For accurate ERC-4626 accounting we track the
-        // per-borrower scaled balance separately:
-        //
-        // Actually, with our (raw principal + per-user snapshot index) model,
-        // the *true* total debt equals Σ principal[u] * idx / user_idx[u],
-        // which requires iteration. As an approximation we use:
-        //     total_principal * (current_index / WAD)
-        // which would over-count if any borrower's snapshot is *newer* than
-        // the global. Since we accrue on every state mutation and update the
-        // user index on every borrow / repay, every user's snapshot ≤ global
-        // index — so the approximation under- or equal-counts but never over.
-        // For MVP this is acceptable and conservative for lender share price.
-        let principal = self.lending.total_principal.get();
-        if principal.is_zero() {
-            return idle;
-        }
-        let idx = interest::current_index(&self.interest);
-        let wad = U256::from(WAD);
-        let scaled = principal
-            .saturating_mul(idx)
-            .checked_div(wad)
-            .unwrap_or(principal);
-        idle.saturating_add(scaled)
+        let reserve = self.lending.reserve_assets.get();
+        let scaled = self.lending.scaled_total_principal.get();
+        let total_debt = if scaled.is_zero() {
+            U256::ZERO
+        } else {
+            let idx = interest::current_index(&self.interest);
+            scaled
+                .saturating_mul(idx)
+                .checked_div(U256::from(WAD))
+                .unwrap_or(scaled)
+        };
+        // Lender-facing assets exclude the protocol reserve.
+        idle.saturating_add(total_debt).saturating_sub(reserve)
     }
 
-    /// Convert assets → shares with OZ-style rounding (down for deposit,
-    /// up for mint). `decimals_offset = 0` for MVP.
+    /// Maintain `scaled_total_principal` across a single user's debt change.
+    /// `scaled[u] = principal[u] * WAD / user_index[u]`; we subtract the old
+    /// contribution and add the new one. Call AFTER computing the new principal
+    /// and the new index (which the user's `user_index` is set to).
+    fn apply_scaled_debt(
+        &mut self,
+        prev_principal: U256,
+        prev_index: U256,
+        new_principal: U256,
+        new_index: U256,
+    ) {
+        let wad = U256::from(WAD);
+        let scaled = |p: U256, i: U256| -> U256 {
+            if p.is_zero() || i.is_zero() {
+                U256::ZERO
+            } else {
+                p.saturating_mul(wad).checked_div(i).unwrap_or(U256::ZERO)
+            }
+        };
+        let old_s = scaled(prev_principal, prev_index);
+        let new_s = scaled(new_principal, new_index);
+        let cur = self.lending.scaled_total_principal.get();
+        self.lending
+            .scaled_total_principal
+            .set(cur.saturating_sub(old_s).saturating_add(new_s));
+    }
+
+    // ERC-4626 conversion with OpenZeppelin-style virtual shares/assets
+    // (decimals_offset = 6). The virtual buffer makes the classic first-depositor
+    // inflation attack economically infeasible: there is no "supply == 0" edge to
+    // exploit, and a tiny real supply can no longer round the next depositor to
+    // zero shares. shares = assets·(supply + 1e6)/(totalAssets + 1).
     fn convert_to_shares_round_down(&self, assets: U256) -> U256 {
-        let supply = self.lending.total_shares.get();
-        if supply.is_zero() {
-            return assets;
-        }
-        let total = self.total_assets_internal();
-        if total.is_zero() {
-            return assets;
-        }
-        assets
-            .saturating_mul(supply)
-            .checked_div(total)
-            .unwrap_or(U256::ZERO)
+        let num = assets.saturating_mul(self.virtual_supply());
+        mul_div_down(num, self.virtual_total_assets())
     }
 
     fn convert_to_shares_round_up(&self, assets: U256) -> U256 {
-        let supply = self.lending.total_shares.get();
-        if supply.is_zero() {
-            return assets;
-        }
-        let total = self.total_assets_internal();
-        if total.is_zero() {
-            return assets;
-        }
-        let num = assets.saturating_mul(supply);
-        let q = num.checked_div(total).unwrap_or(U256::ZERO);
-        let r = num.checked_rem(total).unwrap_or(U256::ZERO);
-        if r.is_zero() {
-            q
-        } else {
-            q.saturating_add(U256::from(1u64))
-        }
+        let num = assets.saturating_mul(self.virtual_supply());
+        mul_div_up(num, self.virtual_total_assets())
     }
 
     fn convert_to_assets_round_down(&self, shares: U256) -> U256 {
-        let supply = self.lending.total_shares.get();
-        if supply.is_zero() {
-            return shares;
-        }
-        let total = self.total_assets_internal();
-        if total.is_zero() {
-            return U256::ZERO;
-        }
-        shares
-            .saturating_mul(total)
-            .checked_div(supply)
-            .unwrap_or(U256::ZERO)
+        let num = shares.saturating_mul(self.virtual_total_assets());
+        mul_div_down(num, self.virtual_supply())
     }
 
     fn convert_to_assets_round_up(&self, shares: U256) -> U256 {
-        let supply = self.lending.total_shares.get();
-        if supply.is_zero() {
-            return shares;
-        }
-        let total = self.total_assets_internal();
-        if total.is_zero() {
-            return U256::ZERO;
-        }
-        let num = shares.saturating_mul(total);
-        let q = num.checked_div(supply).unwrap_or(U256::ZERO);
-        let r = num.checked_rem(supply).unwrap_or(U256::ZERO);
-        if r.is_zero() {
-            q
-        } else {
-            q.saturating_add(U256::from(1u64))
-        }
+        let num = shares.saturating_mul(self.virtual_total_assets());
+        mul_div_up(num, self.virtual_supply())
+    }
+
+    /// total_shares + 10^6 virtual shares.
+    fn virtual_supply(&self) -> U256 {
+        self.lending
+            .total_shares
+            .get()
+            .saturating_add(U256::from(1_000_000u64))
+    }
+
+    /// total_assets + 1 virtual asset.
+    fn virtual_total_assets(&self) -> U256 {
+        self.total_assets_internal().saturating_add(U256::from(1u64))
     }
 
     /// Repay `amount` of `user`'s debt, pulling USDC from `user`'s allowance to
@@ -319,12 +411,14 @@ impl TesseraVault {
         let idx = interest::current_index(&self.interest);
 
         let prev_principal = self.debt.principal.get(user);
+        let prev_index = self.debt.user_index.get(user);
         let total = self.lending.total_principal.get();
         let total_after = total.saturating_sub(prev_principal).saturating_add(new_debt);
 
         self.debt.principal.setter(user).set(new_debt);
         self.debt.user_index.setter(user).set(idx);
         self.lending.total_principal.set(total_after);
+        self.apply_scaled_debt(prev_principal, prev_index, new_debt, idx);
         self.lending
             .idle_assets
             .set(self.lending.idle_assets.get().saturating_add(pay));
@@ -578,6 +672,87 @@ impl TesseraVault {
         }
         p.enabled.set(enabled);
         Ok(())
+    }
+
+    /// Freeze/unfreeze an asset: a frozen asset accepts no new collateral but
+    /// keeps valuing existing positions (surgical circuit breaker for one feed).
+    #[selector(name = "setAssetFrozen")]
+    pub fn set_asset_frozen(&mut self, token: Address, frozen: bool) -> Result<(), VaultError> {
+        self.only_owner()?;
+        let mut p = self.config.asset_whitelist.setter(token);
+        if p.decimals.get().is_zero() {
+            return Err(VaultError::AssetNotEnabled(AssetNotEnabled { asset: token }));
+        }
+        p.frozen.set(frozen);
+        Ok(())
+    }
+
+    /// Record an asset's price-feed decimals (for mainnet Chainlink feeds that
+    /// aren't 8-decimal). Reads are normalised to 8dp; 0 means 8 (default).
+    #[selector(name = "setFeedDecimals")]
+    pub fn set_feed_decimals(&mut self, token: Address, feed_decimals: u8) -> Result<(), VaultError> {
+        self.only_owner()?;
+        if feed_decimals > 36 {
+            return Err(VaultError::InvalidParameter(InvalidParameter {}));
+        }
+        let mut p = self.config.asset_whitelist.setter(token);
+        if p.decimals.get().is_zero() {
+            return Err(VaultError::AssetNotEnabled(AssetNotEnabled { asset: token }));
+        }
+        p.feed_decimals.set(alloy_primitives::U8::from(feed_decimals));
+        Ok(())
+    }
+
+    /// Seconds of agent silence after which anyone may liquidate. 0 = backstop
+    /// disabled (agent-only). The named permissionless-backstop gate.
+    #[selector(name = "setBackstopDelay")]
+    pub fn set_backstop_delay(&mut self, secs: U64) -> Result<(), VaultError> {
+        self.only_owner()?;
+        self.config.backstop_delay_secs.set(secs);
+        self.vm().log(ParamUpdate {
+            key: key(b"backstop_delay_secs"),
+            value: U256::from(secs.to::<u64>()),
+        });
+        Ok(())
+    }
+
+    /// Per-(user, day) cap on agent auto-repay, in USDC (6dp). 0 = unlimited.
+    #[selector(name = "setMaxAgentRepayPerDay")]
+    pub fn set_max_agent_repay_per_day(&mut self, amount: U256) -> Result<(), VaultError> {
+        self.only_owner()?;
+        self.config.max_agent_repay_per_day.set(amount);
+        self.vm().log(ParamUpdate {
+            key: key(b"max_agent_repay_per_day"),
+            value: amount,
+        });
+        Ok(())
+    }
+
+    /// Withdraw accrued protocol reserve to `to` (owner-only), capped by idle
+    /// liquidity. This is the on-chain substance behind the insurance/safety
+    /// reserve gate — funds it from the reserve factor, never from lender shares.
+    #[selector(name = "withdrawReserve")]
+    pub fn withdraw_reserve(&mut self, to: Address, amount: U256) -> Result<U256, VaultError> {
+        self.lock_reentrancy()?;
+        let r = (|| -> Result<U256, VaultError> {
+            self.only_owner()?;
+            if to.is_zero() {
+                return Err(VaultError::ZeroAddress(ZeroAddress {}));
+            }
+            let reserve = self.lending.reserve_assets.get();
+            let idle = self.lending.idle_assets.get();
+            let pay = core::cmp::min(amount, core::cmp::min(reserve, idle));
+            if pay.is_zero() {
+                return Err(VaultError::InsufficientLiquidity(InsufficientLiquidity {}));
+            }
+            self.lending.reserve_assets.set(reserve - pay);
+            self.lending.idle_assets.set(idle - pay);
+            let usdc = self.config.usdc.get();
+            self::token::push(self, usdc, to, pay)?;
+            Ok(pay)
+        })();
+        self.unlock_reentrancy();
+        r
     }
 
     pub fn pause(&mut self) -> Result<(), VaultError> {
@@ -867,6 +1042,12 @@ impl TesseraVault {
                 return Err(VaultError::ZeroAmount(ZeroAmount {}));
             }
             self.require_asset(token)?;
+            // A frozen asset accepts no NEW collateral (existing positions keep
+            // their value — see collateral_legs). Surgical alternative to a
+            // global pause or a value-zeroing delist.
+            if self.config.asset_whitelist.get(token).frozen.get() {
+                return Err(VaultError::AssetNotEnabled(AssetNotEnabled { asset: token }));
+            }
             self.accrue();
             let user = self.vm().msg_sender();
 
@@ -958,28 +1139,32 @@ impl TesseraVault {
             let new_principal = cur_debt.saturating_add(amount);
             let idx = interest::current_index(&self.interest);
 
-            // Adjust `total_principal` by the delta between current debt and prior
-            // stored principal so the global tracks the raw outstanding.
+            // Maintain raw `total_principal` and the scaled accumulator that
+            // backs `total_assets`.
             let prev_principal = self.debt.principal.get(user);
+            let prev_index = self.debt.user_index.get(user);
             let total = self.lending.total_principal.get();
             let total_after = total.saturating_sub(prev_principal).saturating_add(new_principal);
 
             self.debt.principal.setter(user).set(new_principal);
             self.debt.user_index.setter(user).set(idx);
             self.lending.total_principal.set(total_after);
+            self.apply_scaled_debt(prev_principal, prev_index, new_principal, idx);
             self.lending.idle_assets.set(idle - amount);
 
-            // HF post-check (I1) — must be done *after* state writes.
+            // HF post-check (I1) — liquidation-threshold-weighted, must be >= 1.
             let hf = self.hf(user)?;
             if hf < U256::from(WAD) {
                 return Err(VaultError::HealthFactorTooLow(HealthFactorTooLow {}));
             }
-            // Additionally enforce per-asset max_ltv at borrow-open time
-            // (TDD §14 LTV cap). We approximate by requiring HF >= max(WAD,
-            // collateral / debt * ltv_threshold / max_ltv); for MVP we only
-            // enforce HF >= 1e18 since liq_threshold already encodes the
-            // upper bound.
-            // (Future: tighten to max_ltv.)
+            // Stricter borrow-open gate (TDD §7.3): the loan must also fit within
+            // each asset's MAX LTV, so a fresh position opens with a buffer below
+            // the liquidation threshold — the time window the agent needs to act.
+            let ltv_coll_8 = self.collateral_legs_weighted(user, true)?;
+            let debt_usd_8 = self.user_debt(user).saturating_mul(U256::from(100u64));
+            if health_factor(ltv_coll_8, debt_usd_8) < U256::from(WAD) {
+                return Err(VaultError::HealthFactorTooLow(HealthFactorTooLow {}));
+            }
 
             let usdc = self.config.usdc.get();
             self::token::push(self, usdc, user, amount)?;
@@ -1020,7 +1205,11 @@ impl TesseraVault {
         self.lock_reentrancy()?;
         let r = (|| -> Result<U256, VaultError> {
             self.only_agent()?;
-            self.repay_internal(user, amount)
+            // On-chain per-(user, day) cap so a compromised agent KEY — not just
+            // compliant agent code — can't drain a user's full allowance at once.
+            let capped = self.charge_daily_repay(user, amount)?;
+            self.config.agent_last_heartbeat.set(U64::from(self.now_ts()));
+            self.repay_internal(user, capped)
         })();
         self.unlock_reentrancy();
         r
@@ -1037,8 +1226,13 @@ impl TesseraVault {
         // Liquidation is allowed when paused (it's the safety release valve).
         self.lock_reentrancy()?;
         let r = (|| -> Result<U256, VaultError> {
-            // MVP: agent-only (TDD §3.6 / D3).
-            self.only_agent()?;
+            // Agent-only at MVP, with a permissionless backstop once the agent
+            // has been silent past `backstop_delay_secs` — so a down/censored
+            // agent can't strand lenders (the named backstop gate, pre-wired).
+            self.require_liquidator()?;
+            if self.vm().msg_sender() == self.config.agent.get() {
+                self.config.agent_last_heartbeat.set(U64::from(self.now_ts()));
+            }
             if borrower.is_zero() {
                 return Err(VaultError::ZeroAddress(ZeroAddress {}));
             }
@@ -1077,11 +1271,13 @@ impl TesseraVault {
             let new_debt = debt - res.repay_usdc;
             let idx = interest::current_index(&self.interest);
             let prev_principal = self.debt.principal.get(borrower);
+            let prev_index = self.debt.user_index.get(borrower);
             let total = self.lending.total_principal.get();
             let total_after = total.saturating_sub(prev_principal).saturating_add(new_debt);
             self.debt.principal.setter(borrower).set(new_debt);
             self.debt.user_index.setter(borrower).set(idx);
             self.lending.total_principal.set(total_after);
+            self.apply_scaled_debt(prev_principal, prev_index, new_debt, idx);
 
             let new_coll = coll_bal - res.seize_collateral;
             self.collateral
@@ -1093,6 +1289,14 @@ impl TesseraVault {
             self.lending
                 .idle_assets
                 .set(self.lending.idle_assets.get().saturating_add(res.repay_usdc));
+
+            // Post-state guard: a liquidation must IMPROVE health, fully repay the
+            // debt, or exhaust the seized asset — never just skim the bonus and
+            // leave the borrower more underwater than before.
+            let new_hf = self.hf(borrower)?;
+            if !(new_debt.is_zero() || new_coll.is_zero() || new_hf > hf) {
+                return Err(VaultError::HealthFactorTooLow(HealthFactorTooLow {}));
+            }
 
             // Interactions: pull repay USDC from liquidator, push collateral to liquidator.
             let usdc = self.config.usdc.get();
@@ -1211,6 +1415,34 @@ impl TesseraVault {
             p.liq_threshold_bps.get().to::<u16>(),
             p.liq_bonus_bps.get().to::<u16>(),
         )
+    }
+
+    /// Per-asset flags appended after the original `assetParams` tuple
+    /// (frozen, feed_decimals) — kept separate so `assetParams`'s ABI is stable.
+    #[selector(name = "assetFlags")]
+    pub fn asset_flags(&self, token: Address) -> (bool, u8) {
+        let p = self.config.asset_whitelist.get(token);
+        (p.frozen.get(), p.feed_decimals.get().to::<u8>())
+    }
+
+    #[selector(name = "backstopDelay")]
+    pub fn backstop_delay(&self) -> U64 {
+        self.config.backstop_delay_secs.get()
+    }
+
+    #[selector(name = "agentLastHeartbeat")]
+    pub fn agent_last_heartbeat(&self) -> U64 {
+        self.config.agent_last_heartbeat.get()
+    }
+
+    #[selector(name = "maxAgentRepayPerDay")]
+    pub fn max_agent_repay_per_day(&self) -> U256 {
+        self.config.max_agent_repay_per_day.get()
+    }
+
+    #[selector(name = "reserveAssets")]
+    pub fn reserve_assets(&self) -> U256 {
+        self.lending.reserve_assets.get()
     }
 
     #[selector(name = "listedAssetCount")]

@@ -331,16 +331,53 @@ fn default_state_views() {
 }
 
 #[test]
-fn convert_to_shares_with_empty_vault_is_identity() {
+fn convert_uses_virtual_offset_and_round_trips() {
     let vm = TestVM::default();
     let v = deploy(&vm);
     let assets = U256::from(1_000_000u64);
-    assert_eq!(v.convert_to_shares(assets), assets);
-    assert_eq!(v.convert_to_assets(assets), assets);
-    assert_eq!(v.preview_deposit(assets), assets);
-    assert_eq!(v.preview_mint(assets), assets);
-    assert_eq!(v.preview_withdraw(assets), assets);
-    assert_eq!(v.preview_redeem(assets), assets);
+    let offset = U256::from(1_000_000u64); // 10^6 virtual shares
+    // First-depositor inflation defense: shares are offset-scaled, never 1:1.
+    assert_eq!(v.convert_to_shares(assets), assets * offset);
+    assert_eq!(v.preview_deposit(assets), assets * offset);
+    // Converting those shares back recovers the original assets exactly.
+    let shares = v.convert_to_shares(assets);
+    assert_eq!(v.convert_to_assets(shares), assets);
+    assert_eq!(v.preview_redeem(shares), assets);
+}
+
+#[test]
+fn new_admin_setters_are_owner_gated_and_persist() {
+    let vm = TestVM::default();
+    let mut v = deploy(&vm);
+    // Backstop + per-day cap are owner-only and read back.
+    vm.set_sender(addr(ALICE));
+    assert!(matches!(v.set_backstop_delay(U64::from(3600u64)).unwrap_err(), VaultError::NotOwner(_)));
+    assert!(matches!(
+        v.set_max_agent_repay_per_day(U256::from(100u64)).unwrap_err(),
+        VaultError::NotOwner(_)
+    ));
+    vm.set_sender(addr(OWNER));
+    v.set_backstop_delay(U64::from(7200u64)).unwrap();
+    v.set_max_agent_repay_per_day(U256::from(50_000_000_000u64)).unwrap();
+    assert_eq!(v.backstop_delay().to::<u64>(), 7200);
+    assert_eq!(v.max_agent_repay_per_day(), U256::from(50_000_000_000u64));
+    assert_eq!(v.reserve_assets(), U256::ZERO);
+    // Per-asset flags require a listed asset.
+    assert!(matches!(
+        v.set_asset_frozen(addr(TAAPL), true).unwrap_err(),
+        VaultError::AssetNotEnabled(_)
+    ));
+    v.list_collateral(addr(TAAPL), 5_000, 6_500, 500, 18).unwrap();
+    v.set_asset_frozen(addr(TAAPL), true).unwrap();
+    v.set_feed_decimals(addr(TAAPL), 18).unwrap();
+    let (frozen, fd) = v.asset_flags(addr(TAAPL));
+    assert!(frozen);
+    assert_eq!(fd, 18);
+    // A frozen asset rejects new collateral deposits.
+    assert!(matches!(
+        v.deposit_collateral(addr(TAAPL), U256::from(1u64)).unwrap_err(),
+        VaultError::AssetNotEnabled(_)
+    ));
 }
 
 #[test]

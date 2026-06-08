@@ -36,6 +36,15 @@ pub struct AssetParams {
     pub liq_threshold_bps: StorageU16,
     /// Bonus paid to the liquidator, in bps (e.g. 500 = 5%).
     pub liq_bonus_bps: StorageU16,
+    // ----- appended (ABI/layout: append-only) -----
+    /// Frozen: blocks NEW deposits/borrows against this asset while still
+    /// valuing existing collateral (surgical alternative to a global pause or a
+    /// value-zeroing delist). Distinct from `enabled`.
+    pub frozen: StorageBool,
+    /// Price-feed decimals. 0 is treated as 8 (Chainlink/MockOracle default), so
+    /// existing listings keep working; mainnet feeds that aren't 8-decimal are
+    /// normalised to 8dp using this value (see `oracle_price`).
+    pub feed_decimals: StorageU8,
 }
 
 #[storage]
@@ -52,6 +61,17 @@ pub struct Config {
     /// Parallel list of every token ever passed to `list_collateral`. Iteration
     /// target for HF aggregation.
     pub listed_assets: StorageVec<StorageAddress>,
+    // ----- appended (ABI/layout: append-only) -----
+    /// Last timestamp the agent acted. Powers the permissionless liquidation
+    /// backstop: when `backstop_delay_secs > 0` and the agent has been silent
+    /// longer than that, anyone may liquidate (degrade-gracefully if the agent
+    /// key is down/censored).
+    pub agent_last_heartbeat: StorageU64,
+    /// Backstop delay in seconds. 0 disables the backstop (agent-only at MVP).
+    pub backstop_delay_secs: StorageU64,
+    /// Max USDC (6dp) the agent may auto-repay for a single user per UTC day.
+    /// 0 = unlimited. Caps the blast radius of a leaked agent key on-chain.
+    pub max_agent_repay_per_day: StorageU256,
 }
 
 #[storage]
@@ -66,6 +86,15 @@ pub struct LendingPool {
     /// ERC-4626 share supply (USDC vault).
     pub total_shares: StorageU256,
     pub shares_of: StorageMap<Address, StorageU256>,
+    // ----- appended (ABI/layout: append-only) -----
+    /// Σ (principal[u] * WAD / user_index[u]) — the index-normalised total debt
+    /// (Aave's scaledTotalSupply). True outstanding debt = scaled * index / WAD,
+    /// which is exact, unlike the old `total_principal * index / WAD` shortcut
+    /// that over-counted accrued interest and inflated lender share price.
+    pub scaled_total_principal: StorageU256,
+    /// Protocol reserve (USDC, 6dp) accrued from the reserve factor. Excluded
+    /// from `total_assets` so it never accrues to lenders.
+    pub reserve_assets: StorageU256,
 }
 
 #[storage]
@@ -80,6 +109,11 @@ pub struct CollateralBook {
 pub struct DebtBook {
     pub principal: StorageMap<Address, StorageU256>,
     pub user_index: StorageMap<Address, StorageU256>,
+    // ----- appended (ABI/layout: append-only) -----
+    /// UTC day index of the last agent auto-repay for each user (timestamp / 86400).
+    pub agent_repaid_day: StorageMap<Address, StorageU64>,
+    /// USDC auto-repaid for each user within `agent_repaid_day` (resets per day).
+    pub agent_repaid_today: StorageMap<Address, StorageU256>,
 }
 
 #[storage]

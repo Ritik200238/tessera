@@ -87,10 +87,17 @@ pub fn current_debt(principal: U256, current_index: U256, user_index: U256) -> U
     if principal.is_zero() || user_index.is_zero() {
         return U256::ZERO;
     }
-    principal
-        .saturating_mul(current_index)
-        .checked_div(user_index)
-        .unwrap_or(U256::ZERO)
+    // Round UP (against the borrower / in favour of the protocol) — the universal
+    // lending convention. Rounding down systematically under-charges interest and
+    // leaks lender yield; collateral valuation rounds the other way (down).
+    let num = principal.saturating_mul(current_index);
+    let q = num.checked_div(user_index).unwrap_or(U256::ZERO);
+    let r = num.checked_rem(user_index).unwrap_or(U256::ZERO);
+    if r.is_zero() {
+        q
+    } else {
+        q.saturating_add(U256::from(1u64))
+    }
 }
 
 #[cfg(test)]
@@ -141,6 +148,20 @@ mod tests {
         assert_eq!(
             current_debt(U256::from(100u64), U256::from(WAD), U256::ZERO),
             U256::ZERO
+        );
+    }
+
+    #[test]
+    fn current_debt_rounds_up_against_borrower() {
+        // 10 * 10 / 3 = 33.33… -> rounds UP to 34 (protocol-favourable).
+        assert_eq!(
+            current_debt(U256::from(10u64), U256::from(10u64), U256::from(3u64)),
+            U256::from(34u64)
+        );
+        // exact division -> unchanged.
+        assert_eq!(
+            current_debt(U256::from(9u64), U256::from(10u64), U256::from(3u64)),
+            U256::from(30u64)
         );
     }
 

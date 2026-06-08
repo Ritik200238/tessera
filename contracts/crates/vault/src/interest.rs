@@ -104,6 +104,27 @@ pub fn roll_index(
     let rate = current_borrow_rate(interest, lending);
     let new_idx = accrue_index(idx, rate, dt);
 
+    // Reserve skim: divert `reserve_factor_bps` of the interest accrued this
+    // period to the protocol reserve so it can absorb losses before lenders.
+    // Interest accrued = scaled_total_principal * (new_idx - idx) / WAD.
+    let rf = u32::from(interest.reserve_factor_bps.get().to::<u16>());
+    if rf > 0 && new_idx > idx {
+        let scaled = lending.scaled_total_principal.get();
+        let accrued = scaled
+            .saturating_mul(new_idx - idx)
+            .checked_div(one_wad())
+            .unwrap_or(U256::ZERO);
+        let cut = accrued
+            .saturating_mul(U256::from(rf))
+            .checked_div(U256::from(10_000u64))
+            .unwrap_or(U256::ZERO);
+        if !cut.is_zero() {
+            lending
+                .reserve_assets
+                .set(lending.reserve_assets.get().saturating_add(cut));
+        }
+    }
+
     interest.borrow_index.set(new_idx);
     interest.last_accrual_ts.set(U64::from(now_ts));
     (dt, rate, new_idx)
