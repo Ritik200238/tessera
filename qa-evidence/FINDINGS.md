@@ -10,7 +10,7 @@ Personas (injected real-key, Arb Sepolia): Alice=lender, Bob=borrower, Carol=edg
 - [x] Oracle refreshed via keeper --once (fresh 24h) — wallet flows unblocked
 - [x] Desktop audit COMPLETE (9/9): home, lend, borrow, dashboard, transparency, status, risk, security, agent
 - [!] NOTE: the sweep ran BEFORE the keeper refresh, so read-heavy pages (risk, transparency numbers, lend APY/util, dashboard stats) captured a DEGRADED stale-oracle state (skeletons / "—"). RE-CAPTURE these post-refresh next iteration to confirm healthy state.
-- [ ] Mobile audit: TODO (audit the 9 mobile screenshots already captured)
+- [x] Mobile audit (375×812): LAUNCH-GRADE. Verified home + borrow at readable viewport scale (header fits, hero readable, CTAs stacked w/ big tap targets, 3-step form stacks cleanly, asset buttons tappable, scrollable mobile nav works, no h-overflow). DOM check: landing = 10 populated sections (12.9 screens, long but content-full — NOT blank). LESSON: fullPage mobile thumbnails compress to illegibility; use viewport captures. Evidence: mobile/home-viewport.png, mobile/borrow-viewport.png
 - [ ] Re-capture read-heavy pages post-oracle-refresh (risk/transparency/lend/dashboard)
 - [x] Wallet flow — LEND (Alice): supplied 2,500 USDC end-to-end (real approve+deposit). On-chain verified: shares 2.5e15, totalAssets 2,500 USDC. Evidence: flows/lend-0*.png
 - [x] Wallet flow — BORROW (Bob): deposited 10 tAAPL → borrowed 600 USDC @ 30% LTV. On-chain: debt 600 USDC, collateral 10 tAAPL, HF 2.17, vault idle 1,900 (= Alice 2,500 − 600). **Multi-user linkage proven.** A7 liq-price correct: tAAPL $92.31 from $200 (~54% drop). Evidence: flows/borrow-0*.png
