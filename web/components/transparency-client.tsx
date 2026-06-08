@@ -14,6 +14,7 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 const LIQUIDATE_EVENT = parseAbiItem(
   "event Liquidate(address indexed borrower, address indexed liquidator, address indexed collateralToken, uint256 repayAmount, uint256 seizeAmount)",
 );
+const BAD_DEBT_EVENT = parseAbiItem("event BadDebtRealized(address indexed user, uint256 residual)");
 
 interface Liq {
   borrower: string;
@@ -45,6 +46,12 @@ export function TransparencyClient({ actions }: { actions: AgentAction[] }) {
   const client = usePublicClient();
   const [liqs, setLiqs] = useState<Liq[] | null>(null);
   const [liqErr, setLiqErr] = useState(false);
+  const [badDebt, setBadDebt] = useState<{ count: number; residual: bigint } | null>(null);
+
+  // Protective auto-repays the agent has taken (from the public action feed).
+  const protectiveRepays = actions.filter(
+    (a) => a.kind === "auto_repay" && (a.status === "submitted" || a.status === "confirmed"),
+  ).length;
 
   useEffect(() => {
     if (!client || !vault.address) return;
@@ -69,6 +76,18 @@ export function TransparencyClient({ actions }: { actions: AgentAction[] }) {
             tx: l.transactionHash as Hex,
           })),
         );
+        const badLogs = await client.getLogs({
+          address: vault.address as Address,
+          event: BAD_DEBT_EVENT,
+          fromBlock: from,
+          toBlock: "latest",
+        });
+        if (!cancelled) {
+          setBadDebt({
+            count: badLogs.length,
+            residual: badLogs.reduce((s, l) => s + ((l.args.residual as bigint | undefined) ?? 0n), 0n),
+          });
+        }
       } catch {
         if (!cancelled) setLiqErr(true);
       }
@@ -101,6 +120,26 @@ export function TransparencyClient({ actions }: { actions: AgentAction[] }) {
             <Stat label="Utilization" value={live ? `${(stats.utilBps / 100).toFixed(1)}%` : "—"} />
             <Stat label="Supply APY" value={live ? formatBps(stats.supplyBps) : "—"} tone="safe" />
             <Stat label="Borrow APR" value={live ? formatBps(stats.borrowBps) : "—"} tone="brand" />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Protection track record</CardTitle>
+          <CardDescription>
+            What the agent has done — and the one number that matters for a lender: bad debt.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="grid grid-cols-1 divide-y divide-[color:var(--color-border)] sm:grid-cols-3 sm:divide-x sm:divide-y-0 [&>*]:border-[color:var(--color-border)]">
+            <Stat label="Protective auto-repays" value={String(protectiveRepays)} tone="safe" />
+            <Stat label="Liquidations" value={liqs === null ? "—" : String(liqs.length)} />
+            <Stat
+              label="Bad debt realized"
+              value={badDebt === null ? "—" : badDebt.count === 0 ? "$0" : formatUsdcUsd(badDebt.residual)}
+              tone="safe"
+            />
           </div>
         </CardContent>
       </Card>
