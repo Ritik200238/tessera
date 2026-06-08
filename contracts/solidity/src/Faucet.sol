@@ -19,6 +19,14 @@ interface IMintableOwnable {
 ///      (mint anything, e.g. lender liquidity) and `reclaimToken` (hand a mock's
 ///      ownership back). Testnet-only — there is no faucet on mainnet (real USDC /
 ///      issuer tokens replace the mocks via an address swap).
+///
+///      Sybil posture (audit: faucet-sybil): protection is the per-address
+///      `cooldown`, deliberately NOT an allowlist or a global mint cap. The
+///      blueprint locks "no KYC / no allowlist" for the MVP, and the bundle is
+///      worthless infinitely-mintable MOCK tokens — so a sybil farm gains nothing
+///      of value, while a global cap would block legitimate demo users to prevent
+///      harmless mint churn (net-negative UX). The owner can tighten `setCooldown`
+///      if abuse is observed. Mainnet has no faucet, so this surface disappears.
 contract Faucet is Ownable {
     /// @notice One entry in the bundle handed out per `drip()`.
     struct Asset {
