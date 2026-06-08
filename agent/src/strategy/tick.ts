@@ -30,6 +30,10 @@ import type { AgentConfig } from "../types.js";
  */
 const PROTECT_TARGET_HF = 1_400_000_000_000_000_000n;
 
+const fmtHf = (v: bigint): string => (Number(v) / 1e18).toFixed(2);
+const fmtUsdc = (v: bigint): string =>
+  (Number(v) / 1e6).toLocaleString("en-US", { maximumFractionDigits: 0 });
+
 export interface TickDeps {
   publicClient: PublicClient;
   vaultAddress: Address;
@@ -266,8 +270,11 @@ export async function runTick(deps: TickDeps): Promise<TickResult> {
     if (deps.autoRepay && hf < reg.protectTargetHf) {
       const repayAmount = (debt * (reg.protectTargetHf - hf)) / reg.protectTargetHf;
       if (repayAmount > 0n) {
+        const rationale =
+          `${reg.label}: HF ${fmtHf(hf)} is below the ${fmtHf(reg.protectTargetHf)} protect target — ` +
+          `repaying ~${fmtUsdc(repayAmount)} USDC from your approved cap to restore it.`;
         try {
-          const outcome = await tryAutoRepay(deps.autoRepay, { user, repayAmount, hfBefore: hf }, blockNum);
+          const outcome = await tryAutoRepay(deps.autoRepay, { user, repayAmount, hfBefore: hf, rationale }, blockNum);
           if (outcome.kind === "submitted") autoRepaid++;
         } catch (e) {
           deps.log.append(action.error("tick.autoRepay", (e as Error).message));

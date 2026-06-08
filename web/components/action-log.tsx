@@ -26,6 +26,8 @@ export type AgentAction =
       repay: string;
       hfBefore: string;
       status: "submitted" | "confirmed" | "reverted" | "skipped";
+      rationale?: string;
+      reason?: string;
     }
   | { ts: string; kind: "error"; where: string; message: string };
 
@@ -100,8 +102,11 @@ function renderDetail(a: AgentAction): React.ReactNode {
           <span className="font-medium">{(Number(a.repay) / 1e6).toLocaleString()} USDC</span> from
           their pre-approved funds to restore health (HF was {(Number(a.hfBefore) / 1e18).toFixed(2)})
           · <span className="uppercase text-xs">{a.status}</span>{" "}
-          {a.tx && a.status === "submitted" ? (
+          {a.tx && (a.status === "submitted" || a.status === "confirmed") ? (
             <code className="font-mono text-xs">{shortAddr(a.tx)}</code>
+          ) : null}
+          {a.rationale ? (
+            <span className="mt-0.5 block text-xs text-[color:var(--color-muted-foreground)]">{a.rationale}</span>
           ) : null}
         </>
       );

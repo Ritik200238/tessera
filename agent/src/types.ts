@@ -46,6 +46,8 @@ export type Action =
       hfBefore: string;
       status: "submitted" | "confirmed" | "reverted" | "skipped";
       reason?: string;
+      /** Deterministic, reproducible decision record: regime + HF path + repay math. */
+      rationale?: string;
     }
   | { ts: string; kind: "error"; where: string; message: string };
 

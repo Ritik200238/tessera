@@ -61,6 +61,7 @@ export const action = {
     hfBefore: bigint;
     status: "submitted" | "confirmed" | "reverted" | "skipped";
     reason?: string;
+    rationale?: string;
   }): Action {
     return {
       ts: now(),
@@ -71,6 +72,7 @@ export const action = {
       hfBefore: roundHf(args.hfBefore),
       status: args.status,
       ...(args.reason !== undefined ? { reason: args.reason } : {}),
+      ...(args.rationale !== undefined ? { rationale: args.rationale } : {}),
     };
   },
   error(where: string, message: string): Action {

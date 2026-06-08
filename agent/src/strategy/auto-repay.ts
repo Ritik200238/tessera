@@ -53,6 +53,8 @@ export interface AutoRepayInput {
   repayAmount: bigint;
   /** HF at decision time — recorded in the action log for transparency. */
   hfBefore: bigint;
+  /** Deterministic decision record (regime + HF path + repay math), for the feed. */
+  rationale?: string;
 }
 
 export type AutoRepayOutcome =
@@ -155,6 +157,7 @@ export async function tryAutoRepay(
         hfBefore: input.hfBefore,
         status: "reverted",
         reason,
+        rationale: input.rationale,
       }),
     );
     return { kind: "reverted", reason };
@@ -188,6 +191,7 @@ export async function tryAutoRepay(
       hfBefore: input.hfBefore,
       status: settled === "confirmed" ? "confirmed" : settled === "reverted" ? "reverted" : "submitted",
       ...(settled === "reverted" ? { reason: "reverted on-chain" } : {}),
+      rationale: input.rationale,
     }),
   );
   if (settled === "reverted") return { kind: "reverted", reason: "reverted on-chain" };

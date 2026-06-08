@@ -41,6 +41,8 @@ const ActionAutoRepay = z.object({
   repay: z.string(),
   hfBefore: z.string(),
   status: z.enum(["submitted", "confirmed", "reverted", "skipped"]),
+  rationale: z.string().optional(),
+  reason: z.string().optional(),
 });
 const ActionError = z.object({
   ts: z.string(),
