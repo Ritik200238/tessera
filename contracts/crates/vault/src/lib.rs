@@ -450,6 +450,11 @@ impl TesseraVault {
         self.interest.slope1_bps.set(alloy_primitives::U16::from(400u16));
         self.interest.slope2_bps.set(alloy_primitives::U16::from(6_000u16));
         self.interest.optimal_util_bps.set(alloy_primitives::U16::from(8_000u16));
+        // Reserve factor stays 0 on testnet by design: it MUST ship together with the
+        // reserve-factor skim (deferred to the audited mainnet build for the 24KB code
+        // limit). With no skim, a non-zero factor would only make the lender supply-rate
+        // view understate what lenders actually earn. The blueprint's 15% activates with
+        // the skim at mainnet (owner sets it via setRateParams once the skim is live).
         self.interest.reserve_factor_bps.set(alloy_primitives::U16::from(0u16));
         self.interest.borrow_index.set(U256::from(WAD));
         self.interest.last_accrual_ts.set(U64::from(self.vm().block_timestamp()));

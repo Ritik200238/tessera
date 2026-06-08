@@ -110,6 +110,9 @@ export function Shell({ children }: { children: ReactNode }) {
             <Link className="hover:text-[color:var(--color-foreground)]" href="/status">
               Status
             </Link>
+            <Link className="hover:text-[color:var(--color-foreground)]" href="/security">
+              Security
+            </Link>
             {isAdmin ? (
               <Link className="hover:text-[color:var(--color-foreground)]" href="/admin">
                 Admin
