@@ -28,7 +28,11 @@ import type { AlerterDeps } from "./strategy/alerter.js";
 import { startServer } from "./http/server.js";
 import { metrics } from "./metrics.js";
 import { registerProtocol } from "./vibekit-shim.js";
+import { IncidentNotifier } from "./notify/webhook.js";
 import type { AgentConfig } from "./types.js";
+
+/** Consecutive failed ticks before we page on-call (avoids alerting on a blip). */
+const DEGRADED_AFTER_FAILURES = 3;
 
 const ERRORS_24H_WINDOW_MS = 24 * 60 * 60 * 1000;
 
@@ -64,6 +68,13 @@ async function main(): Promise<void> {
   }
 
   logger.info({ port: cfg.AGENT_HTTP_PORT }, "tessera-agent: starting");
+
+  // On-call incident comms (disabled unless AGENT_INCIDENT_WEBHOOK_URL is set).
+  const incidents = new IncidentNotifier({
+    webhookUrl: cfg.AGENT_INCIDENT_WEBHOOK_URL,
+    logger,
+    label: `tessera-agent (chain ${cfg.CHAIN_ID})`,
+  });
 
   // 1. state
   const db = new AgentDB(cfg.AGENT_DB_PATH);
@@ -183,6 +194,11 @@ async function main(): Promise<void> {
     },
   });
   logger.info({ port: server.port }, "http server listening");
+  void incidents.notify(
+    "info",
+    "agent online",
+    `vault ${vaultAddress} · chain ${cfg.CHAIN_ID} · port ${server.port}`,
+  );
 
   // 9. user discovery — lightweight event indexer. Public RPCs are non-archive
   // and cap getLogs ranges, so we scan in bounded chunks from a recent lookback
@@ -246,6 +262,8 @@ async function main(): Promise<void> {
   // 10. tick loop with exponential backoff
   let running = true;
   let backoffMs = 0;
+  let consecutiveTickFailures = 0;
+  let degraded = false;
   const MAX_BACKOFF = 60_000;
   const loop = async (): Promise<void> => {
     while (running) {
@@ -270,10 +288,28 @@ async function main(): Promise<void> {
         usersTracked = result.usersChecked;
         lastTickAt = new Date().toISOString();
         metrics.secondsSinceLastTick.set(0);
+        if (degraded) {
+          void incidents.notify(
+            "info",
+            "tick loop recovered",
+            `after ${consecutiveTickFailures} consecutive failures`,
+          );
+          degraded = false;
+        }
+        consecutiveTickFailures = 0;
         backoffMs = 0;
       } catch (e) {
         trackError("tick", (e as Error).message);
         log.append(action.error("tick", (e as Error).message));
+        consecutiveTickFailures += 1;
+        if (consecutiveTickFailures >= DEGRADED_AFTER_FAILURES && !degraded) {
+          degraded = true;
+          void incidents.notify(
+            "critical",
+            "tick loop failing",
+            `${consecutiveTickFailures} consecutive failures — last: ${(e as Error).message}`,
+          );
+        }
         backoffMs = Math.min(Math.max(1_000, backoffMs * 2), MAX_BACKOFF);
       }
       const wait = backoffMs > 0 ? backoffMs : currentConfig.pollIntervalMs;
@@ -294,6 +330,7 @@ async function main(): Promise<void> {
     logger.info({ signal }, "shutdown signal received");
     running = false;
     clearInterval(heartbeat);
+    await incidents.notify("warn", "agent stopping", `signal ${signal}`);
     await server.close();
     db.close();
     logger.info("shutdown complete");

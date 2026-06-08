@@ -1,0 +1,42 @@
+# Fly.io deployment for the Tessera Risk Agent.
+#
+# The agent is a 24/7 worker: it MUST keep ticking to protect positions, so the
+# machine is always-on (auto_stop disabled) with a persistent volume for state.
+# See HOSTING.md for the full runbook (secrets, volume, deploy).
+
+app = "tessera-agent"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  NODE_ENV = "production"
+  AGENT_HTTP_PORT = "8787"
+  AGENT_DB_PATH = "/data/db/state.sqlite"
+  AGENT_LOG_DIR = "/data/logs"
+  CHAIN_ID = "421614"
+
+# Persistent state: SQLite (idempotency, borrower set, checkpoint) + JSONL logs.
+[[mounts]]
+  source = "tessera_agent_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 8787
+  force_https = true
+  # NEVER auto-stop: a stopped agent = unprotected positions.
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "20s"
+    method = "GET"
+    path = "/health"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
