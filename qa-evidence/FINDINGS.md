@@ -24,13 +24,15 @@ Personas (injected real-key, Arb Sepolia): Alice=lender, Bob=borrower, Carol=edg
 ### Notes on the auto-repay trigger (design, not defect)
 - The agent's at-risk gate is the ALERT threshold (~1.1), not the 1.4 protect target. The 1.4 only SIZES the repay (restore-to level). So auto-repay fires when HF < ~1.1 and restores toward 1.4. ⚠️ **M8 — ProtectionPreview (B2) mismatch:** B2 shows "agent repays" whenever HF < 1.4, but the agent only acts below ~1.1. For 1.1 < HF < 1.4, B2 implies an action the agent won't take. UI-vs-reality gap — align B2's threshold to the alert band (or clarify "acts when you enter the alert zone").
 - **L2 — rounded repay display understates:** the feed's `repay` is rounded to nearest 100 USDC (privacy), so a ~149.6 repay shows as "100" while the rationale says "~150". Mismatch; round to nearest 10, or show the rationale value.
-- [ ] Adversarial / negative cases
+- [x] Adversarial: (1) withdraw > pool liquidity → BLOCKED client-side (clean alert + disabled btn). (2) withdraw all collateral with open debt → reverts gracefully (no crash; body not humanized → M9). Found + FIXED the H2 LenderEarnings crash during this. (3) A5 history verified: shows the full lifecycle incl. the agent auto-repay. Evidence: flows/adv-0*.png
 
 ## Findings (severity)
 
 ### HIGH
 - **H1 — Oracle was STALE (3 days), all 3 assets.** `/status` showed tAAPL/tTSLA/tSPY "Stale" (red). Staleness window 86400s; on-chain reads revert when stale → borrow / deposit-collateral / liquidation flows revert on the live site. Root cause: oracle keeper not running.
   → **MITIGATED for QA:** ran `node scripts/keeper.mjs --once` (all 3 prices re-stamped ok; fresh for 24h). **Product fix (still open):** the keeper must be hosted/scheduled so the oracle never goes stale — otherwise the live demo breaks again in 24h. This is the real launch finding.
+
+- **H2 — LenderEarnings (A4) crashed the /lend page for any lender with a position. FIXED.** `supplyRateBps` decodes as a JS number (small uint), and `value (bigint) * supplyBps (number)` threw "Cannot mix BigInt and other types" → Next runtime-error overlay on /lend for the PRIMARY persona. Masked earlier because the shares read was stale (0 → early return); surfaced once a real position loaded. Fix: coerce `supplyBps` to bigint (`BigInt(result ?? 0)`). tsc green; re-ran the flow — /lend renders LenderEarnings, no crash. Grep found no sibling unguarded bigint×rate multiplies.
 
 ### MEDIUM
 - **M1 — Agent activity feed flooded with "Tick" entries.** CONFIRMED on both `/agent` (50 of 50 entries are "Tick · Checked 0 users in Nms") and `/transparency`. Meaningful events (alerts/auto-repays/liquidations) are buried. Judge-facing noise. Fix: collapse/hide ticks or surface only substantive actions by default. (Health card itself is clean: OK, 0 errors.)
@@ -41,6 +43,8 @@ Personas (injected real-key, Arb Sepolia): Alice=lender, Bob=borrower, Carol=edg
 - **M5 — Approve button doesn't advance to Supply after the approve tx.** In the lend flow, after "Approve USDC" mined, the button stayed on Approve; a page reload was required for it to become "Supply USDC". The `allowance` read isn't watched/refetched post-tx. Stuck "I approved, now what?" state.
 - **M6 — Console CORS errors / failed fetches to `eth.merkle.io`** on connected pages (wagmi/ConnectKit default ETH-mainnet transport for ENS). Failed network calls = defect per guide §14. Fix: drop/replace the mainnet transport or disable ENS, since Tessera is single-chain Arb Sepolia.
 - **M7 — Post-transaction data staleness (systemic, same root as M5).** After Alice's deposit confirmed on-chain, `/lend` still showed "Pool size: 0 USDC" and the LenderEarnings "Your supplied position" card never rendered (the balanceOf/totalAssets reads didn't refetch). Updated state only appears after a manual reload. Fix: invalidate/refetch the relevant reads (or `watch: true`) after a successful write. Affects every write flow (lend, borrow, repay, approvals).
+
+- **M9 — withdraw-breaks-HF revert not humanized.** Withdrawing all collateral with open debt correctly reverts (no crash, caught), but the error BODY is a verbose viem dump ("Execution reverted… Request Arguments… Details…") rather than a friendly line. Title "Transaction failed" is clean; map this revert in decodeTxError to e.g. "This withdrawal would put your loan at risk — withdraw less."
 
 ### LOW
 - **L1 — 🛡 emoji renders as tofu box** in the `/lend` AI-protected callout (likely headless-Chromium font; verify on a real browser, else swap for an SVG icon).

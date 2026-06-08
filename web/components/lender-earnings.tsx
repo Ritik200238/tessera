@@ -38,7 +38,9 @@ export function LenderEarnings() {
   const shares = (data?.[0]?.result as bigint | undefined) ?? 0n;
   const totalSupply = (data?.[1]?.result as bigint | undefined) ?? 0n;
   const totalAssets = (data?.[2]?.result as bigint | undefined) ?? 0n;
-  const supplyBps = (data?.[3]?.result as bigint | undefined) ?? 0n;
+  // supplyRateBps is a small uint, so viem decodes it as a JS number — coerce to
+  // bigint before any bigint arithmetic (mixing the two throws at runtime).
+  const supplyBps = BigInt((data?.[3]?.result as bigint | number | undefined) ?? 0);
 
   // convertToAssets, round-down, with the vault's virtual offset.
   const value = (shares * (totalAssets + 1n)) / (totalSupply + VIRTUAL_SHARES);
