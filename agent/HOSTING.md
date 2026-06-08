@@ -50,6 +50,42 @@ fly deploy
 fly logs        # watch it boot, index users, and start ticking
 ```
 
+## Deploy to Railway (the CLI is already installed here)
+
+The repo ships `agent/railway.json` (Dockerfile build + `/health` check + auto-restart),
+and the agent honours Railway's injected `PORT`.
+
+```bash
+railway login                       # interactive (browser) — only you can do this
+cd agent
+railway init                        # create a project (or `railway link` to an existing one)
+# In the Railway dashboard set the service Root Directory to `agent` (monorepo),
+# so railway.json + Dockerfile are picked up.
+
+# Non-secret variables (safe in a shell):
+railway variables \
+  --set "NODE_ENV=production" \
+  --set "CHAIN_ID=421614" \
+  --set "RPC_URL=https://sepolia-rollup.arbitrum.io/rpc" \
+  --set "VAULT_ADDRESS=0x72adaa00e2eaa98f62ee1c77e9b7714e0db57ba7" \
+  --set "USDC_ADDRESS=0xf10aCF61b480c24102B303ebAFB97d9392d693F2" \
+  --set "AGENT_CORS_ORIGINS=https://tessera-web-delta.vercel.app"
+
+# SECRETS — set in the Railway dashboard → Variables (never paste keys in a shared shell):
+#   AGENT_PRIVATE_KEY            (the key for the agent address 0x7Dfe…9ee9)
+#   AGENT_ADMIN_SECRET           (a strong random string)
+#   NVIDIA_API_KEY               (optional — LLM alert copy)
+#   AGENT_INCIDENT_WEBHOOK_URL   (optional — Discord/Slack)
+
+railway up                          # build + deploy
+railway domain                      # generate the public URL
+railway logs                        # watch it boot, index users, tick
+```
+
+Optional: add a Railway **Volume** mounted at `/data` for persistent SQLite state
+(without it the agent re-scans from the lookback window after each redeploy — harmless,
+just less efficient).
+
 ## Local Docker (smoke test)
 
 ```bash
