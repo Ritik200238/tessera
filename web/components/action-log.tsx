@@ -40,6 +40,14 @@ const KIND_LABEL: Record<AgentAction["kind"], string> = {
 };
 
 export function ActionLog({ actions }: { actions: AgentAction[] }) {
+  // De-noise: the agent ticks every block, so raw feeds are a wall of "Tick"
+  // heartbeats. Collapse them into one "last checked" pulse and surface only the
+  // substantive events (alerts / auto-repays / liquidations / errors).
+  const substantive = actions.filter((a) => a.kind !== "tick");
+  const latestTick = actions.find((a) => a.kind === "tick") as
+    | Extract<AgentAction, { kind: "tick" }>
+    | undefined;
+
   if (actions.length === 0) {
     return (
       <div className="rounded-xl border border-dashed border-[color:var(--color-border)] p-6 text-center text-sm text-[color:var(--color-muted-foreground)]">
@@ -48,34 +56,55 @@ export function ActionLog({ actions }: { actions: AgentAction[] }) {
       </div>
     );
   }
+
   return (
-    <div className="overflow-x-auto rounded-xl border border-[color:var(--color-border)]">
-      <table className="w-full min-w-[480px] text-sm">
-        <caption className="sr-only">Most recent agent actions</caption>
-        <thead className="bg-[color:var(--color-muted)] text-left text-xs uppercase tracking-wide text-[color:var(--color-muted-foreground)]">
-          <tr>
-            <th scope="col" className="px-3 py-2 font-medium">When</th>
-            <th scope="col" className="px-3 py-2 font-medium">Kind</th>
-            <th scope="col" className="px-3 py-2 font-medium">Detail</th>
-          </tr>
-        </thead>
-        <tbody>
-          {actions.map((a, i) => (
-            <tr
-              key={`${a.ts}-${i}`}
-              className={cn("border-t border-[color:var(--color-border)]", rowTone(a))}
-            >
-              <td className="px-3 py-2 font-mono text-xs whitespace-nowrap">
-                {formatTs(a.ts)}
-              </td>
-              <td className="px-3 py-2">
-                <span className="font-medium">{KIND_LABEL[a.kind]}</span>
-              </td>
-              <td className="px-3 py-2">{renderDetail(a)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className="space-y-3">
+      {latestTick ? (
+        <div className="flex items-center gap-2 rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-muted)] px-3 py-2 text-xs text-[color:var(--color-muted-foreground)]">
+          <span aria-hidden className="inline-block size-2 rounded-full" style={{ background: "var(--color-safe-fg)" }} />
+          <span>
+            Monitoring every block — last checked{" "}
+            <span className="font-mono">{formatTs(latestTick.ts)}</span>
+            {latestTick.usersChecked > 0
+              ? ` · ${latestTick.usersChecked} position${latestTick.usersChecked === 1 ? "" : "s"}`
+              : ""}
+          </span>
+        </div>
+      ) : null}
+
+      {substantive.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-[color:var(--color-border)] p-6 text-center text-sm text-[color:var(--color-muted-foreground)]">
+          No alerts or interventions needed recently — the agent is watching every block and will act
+          (and log it here) the moment risk rises.
+        </div>
+      ) : (
+        <div className="overflow-x-auto rounded-xl border border-[color:var(--color-border)]">
+          <table className="w-full min-w-[480px] text-sm">
+            <caption className="sr-only">Recent agent alerts and interventions</caption>
+            <thead className="bg-[color:var(--color-muted)] text-left text-xs uppercase tracking-wide text-[color:var(--color-muted-foreground)]">
+              <tr>
+                <th scope="col" className="px-3 py-2 font-medium">When</th>
+                <th scope="col" className="px-3 py-2 font-medium">Kind</th>
+                <th scope="col" className="px-3 py-2 font-medium">Detail</th>
+              </tr>
+            </thead>
+            <tbody>
+              {substantive.map((a, i) => (
+                <tr
+                  key={`${a.ts}-${i}`}
+                  className={cn("border-t border-[color:var(--color-border)]", rowTone(a))}
+                >
+                  <td className="px-3 py-2 font-mono text-xs whitespace-nowrap">{formatTs(a.ts)}</td>
+                  <td className="px-3 py-2">
+                    <span className="font-medium">{KIND_LABEL[a.kind]}</span>
+                  </td>
+                  <td className="px-3 py-2">{renderDetail(a)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { BorrowForm } from "@/components/borrow-form";
 import { AgentControls } from "@/components/agent-controls";
 import { FaucetButton } from "@/components/faucet-button";
 import { ManagePosition } from "@/components/manage-position";
+import { GapRiskClock } from "@/components/gap-risk-clock";
 import { addresses } from "@/lib/addresses";
 
 export const metadata = { title: "Borrow" };
@@ -20,6 +21,8 @@ export default function BorrowPage() {
           protection is optional, but recommended.
         </p>
       </header>
+
+      <GapRiskClock />
 
       <Step
         n={1}
