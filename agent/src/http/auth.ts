@@ -8,6 +8,8 @@
 import type { Context } from "hono";
 
 export function checkBearer(c: Context, expected: string): boolean {
+  // Fail closed: an unset/empty admin secret must never authorize a gated route.
+  if (!expected) return false;
   const header = c.req.header("authorization") ?? "";
   const match = /^Bearer\s+(.+)$/i.exec(header);
   if (!match) return false;

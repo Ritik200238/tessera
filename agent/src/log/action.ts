@@ -3,17 +3,22 @@
  * doesn't sprinkle `ts: new Date().toISOString()` everywhere.
  */
 
+import { createHash, randomBytes } from "node:crypto";
 import type { Address, Hex } from "viem";
 import type { Action, AlertLevel } from "../types.js";
 
 const now = (): string => new Date().toISOString();
 
-// Privacy: the PUBLIC action log must not be a clean, machine-readable list of
-// (address, debt, HF) for distressed borrowers. We truncate the address and
-// round amounts; the exact, full-address truth stays verifiable via the on-chain
-// tx hash that accompanies every money-moving action.
-function shortAddr(a: Address): Address {
-  return (a.length > 12 ? `${a.slice(0, 6)}…${a.slice(-4)}` : a) as Address;
+// Privacy: the PUBLIC action log must reveal WHAT the agent did, never WHO. A
+// truncated address is still correlatable to the on-chain address, so we replace
+// the borrower reference with an UNLINKABLE salted hash and round amounts into
+// bands. The salt comes from AGENT_LOG_SALT (stable ids across restarts) or a
+// per-process random fallback, and is NEVER logged. The exact, full-address
+// truth stays verifiable via the on-chain tx hash on every money-moving action.
+const LOG_SALT = process.env.AGENT_LOG_SALT ?? randomBytes(16).toString("hex");
+function refUser(a: Address): Address {
+  const h = createHash("sha256").update(LOG_SALT + a.toLowerCase()).digest("hex").slice(0, 10);
+  return `u:${h}` as Address;
 }
 // Round USDC (6-dec) to the nearest 100 USDC.
 function roundUsdc(v: bigint): string {
@@ -31,7 +36,7 @@ export const action = {
     return { ts: now(), kind: "tick", usersChecked, durationMs };
   },
   alert(user: Address, hf: bigint, level: AlertLevel, copy: string): Action {
-    return { ts: now(), kind: "alert", user: shortAddr(user), hf: roundHf(hf), level, copy };
+    return { ts: now(), kind: "alert", user: refUser(user), hf: roundHf(hf), level, copy };
   },
   liquidate(args: {
     user: Address;
@@ -45,7 +50,7 @@ export const action = {
     return {
       ts: now(),
       kind: "liquidate",
-      user: shortAddr(args.user),
+      user: refUser(args.user),
       tx: args.tx,
       repay: roundUsdc(args.repay),
       seized: args.seized.toString(),
@@ -66,7 +71,7 @@ export const action = {
     return {
       ts: now(),
       kind: "auto_repay",
-      user: shortAddr(args.user),
+      user: refUser(args.user),
       tx: args.tx,
       repay: roundUsdc(args.repay),
       hfBefore: roundHf(args.hfBefore),
