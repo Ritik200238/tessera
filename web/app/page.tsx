@@ -6,6 +6,7 @@ import { Mark } from "@/components/mark";
 import { useProtocolStats, formatUsdcUsd } from "@/lib/protocol";
 import { track } from "@/lib/analytics";
 import { MarketsGrid } from "@/components/markets-grid";
+import { runGapBacktest } from "@/lib/gap-backtest";
 import "./landing.css";
 
 /* ----------------------------------------------------------------------------
@@ -208,6 +209,7 @@ export default function LandingPage() {
 
   // live protocol stats — read straight from the vault; no invented numbers
   const stats = useProtocolStats();
+  const backtest = runGapBacktest();
   const live = stats.deployed && !stats.loading;
   const apy = live ? `${(stats.supplyBps / 100).toFixed(2)}%` : "—";
   const apr = live ? `${(stats.borrowBps / 100).toFixed(2)}%` : "—";
@@ -652,6 +654,12 @@ export default function LandingPage() {
               When your health factor drifts toward danger, the agent sends a plain-English alert. If you&apos;ve turned
               on Active Protection, it repays from your pre-approved USDC to pull you back to safety — automatically.
               Here&apos;s how it works:
+            </p>
+            <p className="sec-sub reveal" style={{ marginTop: 12 }}>
+              In a reproducible backtest of {backtest.n} modeled overnight, weekend, and earnings gaps, regime-aware
+              protection avoided liquidation in <b>{backtest.avoidedOfBaselinePct}%</b> of the cases that liquidated an
+              unprotected position.{" "}
+              <a href="/transparency" style={{ textDecoration: "underline" }}>See the numbers →</a>
             </p>
 
             <div className="agent-wrap" style={{ marginTop: 48 }}>
