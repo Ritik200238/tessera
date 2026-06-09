@@ -212,7 +212,23 @@ impl TesseraVault {
         // Normalise any non-8-decimal feed to 8dp. Mainnet Chainlink feeds are
         // NOT uniformly 8-decimal; the testnet mock is 8 (fd default 0 => 8), so
         // this is a no-op there and a correctness guard on mainnet.
-        Ok(normalize_price_8(raw, fd))
+        let p1 = normalize_price_8(raw, fd);
+        // Dual-oracle deviation guard (no-op unless configured): if a FRESH
+        // secondary feed disagrees with the primary beyond the tolerance, reject
+        // the price so no borrow / withdraw / liquidation runs on a possibly-
+        // manipulated feed. A stale/unavailable secondary falls back to the
+        // primary (no false freeze). Repay paths read no price, so debt reduction
+        // stays available regardless.
+        let secondary = self.config.secondary_oracle.get();
+        let max_dev = self.config.max_deviation_bps.get().to::<u64>();
+        if !secondary.is_zero() && max_dev > 0 {
+            if let Ok(raw2) = oracle::price_usd_8(self, secondary, asset, now, max_age) {
+                if price_deviation_exceeds(p1, normalize_price_8(raw2, fd), max_dev) {
+                    return Err(VaultError::OracleFailure(OracleFailure { asset }));
+                }
+            }
+        }
+        Ok(p1)
     }
 
     /// Aggregate the user's collateral into the legs the interest-model needs,
@@ -698,6 +714,41 @@ impl TesseraVault {
         Ok(())
     }
 
+    /// Agent liveness ping. Lets the agent prove it is alive on idle ticks (no
+    /// liquidation to perform), so the permissionless backstop only opens on a
+    /// REAL outage, not normal quiet. Agent-only.
+    #[selector(name = "heartbeat")]
+    pub fn heartbeat(&mut self) -> Result<(), VaultError> {
+        self.only_agent()?;
+        self.config.agent_last_heartbeat.set(U64::from(self.now_ts()));
+        Ok(())
+    }
+
+    /// Owner: permissionless-liquidation backstop delay (seconds). 0 disables it
+    /// (agent-only — the MVP/testnet default); turned on at the audited mainnet build.
+    #[selector(name = "setBackstopDelay")]
+    pub fn set_backstop_delay(&mut self, secs: U64) -> Result<(), VaultError> {
+        self.only_owner()?;
+        self.config.backstop_delay_secs.set(secs);
+        Ok(())
+    }
+
+    /// Owner: configure the dual-oracle deviation guard. `secondary == address(0)`
+    /// or `max_deviation_bps == 0` disables it (the MVP/testnet default ⇒ no-op).
+    #[selector(name = "setDeviationGuard")]
+    pub fn set_deviation_guard(
+        &mut self,
+        secondary: Address,
+        max_deviation_bps: u16,
+    ) -> Result<(), VaultError> {
+        self.only_owner()?;
+        self.config.secondary_oracle.set(secondary);
+        self.config
+            .max_deviation_bps
+            .set(alloy_primitives::U16::from(max_deviation_bps));
+        Ok(())
+    }
+
 
     pub fn pause(&mut self) -> Result<(), VaultError> {
         self.only_owner()?;
@@ -1149,6 +1200,7 @@ impl TesseraVault {
         self.lock_reentrancy()?;
         let r = (|| -> Result<U256, VaultError> {
             self.only_agent()?;
+            self.config.agent_last_heartbeat.set(U64::from(self.now_ts()));
             // On-chain per-(user, day) cap so a compromised agent KEY — not just
             // compliant agent code — can't drain a user's full allowance at once.
             let capped = self.charge_daily_repay(user, amount)?;
@@ -1169,10 +1221,26 @@ impl TesseraVault {
         // Liquidation is allowed when paused (it's the safety release valve).
         self.lock_reentrancy()?;
         let r = (|| -> Result<U256, VaultError> {
-            // MVP: agent-only (TDD §3.6 / D3). The permissionless heartbeat-gated
-            // backstop is a named pre-mainnet gate; its storage hooks
-            // (agent_last_heartbeat, backstop_delay_secs) are reserved for it.
-            self.only_agent()?;
+            // Permissionless heartbeat-gated backstop (mainnet gate #2, TDD §3.6/D3):
+            // the agent may always liquidate; anyone else only once the agent has
+            // gone silent past `backstop_delay_secs`. delay == 0 (testnet/MVP
+            // default) keeps this strictly agent-only. A backstop liquidation runs
+            // the identical close-factor / bonus / post-HF-improvement guards below,
+            // so it is provably as safe as an agent liquidation.
+            let sender = self.vm().msg_sender();
+            let agent = self.config.agent.get();
+            let is_agent = !agent.is_zero() && sender == agent;
+            if !backstop_allows(
+                is_agent,
+                self.now_ts(),
+                self.config.agent_last_heartbeat.get().to::<u64>(),
+                self.config.backstop_delay_secs.get().to::<u64>(),
+            ) {
+                return Err(VaultError::NotAgent(NotAgent {}));
+            }
+            if is_agent {
+                self.config.agent_last_heartbeat.set(U64::from(self.now_ts()));
+            }
             if borrower.is_zero() {
                 return Err(VaultError::ZeroAddress(ZeroAddress {}));
             }
@@ -1370,6 +1438,30 @@ impl TesseraVault {
 }
 
 // ---------- Host-side tests ----------
+
+/// Permissionless heartbeat-gated backstop (mainnet gate #2, TDD §3.6/D3). The
+/// agent may always liquidate; anyone else only when the backstop is enabled
+/// (`delay > 0`) AND the agent has been silent longer than `delay`. Pure, so the
+/// gate is host-tested; the live path composes it with `msg.sender` + block time.
+/// `delay == 0` (testnet/MVP default) ⇒ strictly agent-only.
+pub(crate) fn backstop_allows(is_agent: bool, now_ts: u64, last_heartbeat: u64, delay: u64) -> bool {
+    if is_agent {
+        return true;
+    }
+    delay > 0 && now_ts.saturating_sub(last_heartbeat) > delay
+}
+
+/// Dual-oracle deviation guard. True when two fresh prices disagree by more than
+/// `max_bps` relative to the lower price. Pure; the live oracle path reverts
+/// price reads when this holds. `max_bps == 0` ⇒ disabled (no-op).
+pub(crate) fn price_deviation_exceeds(p1: U256, p2: U256, max_bps: u64) -> bool {
+    if max_bps == 0 || p1.is_zero() || p2.is_zero() {
+        return false;
+    }
+    let (lo, hi) = if p1 <= p2 { (p1, p2) } else { (p2, p1) };
+    // (hi − lo)/lo > max_bps/10000 ⇔ (hi − lo)*10000 > lo*max_bps
+    (hi - lo).saturating_mul(U256::from(10_000u64)) > lo.saturating_mul(U256::from(max_bps))
+}
 
 #[cfg(test)]
 mod tests;

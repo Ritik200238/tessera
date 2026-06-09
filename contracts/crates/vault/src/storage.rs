@@ -72,6 +72,15 @@ pub struct Config {
     /// Max USDC (6dp) the agent may auto-repay for a single user per UTC day.
     /// 0 = unlimited. Caps the blast radius of a leaked agent key on-chain.
     pub max_agent_repay_per_day: StorageU256,
+    /// Optional secondary price feed for the dual-oracle deviation guard.
+    /// address(0) disables it (MVP/testnet default ⇒ no-op). When set together
+    /// with `max_deviation_bps > 0`, a FRESH secondary that disagrees with the
+    /// primary beyond the tolerance makes price reads revert — so no borrow /
+    /// withdraw / liquidation runs on a possibly-manipulated feed (repay needs no
+    /// price). Activated at the audited mainnet build.
+    pub secondary_oracle: StorageAddress,
+    /// Max allowed primary↔secondary deviation, in bps. 0 disables (default).
+    pub max_deviation_bps: StorageU16,
 }
 
 #[storage]

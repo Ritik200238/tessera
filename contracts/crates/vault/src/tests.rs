@@ -797,3 +797,57 @@ fn views_match_interest_model_constants() {
     let pure = interest_model::borrow_rate_bps(0, 200, 400, 6_000, 8_000);
     assert_eq!(v.borrow_rate_bps(), pure);
 }
+
+// ============ Backstop liquidator (mainnet gate #2) — pure gate logic ============
+
+#[test]
+fn backstop_agent_always_allowed() {
+    assert!(backstop_allows(true, 0, 0, 0));
+    assert!(backstop_allows(true, 1_000, 0, 3_600));
+}
+
+#[test]
+fn backstop_disabled_when_delay_zero() {
+    // delay == 0 (testnet/MVP default) ⇒ strictly agent-only; nobody else passes.
+    assert!(!backstop_allows(false, 1_000_000, 0, 0));
+}
+
+#[test]
+fn backstop_opens_only_after_silence_exceeds_delay() {
+    let delay = 3_600u64;
+    let last = 1_000_000u64;
+    assert!(!backstop_allows(false, last + delay, last, delay)); // exactly at the edge
+    assert!(!backstop_allows(false, last + delay - 1, last, delay));
+    assert!(backstop_allows(false, last + delay + 1, last, delay)); // silent past delay
+}
+
+// ============ Dual-oracle deviation guard — pure comparison ============
+
+#[test]
+fn deviation_guard_noop_when_disabled() {
+    assert!(!price_deviation_exceeds(U256::from(100), U256::from(200), 0));
+}
+
+#[test]
+fn deviation_guard_within_tolerance_passes() {
+    // $200.00 vs $201.00 = 50bps; tolerance 50bps ⇒ not exceeded (strict >).
+    let p1 = U256::from(20_000_000_000u64);
+    let p2 = U256::from(20_100_000_000u64);
+    assert!(!price_deviation_exceeds(p1, p2, 50));
+    assert!(!price_deviation_exceeds(p2, p1, 50)); // order-independent
+}
+
+#[test]
+fn deviation_guard_exceeds_tolerance_trips() {
+    // $200 vs $210 = 500bps; tolerance 50bps ⇒ exceeded both directions.
+    let p1 = U256::from(20_000_000_000u64);
+    let p2 = U256::from(21_000_000_000u64);
+    assert!(price_deviation_exceeds(p1, p2, 50));
+    assert!(price_deviation_exceeds(p2, p1, 50));
+}
+
+#[test]
+fn deviation_guard_zero_price_is_safe() {
+    assert!(!price_deviation_exceeds(U256::ZERO, U256::from(100), 50));
+    assert!(!price_deviation_exceeds(U256::from(100), U256::ZERO, 50));
+}
