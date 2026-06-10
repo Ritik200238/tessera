@@ -112,6 +112,8 @@ export async function getPositionRisk(address: Address): Promise<PositionRisk> {
 
   let verdict: string;
   if (!exists) verdict = "No open debt for this address.";
+  else if (hf === null)
+    verdict = "Health factor temporarily unavailable (an oracle refresh is pending) — the debt is real; check back shortly.";
   else if (atRisk) verdict = `At-risk: the AI auto-repays a covered position here, restoring toward ${protectAt.toFixed(2)}.`;
   else verdict = `Healthy: collateral would have to fall ~${dropToAiActPct}% before the AI steps in (regime: ${reg.regime}).`;
 
