@@ -39,12 +39,12 @@ export function StartWalk() {
   const { data: vaultData } = useReadContracts({
     contracts: enabled
       ? [
-          { address: vault.address!, abi: vault.abi, functionName: "debtOf" as const, args: [address!] as const },
+          { address: vault.address!, abi: vault.abi, functionName: "debtOf", args: [address!] },
           ...tokens.map((t) => ({
             address: vault.address!,
             abi: vault.abi,
-            functionName: "collateralOf" as const,
-            args: [address!, t.address] as const,
+            functionName: "collateralOf",
+            args: [address!, t.address],
           })),
         ]
       : [],
