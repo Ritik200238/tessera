@@ -46,7 +46,10 @@ const timer = setInterval(() => {
       console.log(`[${Math.round((Date.now() - t0) / 1000)}s] ${step.name}: ${step.detail}${step.tx ? ` (${step.tx})` : ""}`);
     }
   }
-  if (s.state === "saved" || s.state === "failed") {
+  // Exit only once the orchestrator has fully finished (finishedAt is set in its
+  // .finally, AFTER the price-restore step) — exiting on state==="saved" earlier
+  // killed the process mid-restore and left the drill asset gapped.
+  if (s.finishedAt) {
     console.log("FINAL:", s.state, s.error ?? "", "HF:", s.hf, "debt:", s.debt);
     clearInterval(timer);
     process.exit(s.state === "saved" ? 0 : 2);

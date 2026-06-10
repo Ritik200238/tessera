@@ -1,7 +1,9 @@
 # Oracle keeper — re-stamps the MockOracle feeds on a schedule so vault price
-# reads never hit the 24h staleness window (which reverts borrow / deposit /
-# liquidation by design). Plays Chainlink's role on testnet. Every 6 hours =
-# 4x safety margin; also runnable on demand via workflow_dispatch.
+# reads never go stale (a stale read reverts borrow / deposit / liquidation by
+# design). Plays Chainlink's role on testnet. The vault's staleness window
+# (max_price_age_secs) is set to 86400s on testnet, so every 6h = 4x margin.
+# IMPORTANT: keep the keeper interval well under that window. Also runnable on
+# demand via workflow_dispatch (do this before a demo to warm everything).
 name: oracle-keeper
 
 on:

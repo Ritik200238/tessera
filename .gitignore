@@ -77,3 +77,6 @@ web/playwright-report/
 
 # Local secret paste-file for the Render drill rig
 /render-drill-env.txt
+
+# MCP server is standalone (its own npm install)
+mcp/node_modules/
