@@ -15,6 +15,7 @@ import { ConnectButton } from "./connect-button";
 import { formatBps } from "@/lib/format";
 import { decodeTxError } from "@/lib/errors";
 import { track } from "@/lib/analytics";
+import { AdvancedOnly } from "@/components/view-mode";
 
 type Mode = "deposit" | "withdraw";
 
@@ -237,31 +238,33 @@ export function LendForm() {
 
       <div className="space-y-4">
         <ValueCard label="Current supply APY" value={formatBps(supplyBps)} />
-        <Card>
-          <CardHeader>
-            <CardTitle>Utilization</CardTitle>
-            <CardDescription>Share of supplied USDC currently borrowed.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div
-              role="progressbar"
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={Math.round(utilPct)}
-              aria-label={`Utilization ${utilPct.toFixed(1)}%`}
-              className="h-3 w-full overflow-hidden rounded-full bg-[color:var(--color-muted)]"
-            >
+        <AdvancedOnly>
+          <Card>
+            <CardHeader>
+              <CardTitle>Utilization</CardTitle>
+              <CardDescription>Share of supplied USDC currently borrowed.</CardDescription>
+            </CardHeader>
+            <CardContent>
               <div
-                className="h-full rounded-full bg-[color:var(--color-primary)]"
-                style={{ width: `${utilPct}%` }}
-              />
-            </div>
-            <p className="mt-2 text-sm tabular-nums">{utilPct.toFixed(1)}%</p>
-            <p className="mt-1 text-xs text-[color:var(--color-muted-foreground)]">
-              Pool size: {formatUnits(totalAssets, USDC_DECIMALS)} USDC
-            </p>
-          </CardContent>
-        </Card>
+                role="progressbar"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={Math.round(utilPct)}
+                aria-label={`Utilization ${utilPct.toFixed(1)}%`}
+                className="h-3 w-full overflow-hidden rounded-full bg-[color:var(--color-muted)]"
+              >
+                <div
+                  className="h-full rounded-full bg-[color:var(--color-primary)]"
+                  style={{ width: `${utilPct}%` }}
+                />
+              </div>
+              <p className="mt-2 text-sm tabular-nums">{utilPct.toFixed(1)}%</p>
+              <p className="mt-1 text-xs text-[color:var(--color-muted-foreground)]">
+                Pool size: {formatUnits(totalAssets, USDC_DECIMALS)} USDC
+              </p>
+            </CardContent>
+          </Card>
+        </AdvancedOnly>
       </div>
     </div>
   );

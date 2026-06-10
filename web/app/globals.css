@@ -136,3 +136,9 @@ body {
   outline-offset: 2px;
   border-radius: var(--radius-sm);
 }
+
+/* Simple ⇄ Advanced view mode (components/view-mode.tsx). Layout-transparent
+   by default; hidden in Simple view. No JS needed to hide — set by the toggle
+   via html[data-view]. */
+.tessera-advanced { display: contents; }
+html[data-view="simple"] .tessera-advanced { display: none; }

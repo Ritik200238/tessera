@@ -59,6 +59,14 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" className={`${sans.variable} ${mono.variable}`} suppressHydrationWarning>
+      <head>
+        {/* Apply the saved Simple/Advanced view before paint (no flash). */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{document.documentElement.dataset.view=localStorage.getItem('tessera-view')||'advanced'}catch(e){}`,
+          }}
+        />
+      </head>
       <body className="min-h-dvh flex flex-col">
         {PLAUSIBLE_DOMAIN ? (
           <Script defer data-domain={PLAUSIBLE_DOMAIN} src={PLAUSIBLE_SRC} strategy="afterInteractive" />

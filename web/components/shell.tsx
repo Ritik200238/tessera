@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import { useAccount } from "wagmi";
 import { Mark } from "@/components/mark";
 import { ConnectButton } from "@/components/connect-button";
+import { ViewModeToggle } from "@/components/view-mode";
 import { ChainBanner } from "@/components/chain-banner";
 import { PausedBanner } from "@/components/paused-banner";
 import { env } from "@/lib/env";
@@ -66,7 +67,10 @@ export function Shell({ children }: { children: ReactNode }) {
               </Link>
             ))}
           </nav>
-          <ConnectButton />
+          <div className="flex items-center gap-2">
+            <ViewModeToggle />
+            <ConnectButton />
+          </div>
         </div>
         <nav aria-label="Primary mobile" className="md:hidden border-t border-[color:var(--color-border)]">
           <div className="mx-auto max-w-6xl flex overflow-x-auto gap-1 px-4 py-2 text-sm">
@@ -116,6 +120,9 @@ export function Shell({ children }: { children: ReactNode }) {
             </Link>
             <Link className="hover:text-[color:var(--color-foreground)]" href="/start">
               Get started
+            </Link>
+            <Link className="hover:text-[color:var(--color-foreground)]" href="/explore">
+              Explore
             </Link>
             <Link className="hover:text-[color:var(--color-foreground)]" href="/roadmap">
               Roadmap

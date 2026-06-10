@@ -3,6 +3,7 @@ import { ShieldCheck } from "lucide-react";
 import { LendForm } from "@/components/lend-form";
 import { LenderEarnings } from "@/components/lender-earnings";
 import { ApyComparison } from "@/components/apy-comparison";
+import { AdvancedOnly } from "@/components/view-mode";
 
 export const metadata = { title: "Lend" };
 
@@ -29,7 +30,9 @@ export default function LendPage() {
       </div>
       <LenderEarnings />
       <LendForm />
-      <ApyComparison />
+      <AdvancedOnly>
+        <ApyComparison />
+      </AdvancedOnly>
     </div>
   );
 }
