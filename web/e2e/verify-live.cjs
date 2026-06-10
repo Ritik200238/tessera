@@ -5,10 +5,10 @@ const { mkdirSync } = require("node:fs");
   mkdirSync("qa-evidence/scale", { recursive: true });
   const BASE = "https://tessera-web-delta.vercel.app";
   const pages = [
-    ["borrow", "/borrow"],
-    ["transparency", "/transparency"],
-    ["agent", "/agent"],
-    ["lend", "/lend"],
+    ["explore", "/explore"],
+    ["drill", "/drill"],
+    ["roadmap", "/roadmap"],
+    ["start", "/start"],
   ];
   const browser = await chromium.launch();
   const page = await browser.newPage({ viewport: { width: 1280, height: 1000 } });
