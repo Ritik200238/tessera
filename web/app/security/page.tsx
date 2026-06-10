@@ -51,6 +51,13 @@ export default function SecurityPage() {
             All money decisions (whether and how much to act) are deterministic. The LLM only writes
             the plain-English explanations; it cannot trigger a transaction.
           </Fact>
+          <Fact title="Not custody, not money transmission">
+            The agent never holds, pools, or transmits your funds. It can do exactly one thing:
+            call <code className="font-mono">agentRepayFor</code> to reduce <strong>your own</strong>{" "}
+            loan, using an allowance you granted and can revoke. It cannot send your money anywhere —
+            not to us, not to a third party. There is no flow in which value leaves your control to
+            anyone but your own debt.
+          </Fact>
           <Fact title="Agent-only liquidation at MVP">
             At MVP the agent is the sole liquidator. A permissionless, heartbeat-gated backstop (so a
             down agent can&apos;t strand lenders) is wired in storage and turns on before mainnet.
@@ -97,6 +104,39 @@ export default function SecurityPage() {
           <Fact title="Single-keeper risk">
             Today the agent is a single signer. That is a known MVP limitation; the permissionless
             backstop + an always-on host + monitoring address it before mainnet.
+          </Fact>
+          <Fact title="What if my wallet can't cover the repay?">
+            Auto-repay pulls from <em>your</em> USDC. If your balance or remaining allowance
+            can&apos;t cover what&apos;s needed, the agent does <strong>not</strong> fail silently — it
+            falls back to a loud alert so you can act yourself. Protection degrades to a warning; it
+            never pretends to have saved a position it couldn&apos;t.
+          </Fact>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Economics — how Tessera makes money</CardTitle>
+          <CardDescription>No token. No insiders. Just the interest spread.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3 text-sm">
+          <Fact title="No token, ever">
+            No airdrop, points, or governance coin — nothing to farm or defend. Revenue is the
+            classic money-market interest spread, nothing more.
+          </Fact>
+          <Fact title="15% reserve factor">
+            Of the interest borrowers pay, 85% flows to lenders (your supply APY) and 15% accrues to
+            a protocol reserve. That split is the whole business model.
+          </Fact>
+          <Fact title="The reserve is a first-loss buffer, not a treasury">
+            The reserve capitalizes the safety buffer that absorbs bad debt before lenders are
+            touched, and funds operations (oracle keeper, hosting, audit). It is not a payout to
+            insiders — there are no insiders to pay.
+          </Fact>
+          <Fact title="Protection is funded by you, liquidation by the liquidator">
+            Auto-repay spends <em>your</em> pre-approved USDC to save <em>your</em> position — never
+            protocol funds. Liquidation is funded by the liquidator, who earns a 5% bonus; the
+            protocol takes a small cut of that bonus on the risk events it absorbs.
           </Fact>
         </CardContent>
       </Card>
