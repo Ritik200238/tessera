@@ -3,6 +3,7 @@ import { ArrowRight } from "lucide-react";
 import { getMarketRisk, getPositionRisk } from "@/lib/risk";
 import { GapRiskClock } from "@/components/gap-risk-clock";
 import { GapBacktestCard } from "@/components/gap-backtest-card";
+import { GapSandbox } from "@/components/gap-sandbox";
 import { SafetyBar } from "@/components/safety-bar";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 
@@ -99,6 +100,8 @@ export default async function ExplorePage() {
           </CardContent>
         </Card>
       </div>
+
+      <GapSandbox />
 
       <GapBacktestCard />
 
