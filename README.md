@@ -11,10 +11,10 @@ An autonomous AI agent watches every position **24/7** and acts **before** a liq
 [![Arbitrum Stylus](https://img.shields.io/badge/Arbitrum%20Stylus-Rust%20%E2%86%92%20WASM-2353E6?style=flat-square)](https://docs.arbitrum.io/stylus/stylus-gentle-introduction)
 [![Next.js](https://img.shields.io/badge/Next.js%2016-Turbopack-111214?style=flat-square&logo=nextdotjs&logoColor=white)](https://nextjs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org)
-[![Tests](https://img.shields.io/badge/tests-117%20passing-0E8A5F?style=flat-square)](#testing)
+[![Tests](https://img.shields.io/badge/tests-200%2B%20passing-0E8A5F?style=flat-square)](#testing)
 [![License](https://img.shields.io/badge/license-MIT-111214?style=flat-square)](#license)
 <br/>
-[![Network](https://img.shields.io/badge/Arbitrum%20Sepolia-live-0E8A5F?style=flat-square)](https://sepolia.arbiscan.io/address/0x579a81d009068f69dab03ef080d24806c30b9ad5)
+[![Network](https://img.shields.io/badge/Arbitrum%20Sepolia-live-0E8A5F?style=flat-square)](https://sepolia.arbiscan.io/address/0x72adaa00e2eaa98f62ee1c77e9b7714e0db57ba7)
 [![Token](https://img.shields.io/badge/token-none%2C%20ever-6E727A?style=flat-square)](#principles)
 [![Custody](https://img.shields.io/badge/custody-non--custodial-6E727A?style=flat-square)](#principles)
 
@@ -26,7 +26,7 @@ An autonomous AI agent watches every position **24/7** and acts **before** a liq
 
 ## Overview
 
-Tessera is a non-custodial lending protocol for **tokenized equities** (tokenized TSLA, AAPL, NVDA, SPY, QQQ). Lenders supply USDC into a single pool and earn yield; borrowers pledge tokenized stocks as collateral and draw USDC against them.
+Tessera is a non-custodial lending protocol for **tokenized equities** (tokenized AAPL, TSLA, SPY). Lenders supply USDC into a single pool and earn yield; borrowers pledge tokenized stocks as collateral and draw USDC against them.
 
 The hard problem with tokenized stocks is simple: **the token trades 24/7, but the stock behind it doesn't.** Over a weekend or on bad news, a stock can gap down before markets reopen — and that gap is what liquidates borrowers. Tessera's answer is an **autonomous risk agent** that monitors every position on a constant loop and, with the user's permission, repays from their pre-approved USDC to restore health *before* a liquidation happens.
 
@@ -43,12 +43,26 @@ The Stylus vault is deployed and **activated on-chain**, with the full loop — 
 
 | Contract | Address | |
 |---|---|---|
-| **Vault** (Stylus) | `0x579a81d009068f69dab03ef080d24806c30b9ad5` | [Arbiscan ↗](https://sepolia.arbiscan.io/address/0x579a81d009068f69dab03ef080d24806c30b9ad5) |
+| **Vault** (Stylus) | `0x72adaa00e2eaa98f62ee1c77e9b7714e0db57ba7` | [Arbiscan ↗](https://sepolia.arbiscan.io/address/0x72adaa00e2eaa98f62ee1c77e9b7714e0db57ba7) |
 | MockUSDC (6dec) | `0xf10aCF61b480c24102B303ebAFB97d9392d693F2` | [Arbiscan ↗](https://sepolia.arbiscan.io/address/0xf10aCF61b480c24102B303ebAFB97d9392d693F2) |
 | Oracle (Chainlink-style) | `0xd7fC0f4EA57272C7F5150EDA47f6BC318a0eC0be` | [Arbiscan ↗](https://sepolia.arbiscan.io/address/0xd7fC0f4EA57272C7F5150EDA47f6BC318a0eC0be) |
 | tAAPL · tTSLA · tSPY | `0xb88B…0762` · `0x753b…41dD` · `0xFD0d…E8e8` | [Markets ↗](https://sepolia.arbiscan.io/address/0xb88BB7FB901Df495cF6228F9E4293b8F91660762) |
 
 Addresses are also machine-readable in [`shared/addresses/testnet.json`](shared/addresses/testnet.json). The web app and agent read them from there — no live address is ever hard-coded.
+
+---
+
+## ▶️ See it for yourself in 60 seconds
+
+Live app: **[tessera-web-delta.vercel.app](https://tessera-web-delta.vercel.app)** — don't take our word for any of this; every claim is verifiable on-chain.
+
+- **🛡 [Live Drill](https://tessera-web-delta.vercel.app/drill)** — one click opens a real loan, crashes its collateral **−33%**, and the *production* agent rescues it on-chain in seconds. Not a script: the same loop that watches real users. Every step links to an Arbiscan tx. *(Verified run: HF 1.53 → gap → agent auto-repaid ~$242 → HF restored to 1.55, in 8 seconds.)*
+- **📊 [Proof, not promises](https://tessera-web-delta.vercel.app/transparency)** — a CI-locked backtest: across 9 modeled overnight/weekend/earnings gaps, regime-aware protection **avoided liquidation in 75% of the cases that wiped out an unprotected position**. If the number rots, the build fails. Reproduce: `pnpm --filter @tessera/web test gap-backtest`.
+- **🧭 [Explore (no wallet)](https://tessera-web-delta.vercel.app/explore)** · **[Guided start](https://tessera-web-delta.vercel.app/start)** — browse a real live position read-only, or open your own in five real-tx steps with free faucet funds.
+- **🤖 Risk layer for agents** — a public read-only Risk API (`GET /api/risk`, `GET /api/risk/:address`) and an [MCP server](mcp/) (`tessera_market_risk`, `tessera_position_risk`) so *other* AI agents can consume Tessera's risk signals.
+
+### The differentiator, in one line
+Tokenized stocks gap while the market is closed. Tessera's agent is **regime-aware** — it widens its protection bands automatically for after-hours, weekends, and earnings, and acts *before* the gap, restoring health from USDC you pre-approve. It can only ever reduce your debt; a language model never moves money.
 
 ---
 
