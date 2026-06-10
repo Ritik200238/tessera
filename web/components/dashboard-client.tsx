@@ -176,11 +176,17 @@ function GetStarted() {
         <FaucetButton />
         <div className="flex flex-wrap gap-2 pt-1">
           <Link
-            href="/borrow"
+            href="/start"
             className="inline-flex h-10 items-center gap-2 rounded-md bg-[color:var(--color-primary)] px-4 text-sm font-medium text-[color:var(--color-primary-foreground)] hover:opacity-90"
           >
-            Deposit &amp; borrow
+            Guided start — first protected position
             <ArrowRight aria-hidden className="size-4" />
+          </Link>
+          <Link
+            href="/borrow"
+            className="inline-flex h-10 items-center rounded-md border border-[color:var(--color-border)] px-4 text-sm font-medium hover:bg-[color:var(--color-muted)]"
+          >
+            Deposit &amp; borrow
           </Link>
           <Link
             href="/lend"

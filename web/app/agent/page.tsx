@@ -4,6 +4,7 @@ import { AgentConfigPanel } from "@/components/agent-config-panel";
 import { AgentInternals } from "@/components/agent-internals";
 import { ApprovalsPanel } from "@/components/approvals-panel";
 import { ProtectionPreview } from "@/components/protection-preview";
+import { YourStanding } from "@/components/your-standing";
 import { AdminOnly } from "@/components/admin-only";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
@@ -62,6 +63,7 @@ export default async function AgentPage() {
               <Row label="Errors (24h)" value={String(health.errors24h)} />
             </CardContent>
           </Card>
+          <YourStanding />
           <AgentControls />
           <ProtectionPreview />
           <ApprovalsPanel />

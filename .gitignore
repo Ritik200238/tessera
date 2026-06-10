@@ -74,3 +74,6 @@ web/test-results/
 web/playwright-report/
 /.playwright-mcp/
 /preflight-landing.png
+
+# Local secret paste-file for the Render drill rig
+/render-drill-env.txt
