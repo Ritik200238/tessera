@@ -1,0 +1,29 @@
+# Oracle keeper — re-stamps the MockOracle feeds on a schedule so vault price
+# reads never hit the 24h staleness window (which reverts borrow / deposit /
+# liquidation by design). Plays Chainlink's role on testnet. Every 6 hours =
+# 4x safety margin; also runnable on demand via workflow_dispatch.
+name: oracle-keeper
+
+on:
+  schedule:
+    - cron: "23 */6 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # viem is the keeper's only dependency; install just it (no workspace install).
+      - run: npm install --no-save viem@2
+      - name: Refresh oracle prices
+        env:
+          KEEPER_PRIVATE_KEY: ${{ secrets.KEEPER_PRIVATE_KEY }}
+        run: node scripts/keeper.mjs --once
