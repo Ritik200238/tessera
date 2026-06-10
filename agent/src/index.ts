@@ -26,6 +26,7 @@ import type { LiquidatorDeps } from "./strategy/liquidator.js";
 import type { AutoRepayDeps } from "./strategy/auto-repay.js";
 import type { AlerterDeps } from "./strategy/alerter.js";
 import { startServer } from "./http/server.js";
+import { DrillOrchestrator } from "./drill/orchestrator.js";
 import { metrics } from "./metrics.js";
 import { registerProtocol } from "./vibekit-shim.js";
 import { IncidentNotifier } from "./notify/webhook.js";
@@ -172,12 +173,30 @@ async function main(): Promise<void> {
     maxGasGwei: currentConfig.maxGasGwei,
   };
 
+  // 7.5 Live Drill rig (judge-clickable demo) — only when the keys are present.
+  const drill =
+    cfg.DRILL_PRIVATE_KEY && cfg.DRILL_ADMIN_KEY
+      ? new DrillOrchestrator({
+          publicClient,
+          vaultAddress,
+          oracleAddress: cfg.ORACLE_ADDRESS as Address,
+          usdcAddress: cfg.USDC_ADDRESS as Address,
+          drillAsset: cfg.DRILL_ASSET as Address,
+          drillKey: cfg.DRILL_PRIVATE_KEY as `0x${string}`,
+          adminKey: cfg.DRILL_ADMIN_KEY as `0x${string}`,
+          rpcUrl: cfg.RPC_URL,
+          log,
+        })
+      : null;
+  if (drill) logger.info({ asset: cfg.DRILL_ASSET }, "live drill rig enabled");
+
   // 8. HTTP server
   const server = await startServer(cfg.AGENT_HTTP_PORT, {
     log,
     alerts,
     db,
     llm,
+    drill,
     adminSecret: cfg.AGENT_ADMIN_SECRET,
     corsOrigins: cfg.AGENT_CORS_ORIGINS.split(",").map((s) => s.trim()).filter(Boolean),
     healthSource: {

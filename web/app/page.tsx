@@ -7,6 +7,7 @@ import { useProtocolStats, formatUsdcUsd } from "@/lib/protocol";
 import { track } from "@/lib/analytics";
 import { MarketsGrid } from "@/components/markets-grid";
 import { runGapBacktest } from "@/lib/gap-backtest";
+import { addresses } from "@/lib/addresses";
 import "./landing.css";
 
 /* ----------------------------------------------------------------------------
@@ -455,7 +456,9 @@ export default function LandingPage() {
                 )}
                 <span className="sm">
                   {live
-                    ? `${stats.listedAssets} tokenized ${stats.listedAssets === 1 ? "equity" : "equities"} supported`
+                    ? // Count the curated user-facing assets (the on-chain list also
+                      // contains the isolated drill asset used by the Live Drill).
+                      `${addresses.collateralTokens.length} tokenized equities supported`
                     : "Live from the vault"}
                 </span>
               </div>

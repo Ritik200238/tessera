@@ -12,9 +12,11 @@ import { registerActionsRoute } from "./routes/actions.js";
 import { registerAlertsRoute } from "./routes/alerts.js";
 import { registerMetricsRoute } from "./routes/metrics.js";
 import { registerConfigRoute, type ConfigDeps } from "./routes/config.js";
+import { registerDrillRoutes } from "./routes/drill.js";
 import { rateLimit } from "./rate-limit.js";
 import type { JsonlLog } from "../log/jsonl.js";
 import type { AlertSnapshot } from "../log/alerts.js";
+import type { DrillOrchestrator } from "../drill/orchestrator.js";
 
 export interface HttpDeps extends ConfigDeps {
   log: JsonlLog;
@@ -22,6 +24,8 @@ export interface HttpDeps extends ConfigDeps {
   healthSource: HealthSource;
   /** Allowed browser origins for CORS; empty => permissive (testnet default). */
   corsOrigins?: string[];
+  /** Live Drill rig — present only when the drill keys are configured. */
+  drill?: DrillOrchestrator | null;
 }
 
 export function buildApp(deps: HttpDeps): Hono {
@@ -39,6 +43,7 @@ export function buildApp(deps: HttpDeps): Hono {
   registerAlertsRoute(app, deps.alerts, deps.adminSecret);
   registerMetricsRoute(app, deps.adminSecret);
   registerConfigRoute(app, deps);
+  registerDrillRoutes(app, deps.drill ?? null);
   return app;
 }
 

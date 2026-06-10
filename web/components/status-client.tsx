@@ -100,7 +100,8 @@ export function StatusClient({ agentHealth }: { agentHealth: AgentHealth }) {
             {stats.paused ? "Paused" : "Operational"}
           </Row>
           <Row label="Listed assets">
-            <span className="mono">{stats.deployed ? stats.listedAssets : "—"}</span>
+            {/* Curated user-facing count — the on-chain list also holds the isolated drill asset. */}
+            <span className="mono">{stats.deployed ? addresses.collateralTokens.length : "—"}</span>
           </Row>
           <Row label="Contract">
             <a
