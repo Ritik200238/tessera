@@ -21,6 +21,9 @@ pub mod liquidate;
 pub mod rate;
 pub mod utilization;
 
+#[cfg(test)]
+mod proptests;
+
 pub use health::{collateral_value_usd_8, health_factor, CollateralLeg};
 pub use index::{accrue_index, current_debt};
 pub use liquidate::{compute_liquidation, LiquidationResult};
