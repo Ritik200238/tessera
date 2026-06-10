@@ -359,8 +359,9 @@ export default function LandingPage() {
                 <span className="grad">Watched 24/7.</span>
               </h1>
               <p className="hsub">
-                Tessera is the safest venue to lend USDC, or borrow against tokenized TSLA, AAPL and SPY. An
-                AI agent monitors every position around the clock — and acts before a liquidation, not after.
+                Borrow cash against your tokenized stocks without selling them. If the market gaps down while
+                you sleep, Tessera&apos;s AI repays just enough to keep you from being liquidated —
+                automatically, from funds you approve and can revoke anytime.
               </p>
               <div className="hero-cta">
                 <Link className="lbtn brand lg arrow" href="/borrow" onClick={() => track("landing_cta_click", { cta: "borrow" })}>
@@ -659,9 +660,9 @@ export default function LandingPage() {
               Here&apos;s how it works:
             </p>
             <p className="sec-sub reveal" style={{ marginTop: 12 }}>
-              In a reproducible backtest of {backtest.n} modeled overnight, weekend, and earnings gaps, regime-aware
-              protection avoided liquidation in <b>{backtest.avoidedOfBaselinePct}%</b> of the cases that liquidated an
-              unprotected position.{" "}
+              In a reproducible backtest of {backtest.n} modeled overnight, weekend, and earnings gaps, Tessera&apos;s
+              protection <b>saved {backtest.liquidationsAvoided} of the {backtest.baselineLiquidations} positions</b>{" "}
+              that an unprotected lender would have lost to liquidation.{" "}
               <a href="/transparency" style={{ textDecoration: "underline" }}>See the numbers →</a>
             </p>
 

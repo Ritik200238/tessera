@@ -3,6 +3,7 @@ import { ArrowRight } from "lucide-react";
 import { getMarketRisk, getPositionRisk } from "@/lib/risk";
 import { GapRiskClock } from "@/components/gap-risk-clock";
 import { GapBacktestCard } from "@/components/gap-backtest-card";
+import { SafetyBar } from "@/components/safety-bar";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 
 export const metadata = { title: "Explore" };
@@ -80,8 +81,10 @@ export default async function ExplorePage() {
           <CardContent className="space-y-3 text-sm">
             {position && position.exists ? (
               <>
-                <div className="grid grid-cols-3 gap-3">
-                  <Stat label="Health factor" value={position.healthFactor?.toFixed(2) ?? "—"} tone="safe" />
+                {position.healthFactor !== null && (
+                  <SafetyBar hf={position.healthFactor} actAt={position.aiActsBelowHf} protectAt={position.restoresTowardHf} />
+                )}
+                <div className="grid grid-cols-2 gap-3">
                   <Stat label="Safety score" value={position.safetyScore !== null ? String(position.safetyScore) : "—"} />
                   <Stat label="Debt" value={position.debtUsdc !== null ? `$${position.debtUsdc.toLocaleString()}` : "—"} />
                 </div>

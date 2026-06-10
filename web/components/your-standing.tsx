@@ -7,6 +7,7 @@ import { vault, isVaultDeployed } from "@/lib/contracts";
 import { addresses } from "@/lib/addresses";
 import { assessRegime, hfToNumber, LIQUIDATION_HF, type RegimeAssessment } from "@/lib/regime";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { SafetyBar } from "@/components/safety-bar";
 
 /**
  * "Where you stand" — the agent page personalized to the connected wallet.
@@ -58,10 +59,7 @@ export function YourStanding() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3 text-sm">
-        <div className="grid grid-cols-2 gap-3">
-          <Metric label="Your health factor" value={hfN > 100 ? "∞" : hfN.toFixed(2)} />
-          <Metric label="AI acts below" value={actAt.toFixed(2)} />
-        </div>
+        <SafetyBar hf={hfN} actAt={actAt} liqAt={liqAt} protectAt={hfToNumber(reg.protectTargetHf)} />
         <p className="text-[color:var(--color-muted-foreground)]">
           {hfN <= actAt ? (
             <>You are in the act zone — the agent {protectedOn ? "will auto-repay on its next pass." : "is alerting; enable protection below so it can act."}</>
@@ -80,14 +78,5 @@ export function YourStanding() {
         </p>
       </CardContent>
     </Card>
-  );
-}
-
-function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-md bg-[color:var(--color-muted)] px-3 py-2">
-      <p className="text-xs text-[color:var(--color-muted-foreground)]">{label}</p>
-      <p className="text-lg font-semibold tabular-nums">{value}</p>
-    </div>
   );
 }
