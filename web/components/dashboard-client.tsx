@@ -14,6 +14,7 @@ import { PositionTile } from "@/components/position-tile";
 import { HealthHistory } from "@/components/health-history";
 import { TransactionHistory } from "@/components/transaction-history";
 import { GapRiskClock } from "@/components/gap-risk-clock";
+import { PositionOutlook } from "@/components/position-outlook";
 import { Mark } from "@/components/mark";
 import { ValueCard } from "@/components/value-card";
 import { ConnectButton } from "@/components/connect-button";
@@ -86,6 +87,7 @@ export function DashboardClient({ agentStatus }: { agentStatus: AgentStatusSumma
   return (
     <div className="space-y-6">
       <GapRiskClock />
+      <PositionOutlook />
       <div className="grid gap-6 lg:grid-cols-[1fr_1fr]">
         <div className="space-y-3">
           {hasPosition ? (

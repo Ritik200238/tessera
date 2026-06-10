@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAccount, usePublicClient, useReadContracts } from "wagmi";
 import { formatUnits, parseEventLogs } from "viem";
 import { vault } from "@/lib/contracts";
@@ -83,22 +83,45 @@ export function LenderEarnings() {
     };
   }, [address, enabled, client]);
 
+  // Live ticking: interest accrues continuously at the current supply rate, but
+  // reads only refresh per block/refetch. Interpolate the accrual client-side
+  // from the LAST on-chain value + the on-chain rate — derived, not invented —
+  // so lenders watch their balance grow in real time without refreshing.
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  const baselineRef = useRef<{ value: bigint; atMs: number }>({ value: 0n, atMs: Date.now() });
+  if (baselineRef.current.value !== value) baselineRef.current = { value, atMs: Date.now() };
+  useEffect(() => {
+    const id = setInterval(() => setNowMs(Date.now()), 1_000);
+    return () => clearInterval(id);
+  }, []);
+
   if (!isConnected || shares === 0n) return null;
 
-  const earnings = basis !== null ? (value > basis ? value - basis : 0n) : null;
+  const YEAR_MS = 365n * 24n * 3_600_000n;
+  const elapsedMs = BigInt(Math.max(0, nowMs - baselineRef.current.atMs));
+  const accruedSinceRead = (value * supplyBps * elapsedMs) / (10_000n * YEAR_MS);
+  const liveValue = value + accruedSinceRead;
+
+  const earnings = basis !== null ? (liveValue > basis ? liveValue - basis : 0n) : null;
   const annual = (value * supplyBps) / 10_000n;
   const fmt = (v: bigint) => Number(formatUnits(v, 6)).toLocaleString(undefined, { maximumFractionDigits: 2 });
+  // High-precision tick display (6dp) so accrual is visible between reads.
+  const fmtLive = (v: bigint) =>
+    Number(formatUnits(v, 6)).toLocaleString(undefined, { minimumFractionDigits: 6, maximumFractionDigits: 6 });
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>Your supplied position</CardTitle>
-        <CardDescription>Live value, earnings since deposit, and projected yield at the current APY.</CardDescription>
+        <CardDescription>
+          Value accrues live at the current supply rate — interpolated from the last on-chain read, settled exactly
+          on-chain.
+        </CardDescription>
       </CardHeader>
       <CardContent className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
-        <Metric label="Current value" value={`$${fmt(value)}`} />
+        <Metric label="Current value" value={`$${fmtLive(liveValue)}`} />
         <Metric label="Net deposited" value={basis !== null ? `$${fmt(basis)}` : "…"} />
-        <Metric label="Earnings" value={earnings !== null ? `+$${fmt(earnings)}` : "…"} tone="safe" />
+        <Metric label="Earnings" value={earnings !== null ? `+$${fmtLive(earnings)}` : "…"} tone="safe" />
         <Metric label="Projected / yr" value={`~$${fmt(annual)} · ${formatBps(supplyBps)}`} />
       </CardContent>
     </Card>

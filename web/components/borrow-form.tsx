@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { SafetyScore } from "./safety-score";
 import { HealthBadge } from "./health-badge";
 import { ConnectButton } from "./connect-button";
+import { GapAckModal } from "./gap-ack-modal";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { classify, projectHealthFactor } from "@/lib/health";
@@ -138,7 +139,11 @@ export function BorrowForm() {
   const canBorrow =
     isConnected && isVaultDeployed() && borrowAmount6 > 0n && !isPending && !isMining;
 
-  function borrow() {
+  // Mandatory gap-risk acknowledgment before a FIRST borrow (debt == 0). The
+  // modal models off-hours drops on the exact position being signed.
+  const [showGapAck, setShowGapAck] = useState(false);
+
+  function sendBorrowTx() {
     if (!vault.address) return;
     reset();
     track("first_action", { kind: "borrow" });
@@ -150,8 +155,26 @@ export function BorrowForm() {
     });
   }
 
+  function borrow() {
+    if (!vault.address) return;
+    if (currentDebt === 0n) {
+      setShowGapAck(true);
+      return;
+    }
+    sendBorrowTx();
+  }
+
   return (
     <div className="grid gap-6 lg:grid-cols-[1.2fr_1fr]">
+      <GapAckModal
+        open={showGapAck}
+        projectedHf={projectedHf}
+        onConfirm={() => {
+          setShowGapAck(false);
+          sendBorrowTx();
+        }}
+        onCancel={() => setShowGapAck(false)}
+      />
       <Card>
         <CardHeader>
           <CardTitle>Borrow USDC</CardTitle>
