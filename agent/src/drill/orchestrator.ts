@@ -20,7 +20,6 @@
 
 import {
   createWalletClient,
-  erc20Abi,
   http,
   parseUnits,
   type Account,
