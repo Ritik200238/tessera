@@ -9,7 +9,30 @@
  * (shared/abis/TesseraVault.json).
  */
 
-import { BaseError, ContractFunctionRevertedError, UserRejectedRequestError } from "viem";
+import { BaseError, ContractFunctionRevertedError, UserRejectedRequestError, keccak256, toBytes } from "viem";
+import { vault } from "@/lib/contracts";
+
+/**
+ * Custom-error SELECTOR → name, built from the canonical ABI. Gas-estimation
+ * reverts (eth_estimateGas) surface as a raw `0x12345678` selector with no
+ * decoded errorName — the path QA M9 hit — so we decode it ourselves.
+ */
+const SELECTOR_TO_NAME: Record<string, string> = {};
+for (const item of vault.abi as readonly { type: string; name?: string; inputs?: { type: string }[] }[]) {
+  if (item.type === "error" && item.name) {
+    const sig = `${item.name}(${(item.inputs ?? []).map((i) => i.type).join(",")})`;
+    SELECTOR_TO_NAME[keccak256(toBytes(sig)).slice(0, 10)] = item.name;
+  }
+}
+
+/** Map any embedded custom-error selector in a message to its plain-English text. */
+function fromSelector(message: string): string | null {
+  for (const m of message.matchAll(/0x[0-9a-fA-F]{8}\b/g)) {
+    const name = SELECTOR_TO_NAME[m[0].toLowerCase()];
+    if (name && VAULT_ERRORS[name]) return VAULT_ERRORS[name];
+  }
+  return null;
+}
 
 /** Vault custom errors → plain-English guidance. Keep in sync with the contract. */
 const VAULT_ERRORS: Record<string, string> = {
@@ -67,7 +90,12 @@ export function decodeTxError(err: unknown): string {
       if (name) return `Transaction reverted (${name}).`;
     }
 
-    // 3. Gas / funds heuristics from the short message.
+    // 3. Custom-error selector embedded in the message (gas-estimation reverts
+    // carry the raw selector instead of a decoded errorName — QA M9).
+    const bySelector = fromSelector(err.message ?? "");
+    if (bySelector) return bySelector;
+
+    // 4. Gas / funds heuristics from the short message.
     const short = err.shortMessage ?? err.message;
     if (short) {
       const s = short.toLowerCase();
@@ -77,7 +105,9 @@ export function decodeTxError(err: unknown): string {
       }
       const mapped = fromReason(short);
       if (mapped) return mapped;
-      return short;
+      // Last resort: never show a multi-line viem dump in a user-facing alert.
+      const firstLine = short.split("\n")[0]!;
+      return firstLine.length > 200 ? `${firstLine.slice(0, 200)}…` : firstLine;
     }
   }
 

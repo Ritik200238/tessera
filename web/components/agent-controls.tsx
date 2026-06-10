@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { erc20Abi, formatUnits, parseUnits } from "viem";
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
+import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -31,6 +32,13 @@ export function AgentControls() {
   const { address, isConnected } = useAccount();
   const { writeContract, data: txHash, isPending, error, reset } = useWriteContract();
   const { isLoading: isMining, isSuccess: isMined } = useWaitForTransactionReceipt({ hash: txHash });
+
+  // Freshness: refetch reads once the approve mines so the Protected state,
+  // ApprovalsPanel, and ProtectionPreview all update without a reload (QA M5/M7).
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    if (isMined) void queryClient.invalidateQueries();
+  }, [isMined, queryClient]);
 
   const ready = isConnected && !!usdc && vault.address !== null && !!address;
 

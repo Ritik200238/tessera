@@ -20,7 +20,7 @@ describe("public action log privacy", () => {
     if (a1.kind === "alert" && a2.kind === "alert") expect(a1.user).toBe(a2.user);
   });
 
-  it("rounds USDC repay into bands (no exact distress amounts)", () => {
+  it("rounds USDC repay into 10-USDC bands (no exact distress amounts, matches rationale scale)", () => {
     const liq = action.liquidate({
       user: ADDR,
       tx: "0x0000000000000000000000000000000000000000000000000000000000000000",
@@ -29,6 +29,9 @@ describe("public action log privacy", () => {
       token: ADDR,
       status: "confirmed",
     });
-    if (liq.kind === "liquidate") expect(BigInt(liq.repay) % 100_000000n).toBe(0n);
+    if (liq.kind === "liquidate") {
+      expect(BigInt(liq.repay) % 10_000000n).toBe(0n); // banded
+      expect(liq.repay).toBe("150000000"); // ~149.64 → 150, matching the "~150" rationale
+    }
   });
 });

@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAccount, useReadContracts, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
+import { useQueryClient } from "@tanstack/react-query";
 import { formatUnits } from "viem";
 import { vault, oracle, isVaultDeployed } from "@/lib/contracts";
 import { addresses } from "@/lib/addresses";
@@ -129,6 +130,13 @@ export function BorrowForm() {
 
   const { writeContract, isPending, error, data: txHash, reset } = useWriteContract();
   const { isLoading: isMining, isSuccess: isMined } = useWaitForTransactionReceipt({ hash: txHash });
+
+  // Freshness: refetch all reads once the borrow mines so debt / HF / account
+  // data update in place without a reload (QA M5/M7).
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    if (isMined) void queryClient.invalidateQueries();
+  }, [isMined, queryClient]);
 
   // USDC is 6 decimals; collateralValue is 1e8 USD. Convert before the call.
   const borrowAmount6 = useMemo(() => {

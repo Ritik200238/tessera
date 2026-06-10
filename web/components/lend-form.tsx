@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { parseUnits, formatUnits, erc20Abi } from "viem";
 import { useAccount, useReadContract, useReadContracts, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
+import { useQueryClient } from "@tanstack/react-query";
 import { vault, isVaultDeployed } from "@/lib/contracts";
 import { addresses } from "@/lib/addresses";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -74,6 +75,14 @@ export function LendForm() {
 
   const { writeContract, isPending, error, data: txHash, reset } = useWriteContract();
   const { isLoading: isMining, isSuccess: isMined } = useWaitForTransactionReceipt({ hash: txHash });
+
+  // Freshness: once a tx mines (approve OR deposit/withdraw), refetch every
+  // cached read so the allowance-gated button advances and pool numbers update
+  // without a manual reload (QA M5/M7).
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    if (isMined) void queryClient.invalidateQueries();
+  }, [isMined, queryClient]);
 
   function approve() {
     if (!usdcAddr || !vaultAddr) return;

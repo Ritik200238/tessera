@@ -20,9 +20,11 @@ function refUser(a: Address): Address {
   const h = createHash("sha256").update(LOG_SALT + a.toLowerCase()).digest("hex").slice(0, 10);
   return `u:${h}` as Address;
 }
-// Round USDC (6-dec) to the nearest 100 USDC.
+// Round USDC (6-dec) to the nearest 10 USDC — coarse enough to band away exact
+// distress amounts, fine enough that the public number matches the rationale
+// (QA L2: a ~149.6 repay displayed as "100" while the rationale said "~150").
 function roundUsdc(v: bigint): string {
-  const unit = 100_000000n;
+  const unit = 10_000000n;
   return (((v + unit / 2n) / unit) * unit).toString();
 }
 // Round a 1e18-scaled health factor to 2 decimals.

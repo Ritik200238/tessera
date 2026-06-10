@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { type Address, erc20Abi, parseUnits } from "viem";
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
+import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -40,6 +41,13 @@ export function DepositForm({ tokens }: { tokens: CollateralToken[] }) {
   const { isLoading: isMining, isSuccess: isMined } = useWaitForTransactionReceipt({
     hash: txHash,
   });
+
+  // Freshness: refetch all reads once a tx mines, so Approve advances to
+  // Deposit and balances update without a reload (QA M5/M7).
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    if (isMined) void queryClient.invalidateQueries();
+  }, [isMined, queryClient]);
 
   const { data: balance } = useReadContract({
     address: token.address as Address,

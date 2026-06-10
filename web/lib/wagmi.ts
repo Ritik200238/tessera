@@ -1,7 +1,7 @@
 import { createConfig, http } from "wagmi";
 import { fallback } from "viem";
 import { injected, walletConnect } from "wagmi/connectors";
-import { arbitrumSepolia } from "wagmi/chains";
+import { arbitrumSepolia, mainnet } from "wagmi/chains";
 import { getDefaultConfig } from "connectkit";
 import { activeChain, supportedChains } from "./chain";
 import { env } from "./env";
@@ -39,6 +39,11 @@ export const wagmiConfig = createConfig(
       ...transports,
       [activeChain.id]: activeTransport,
       [arbitrumSepolia.id]: activeTransport,
+      // ConnectKit adds mainnet for ENS lookups; without an explicit transport
+      // viem falls back to eth.merkle.io, which blocks browser CORS and litters
+      // the console with failed requests (QA M6). Route ENS through a
+      // CORS-friendly public endpoint instead.
+      [mainnet.id]: http("https://ethereum-rpc.publicnode.com"),
     },
     walletConnectProjectId: env.walletConnectProjectId || "tessera-dev",
     appName: "Tessera",
