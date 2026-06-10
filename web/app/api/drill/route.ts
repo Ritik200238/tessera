@@ -33,6 +33,18 @@ export async function GET() {
   return proxy("/drill/status");
 }
 
-export async function POST() {
-  return proxy("/drill/start", { method: "POST" });
+export async function POST(req: Request) {
+  // Forward the judge's chosen crash size to the agent.
+  let body = "{}";
+  try {
+    const json = await req.json();
+    if (json && typeof json === "object") body = JSON.stringify(json);
+  } catch {
+    /* empty body — default gap */
+  }
+  return proxy("/drill/start", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body,
+  });
 }

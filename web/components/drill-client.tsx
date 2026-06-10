@@ -18,6 +18,13 @@ interface DrillStep {
   tx?: string;
   at: string;
 }
+interface UnprotectedTwin {
+  startHf: number;
+  postHf: number;
+  liquidated: boolean;
+  seizedUsd: number;
+  penaltyUsd: number;
+}
 interface DrillStatus {
   state:
     | "idle"
@@ -30,16 +37,19 @@ interface DrillStatus {
   startedAt: string | null;
   finishedAt: string | null;
   steps: DrillStep[];
+  gapPct: number;
   hf?: string;
   debt?: string;
   rescueTx?: string;
   rationale?: string;
+  unprotected?: UnprotectedTwin;
   error?: string;
   cooldownMsRemaining: number;
 }
 
 const EXPLORER_TX = "https://sepolia.arbiscan.io/tx/";
 const ACTIVE_STATES = new Set(["preparing", "position-open", "gap", "waiting-for-agent"]);
+const GAP_CHOICES = [35, 40, 45] as const;
 
 const STATE_LABEL: Record<DrillStatus["state"], string> = {
   idle: "Ready",
@@ -55,6 +65,7 @@ export function DrillClient() {
   const [status, setStatus] = useState<DrillStatus | null>(null);
   const [unavailable, setUnavailable] = useState(false);
   const [starting, setStarting] = useState(false);
+  const [gapPct, setGapPct] = useState<number>(40);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const poll = useCallback(async () => {
@@ -83,7 +94,11 @@ export function DrillClient() {
   async function start() {
     setStarting(true);
     try {
-      await fetch("/api/drill", { method: "POST" });
+      await fetch("/api/drill", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ gapPct }),
+      });
       await poll();
     } finally {
       setStarting(false);
@@ -102,10 +117,10 @@ export function DrillClient() {
             <ShieldCheck aria-hidden className="size-5" /> Run the live drill
           </CardTitle>
           <CardDescription>
-            One click opens a real loan, crashes its collateral price −33%, and lets the{" "}
-            <em>production</em> AI agent rescue it on-chain — usually inside a minute. Real
-            transactions on Arbitrum Sepolia, on an isolated drill asset that can&apos;t touch real
-            users. Nothing here is simulated.
+            <strong>You</strong> pick the crash. One click opens a real loan and gaps its collateral
+            by the size you choose, then the <em>production</em> AI agent rescues it on-chain —
+            usually inside a minute. Real transactions on Arbitrum Sepolia, on an isolated drill
+            asset that can&apos;t touch real users. The rescue is not a script.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -123,6 +138,31 @@ export function DrillClient() {
             </Alert>
           ) : (
             <>
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-[color:var(--color-muted-foreground)]">
+                  Choose the overnight gap to apply:
+                </p>
+                <div className="inline-flex rounded-md border border-[color:var(--color-border)] p-0.5" role="group" aria-label="Crash size">
+                  {GAP_CHOICES.map((g) => (
+                    <button
+                      key={g}
+                      type="button"
+                      onClick={() => setGapPct(g)}
+                      disabled={active || starting}
+                      aria-pressed={gapPct === g}
+                      className={
+                        "rounded px-3 py-1.5 text-sm font-semibold tabular-nums transition-colors disabled:opacity-50 " +
+                        (gapPct === g
+                          ? "bg-[color:var(--color-primary)] text-[color:var(--color-primary-foreground)]"
+                          : "text-[color:var(--color-muted-foreground)] hover:bg-[color:var(--color-muted)]")
+                      }
+                    >
+                      −{g}%
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <div className="flex flex-wrap items-center gap-3">
                 <Button onClick={start} disabled={!canStart}>
                   {active || starting ? (
@@ -130,7 +170,7 @@ export function DrillClient() {
                   ) : (
                     <Play aria-hidden className="size-4" />
                   )}
-                  {active ? "Drill running…" : cooldownMin > 0 ? `Next drill in ~${cooldownMin}m` : "Start the drill"}
+                  {active ? "Drill running…" : cooldownMin > 0 ? `Next drill in ~${cooldownMin}m` : `Crash it −${gapPct}% and watch`}
                 </Button>
                 {status ? (
                   <span className="text-sm text-[color:var(--color-muted-foreground)]">
@@ -139,6 +179,40 @@ export function DrillClient() {
                   </span>
                 ) : null}
               </div>
+
+              {status?.unprotected ? (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-lg border border-[color:var(--color-safe-fg)]/30 bg-[color:var(--color-safe-bg)] p-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-[color:var(--color-safe-fg)]">
+                      Protected · live on-chain
+                    </p>
+                    <p className="mt-1 text-sm">
+                      Watched by the agent. {status.state === "saved" ? "Rescued — health restored." : "Rescue in progress…"}
+                      {status.hf ? ` HF ${status.hf}.` : ""}
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-[color:var(--color-liquidating-fg)]/30 bg-[color:var(--color-liquidating-bg)] p-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-[color:var(--color-liquidating-fg)]">
+                      Unprotected · projection
+                    </p>
+                    <p className="mt-1 text-sm">
+                      A typical leveraged borrower (HF {status.unprotected.startHf.toFixed(2)}) hit by the same −{status.gapPct}% gap:{" "}
+                      {status.unprotected.liquidated ? (
+                        <>
+                          <strong className="text-[color:var(--color-liquidating-fg)]">liquidated</strong> at HF{" "}
+                          {status.unprotected.postHf.toFixed(2)} — ~${status.unprotected.seizedUsd.toLocaleString()} of collateral
+                          force-sold, ${status.unprotected.penaltyUsd.toLocaleString()} lost to the penalty.
+                        </>
+                      ) : (
+                        <>survives at HF {status.unprotected.postHf.toFixed(2)} — but undefended, one more dip from liquidation.</>
+                      )}
+                    </p>
+                    <p className="mt-1 text-[10px] text-[color:var(--color-muted-foreground)]">
+                      Same deterministic engine; not a second live position.
+                    </p>
+                  </div>
+                </div>
+              ) : null}
 
               {status && status.steps.length > 0 ? (
                 <ol className="space-y-2">

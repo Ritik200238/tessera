@@ -6,8 +6,9 @@
  * its price moves can never touch a real user's position):
  *
  *   1. stamp the drill-asset price ($100) and reset any leftover position
- *   2. deposit 20 tDRILL ($2,000) and borrow 720 USDC  → HF ≈ 1.53
- *   3. gap the price to $67 (a −33% overnight-style gap) → HF ≈ 1.03
+ *   2. deposit 20 tDRILL ($2,000) and borrow 550 USDC  → HF ≈ 2.00 (safe)
+ *   3. gap the price by the JUDGE's chosen crash (−35 / −40 / −45%) → danger
+ *      zone, and project the same crash on an unprotected borrower for contrast
  *   4. the SAME live agent that protects real users detects the breach on its
  *      next tick and auto-repays from the drill wallet's pre-approved USDC
  *   5. verify the repay on-chain, surface the tx hash + decision record,
@@ -46,9 +47,28 @@ const ORACLE_ABI = [
 ] as const;
 
 const BASELINE_PRICE = 10_000_000_000n; // $100.00 (8dp)
-const GAP_PRICE = 6_742_000_000n; // $67.42 → HF ≈ 1.03 on the drill position
 const COLLATERAL = parseUnits("20", 18); // 20 tDRILL = $2,000 at baseline
-const BORROW = parseUnits("720", 6); // → HF = 2000 × 0.55 / 720 ≈ 1.53
+const LIQ_THRESHOLD = 0.55; // tDRILL liquidation threshold (listed 40 / 55 / 5)
+// Conservative borrower: HF = 2000 × 0.55 / 550 = 2.00 — safely above every
+// regime's protect band (open 1.4 … weekend 1.7), so the agent never acts until
+// the JUDGE gaps the price. Borrowing this against a fresh oracle round is the
+// real on-chain position the live agent then rescues.
+const BORROW = parseUnits("550", 6);
+// Judge-authored crash sizes. Each keeps the live position in [1.0, 1.4) after
+// the gap — so it is always AUTO-REPAID (rescued), never accidentally below 1.0
+// where the agent would liquidate it instead — in every market regime. Dramatic
+// but honest: a −45% overnight gap is extreme, and the agent still saves it.
+const ALLOWED_GAP_PCT = [35, 40, 45] as const;
+const DEFAULT_GAP_PCT = 40;
+// The unprotected twin shown alongside: the SAME crash applied to an aggressive
+// borrower (HF 1.25 ≈ max LTV) with no agent watching. Computed by this same
+// deterministic engine and clearly labelled a projection — we don't liquidate a
+// second real position on every public click (that would drain the rig's
+// collateral + the liquidator's USDC). The live side is real on-chain; this side
+// is the honest counterfactual.
+const UNPROTECTED_START_HF = 1.25;
+const CLOSE_FACTOR = 0.5; // 50% close factor (TDD §3.4.4)
+const LIQ_BONUS = 0.05; // 5% liquidation bonus / penalty
 const SAVE_TIMEOUT_MS = 180_000;
 const COOLDOWN_MS = 10 * 60_000;
 
@@ -68,15 +88,26 @@ export interface DrillStep {
   at: string;
 }
 
+export interface UnprotectedTwin {
+  startHf: number;
+  postHf: number;
+  liquidated: boolean;
+  seizedUsd: number;
+  penaltyUsd: number;
+}
+
 export interface DrillStatus {
   state: DrillState;
   startedAt: string | null;
   finishedAt: string | null;
   steps: DrillStep[];
+  gapPct: number;
   hf?: string;
   debt?: string;
   rescueTx?: Hex;
   rationale?: string;
+  /** The same crash applied to an unprotected aggressive borrower (projection). */
+  unprotected?: UnprotectedTwin;
   error?: string;
   cooldownMsRemaining: number;
 }
@@ -99,11 +130,13 @@ export class DrillOrchestrator {
   private admin: { account: Account; wallet: WalletClient };
   private running = false;
   private lastFinishedAt = 0;
+  private gapPct = DEFAULT_GAP_PCT;
   private status: DrillStatus = {
     state: "idle",
     startedAt: null,
     finishedAt: null,
     steps: [],
+    gapPct: DEFAULT_GAP_PCT,
     cooldownMsRemaining: 0,
   };
 
@@ -122,16 +155,24 @@ export class DrillOrchestrator {
     return { ...this.status, steps: [...this.status.steps], cooldownMsRemaining: this.running ? 0 : cooldown };
   }
 
-  /** Start a drill. Returns false when locked out (already running / cooldown). */
-  start(): boolean {
+  /**
+   * Start a drill. The judge authors the crash size (one of ALLOWED_GAP_PCT);
+   * an out-of-range value snaps to the default. Returns false when locked out
+   * (already running / cooldown).
+   */
+  start(gapPct?: number): boolean {
     if (this.running) return false;
     if (Date.now() - this.lastFinishedAt < COOLDOWN_MS) return false;
+    this.gapPct = (ALLOWED_GAP_PCT as readonly number[]).includes(gapPct ?? NaN)
+      ? (gapPct as number)
+      : DEFAULT_GAP_PCT;
     this.running = true;
     this.status = {
       state: "preparing",
       startedAt: new Date().toISOString(),
       finishedAt: null,
       steps: [],
+      gapPct: this.gapPct,
       cooldownMsRemaining: 0,
     };
     void this.run()
@@ -232,12 +273,31 @@ export class DrillOrchestrator {
     this.status.state = "position-open";
     this.step("borrow", `Borrowed 720 USDC — health factor ${this.fmtHf(hf0)}`, bor);
 
-    // 4. The gap: −33% overnight-style drop.
-    const gapTx = await this.setPrice(GAP_PRICE);
+    // 4. The gap: the JUDGE-authored overnight-style drop.
+    const g = this.gapPct;
+    const gapPrice = (BASELINE_PRICE * BigInt(100 - g)) / 100n; // 8dp
+    const gapUsd = (Number(gapPrice) / 1e8).toFixed(2);
+    const gapTx = await this.setPrice(gapPrice);
     const hf1 = await this.read<bigint>("getHealthFactor", [me]);
     this.status.hf = this.fmtHf(hf1);
     this.status.state = "gap";
-    this.step("gap", `Price gapped $100 → $67.42 (−33%). Health factor ${this.fmtHf(hf1)} — danger zone`, gapTx);
+    this.step("gap", `Price gapped $100 → $${gapUsd} (−${g}%). Health factor ${this.fmtHf(hf1)} — danger zone`, gapTx);
+
+    // The unprotected twin: the SAME crash on an aggressive (HF 1.25) borrower
+    // with no agent watching. Pure projection by this same engine — labelled as
+    // such in the UI; never a second live position.
+    const frac = (100 - g) / 100;
+    const postHf = UNPROTECTED_START_HF * frac;
+    const liquidated = postHf < 1;
+    // collateral $2,000 → risk-adjusted $1,100 → debt at HF 1.25 = $880.
+    const unpDebt = (2000 * LIQ_THRESHOLD) / UNPROTECTED_START_HF;
+    this.status.unprotected = {
+      startHf: UNPROTECTED_START_HF,
+      postHf: Math.round(postHf * 100) / 100,
+      liquidated,
+      seizedUsd: liquidated ? Math.round(unpDebt * CLOSE_FACTOR * (1 + LIQ_BONUS)) : 0,
+      penaltyUsd: liquidated ? Math.round(unpDebt * CLOSE_FACTOR * LIQ_BONUS) : 0,
+    };
 
     // 5. Wait for the LIVE agent (production tick path) to auto-repay.
     this.status.state = "waiting-for-agent";

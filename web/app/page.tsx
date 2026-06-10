@@ -326,6 +326,7 @@ export default function LandingPage() {
             <span className="wm">Tessera</span>
           </Link>
           <nav className="nav-links">
+            <Link href="/drill">Live Drill</Link>
             <a href="#how">How it works</a>
             <a href="#agent">AI protection</a>
             <a href="#markets">Markets</a>
@@ -364,12 +365,12 @@ export default function LandingPage() {
                 automatically, from funds you approve and can revoke anytime.
               </p>
               <div className="hero-cta">
-                <Link className="lbtn brand lg arrow" href="/borrow" onClick={() => track("landing_cta_click", { cta: "borrow" })}>
-                  I want to borrow {ARROW}
+                <Link className="lbtn brand lg arrow" href="/drill" onClick={() => track("landing_cta_click", { cta: "drill" })}>
+                  Watch the AI rescue a live position {ARROW}
                 </Link>
-                <a className="lbtn ghost lg" href="#how">
-                  See how it works
-                </a>
+                <Link className="lbtn ghost lg" href="/borrow" onClick={() => track("landing_cta_click", { cta: "borrow" })}>
+                  I want to borrow
+                </Link>
               </div>
               <div className="hero-note">
                 <span className="it">{CHECK} Non-custodial</span>
