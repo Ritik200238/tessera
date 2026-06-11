@@ -48,4 +48,13 @@ export const MIGRATIONS: readonly string[] = Object.freeze([
   );
   CREATE INDEX IF NOT EXISTS idx_borrowers_active ON borrowers (active);
   `,
+  // 003 — early-access waitlist. A real demand-capture channel; email is stored
+  // once (UNIQUE), with the surface it came from. No other PII.
+  `
+  CREATE TABLE IF NOT EXISTS waitlist (
+    email TEXT PRIMARY KEY,
+    source TEXT NOT NULL DEFAULT 'web',
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  `,
 ]);

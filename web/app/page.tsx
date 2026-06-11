@@ -270,6 +270,7 @@ export default function LandingPage() {
           </Link>
           <nav className="nav-links">
             <Link href="/drill">Live Drill</Link>
+            <Link href="/why">Why Tessera</Link>
             <a href="#how">How it works</a>
             <a href="#agent">AI protection</a>
             <a href="#markets">Markets</a>
@@ -880,6 +881,13 @@ export default function LandingPage() {
                     I want to borrow {ARROW}
                   </Link>
                 </div>
+                <p style={{ marginTop: 16, fontSize: 13, opacity: 0.85 }}>
+                  Not ready to connect?{" "}
+                  <Link href="/why" style={{ textDecoration: "underline" }} onClick={() => track("landing_cta_click", { cta: "why" })}>
+                    See the case for Tessera
+                  </Link>{" "}
+                  and join the early-access list.
+                </p>
               </div>
             </div>
           </div>

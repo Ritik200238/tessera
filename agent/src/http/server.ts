@@ -13,6 +13,7 @@ import { registerAlertsRoute } from "./routes/alerts.js";
 import { registerMetricsRoute } from "./routes/metrics.js";
 import { registerConfigRoute, type ConfigDeps } from "./routes/config.js";
 import { registerDrillRoutes } from "./routes/drill.js";
+import { registerWaitlistRoute } from "./routes/waitlist.js";
 import { rateLimit } from "./rate-limit.js";
 import type { JsonlLog } from "../log/jsonl.js";
 import type { AlertSnapshot } from "../log/alerts.js";
@@ -44,6 +45,7 @@ export function buildApp(deps: HttpDeps): Hono {
   registerMetricsRoute(app, deps.adminSecret);
   registerConfigRoute(app, deps);
   registerDrillRoutes(app, deps.drill ?? null);
+  registerWaitlistRoute(app, deps.db);
   return app;
 }
 

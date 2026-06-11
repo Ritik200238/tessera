@@ -115,6 +115,9 @@ export function Shell({ children }: { children: ReactNode }) {
             <Link className="whitespace-nowrap hover:text-[color:var(--color-foreground)]" href="/status">
               Status
             </Link>
+            <Link className="whitespace-nowrap hover:text-[color:var(--color-foreground)]" href="/why">
+              Why Tessera
+            </Link>
             <Link className="whitespace-nowrap hover:text-[color:var(--color-foreground)]" href="/security">
               Security
             </Link>

@@ -158,6 +158,20 @@ export class AgentDB {
       .run(json);
   }
 
+  /** Records an early-access signup. Returns false if the email is already on the list. */
+  addToWaitlist(email: string, source: string): boolean {
+    const res = this.db
+      .prepare("INSERT OR IGNORE INTO waitlist (email, source) VALUES (?, ?)")
+      .run(email.trim().toLowerCase(), source);
+    return res.changes > 0;
+  }
+
+  /** Public count of early-access signups. */
+  waitlistCount(): number {
+    const row = this.db.prepare("SELECT COUNT(*) AS n FROM waitlist").get() as { n: number };
+    return row.n;
+  }
+
   close(): void {
     this.db.close();
   }
