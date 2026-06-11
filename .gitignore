@@ -80,3 +80,20 @@ web/playwright-report/
 
 # MCP server is standalone (its own npm install)
 mcp/node_modules/
+
+# --- Internal / working docs (kept locally, not in the public repo) ---
+/CLAUDE.md
+/enhancedVersion.md
+/front-end design.md
+/buildathon/
+/qa-evidence/
+# Scratch / analysis artifacts
+/UPDATE10.md
+/research.md
+/arb_dex.json
+/arb_fees.json
+/arb_tvl.json
+/.claude/
+# Secrets (belt-and-braces — never commit)
+.env.testnet
+render-drill-env.txt
