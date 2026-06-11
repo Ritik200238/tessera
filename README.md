@@ -69,6 +69,16 @@ Tokenized stocks gap while the market is closed. Tessera's agent is **regime-awa
 
 ---
 
+## 🔵 Built on Arbitrum — and why it matters here
+
+Not a Solidity app with an Arbitrum logo. The Arbitrum stack is load-bearing:
+
+- **Stylus vault (Rust → WASM).** The core contract is written in Rust and compiled to WASM via [Arbitrum Stylus](https://docs.arbitrum.io/stylus/stylus-gentle-introduction) — memory-safe by default, with the interest-rate and liquidation math property-tested in the *same language* that executes on-chain (the `interest-model` crate is shared between tests and the vault).
+- **The full safety stack lives on an Orbit chain.** The complete vault — including the **permissionless backstop liquidator + dual-oracle deviation guard** — compresses to ~25 KB, just over a standard L2's **24 KB** code-size ceiling. So it's deployed on **Robinhood Chain** (an Arbitrum Orbit L2, chain 46630, the native home of tokenized equities), where the backstop is **proven on-chain**: a non-agent address liquidated a stale-heartbeat position, HF 0.94 → 1.20 — [verify ↗](https://explorer.testnet.chain.robinhood.com/tx/0x1c2f6a9024c4ec3018d074510a6bee7eea8a06823a9c975e74f0fe62c4881c76).
+- **Chain-agnostic across Orbit.** The agent and UI are configured per-chain at build time; Tessera runs today on **both Arbitrum Sepolia and Robinhood Chain**, and the vault redeploys to any Orbit chain unchanged.
+
+---
+
 ## ✨ Why Tessera
 
 |  | |

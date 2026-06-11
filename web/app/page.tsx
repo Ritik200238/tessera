@@ -861,6 +861,62 @@ export default function LandingPage() {
           </div>
         </section>
 
+        {/* ============ BUILT ON ARBITRUM ============ */}
+        <section className="sec" id="arbitrum">
+          <div className="wrap">
+            <span className="eyebrow reveal">Use of Arbitrum technology</span>
+            <h2 className="sec-h reveal">Built on Arbitrum, end to end.</h2>
+            <p className="sec-sub reveal">
+              Not a Solidity app with an Arbitrum logo — the core is a Stylus contract, and the full
+              safety stack runs on an Orbit chain that a standard L2 can&apos;t fit.
+            </p>
+            <div className="pillars">
+              <div className="pill reveal">
+                <div className="pi">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
+                    <rect x="5" y="5" width="14" height="14" rx="2" />
+                    <path d="M9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3" />
+                  </svg>
+                </div>
+                <h3>Stylus vault (Rust → WASM)</h3>
+                <p>
+                  The vault is written in Rust and compiled to WASM with Arbitrum Stylus — memory-safe
+                  by default, with the interest and liquidation math property-tested in the very
+                  language that runs on-chain.
+                </p>
+              </div>
+              <div className="pill reveal">
+                <div className="pi">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
+                    <circle cx="12" cy="12" r="2.5" />
+                    <ellipse cx="12" cy="12" rx="10" ry="4.5" />
+                    <ellipse cx="12" cy="12" rx="10" ry="4.5" transform="rotate(60 12 12)" />
+                  </svg>
+                </div>
+                <h3>Live on Robinhood Chain (Orbit)</h3>
+                <p>
+                  The full backstop + dual-oracle vault is 25 KB — over a standard L2&apos;s 24 KB code
+                  ceiling — so the complete safety stack is deployed on Robinhood Chain, an Arbitrum
+                  Orbit L2, and a permissionless backstop liquidation is proven there on-chain.
+                </p>
+              </div>
+              <div className="pill reveal">
+                <div className="pi">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
+                    <path d="M9 12a3 3 0 0 1 3-3h3a3 3 0 0 1 0 6h-1" />
+                    <path d="M15 12a3 3 0 0 1-3 3H9a3 3 0 0 1 0-6h1" />
+                  </svg>
+                </div>
+                <h3>Chain-agnostic by design</h3>
+                <p>
+                  The same agent and UI run across Orbit chains — Tessera is live today on both Arbitrum
+                  Sepolia and Robinhood Chain, and the vault redeploys to any Orbit chain unchanged.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* ============ CTA ============ */}
         <section className="sec tight">
           <div className="wrap">
