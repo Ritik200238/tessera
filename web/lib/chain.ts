@@ -46,6 +46,24 @@ function robinhoodChainTestnet(): Chain {
 
 export const robinhoodTestnet: Chain = robinhoodChainTestnet();
 
+/**
+ * Robinhood Chain testnet — now PUBLISHED + verified (launched 2026-02, chain
+ * 46630). Tessera's full vault (backstop + dual-oracle, 25KB) is deployed here
+ * because this Orbit L2's code-size limit exceeds Sepolia's 24KB. Build the app
+ * against it with NEXT_PUBLIC_CHAIN_ENV=robinhood (addresses come from
+ * shared/addresses/robinhood.json automatically).
+ */
+export const robinhoodChain46630: Chain = defineChain({
+  id: 46630,
+  name: "Robinhood Chain Testnet",
+  nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
+  rpcUrls: { default: { http: ["https://rpc.testnet.chain.robinhood.com/rpc"] } },
+  blockExplorers: {
+    default: { name: "Blockscout", url: "https://explorer.testnet.chain.robinhood.com" },
+  },
+  testnet: true,
+});
+
 export const localFoundry: Chain = {
   ...foundry,
   rpcUrls: {
@@ -60,6 +78,8 @@ export function getActiveChain(): Chain {
       return arbitrumSepolia;
     case "local":
       return localFoundry;
+    case "robinhood":
+      return robinhoodChain46630;
     case "testnet":
     default:
       return robinhoodTestnet;

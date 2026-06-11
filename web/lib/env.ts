@@ -6,11 +6,11 @@
  * without rewriting call sites.
  */
 
-export type ChainEnv = "testnet" | "fallback" | "local";
+export type ChainEnv = "testnet" | "fallback" | "local" | "robinhood";
 
 function readChainEnv(): ChainEnv {
   const raw = process.env.NEXT_PUBLIC_CHAIN_ENV;
-  if (raw === "testnet" || raw === "fallback" || raw === "local") return raw;
+  if (raw === "testnet" || raw === "fallback" || raw === "local" || raw === "robinhood") return raw;
   // Default to the documented MVP target.
   return "testnet";
 }
