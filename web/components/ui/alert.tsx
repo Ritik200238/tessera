@@ -26,5 +26,5 @@ export function AlertTitle({ className, ...rest }: React.HTMLAttributes<HTMLHead
 }
 
 export function AlertDescription({ className, ...rest }: React.HTMLAttributes<HTMLParagraphElement>) {
-  return <p className={cn("text-sm opacity-90", className)} {...rest} />;
+  return <p className={cn("text-sm", className)} {...rest} />;
 }

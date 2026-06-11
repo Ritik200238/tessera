@@ -20,7 +20,7 @@ export default async function AgentPage() {
   return (
     <div className="space-y-6">
       <header className="space-y-2">
-        <h1 className="text-3xl font-semibold tracking-tight">Risk agent</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">Agent activity</h1>
         <p className="text-sm text-[color:var(--color-muted-foreground)] max-w-2xl">
           Tessera&apos;s autonomous agent polls the vault every block, alerts you in plain English
           when risk rises, and — when you enable Active Protection — auto-repays from your

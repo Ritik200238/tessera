@@ -105,36 +105,36 @@ export function Shell({ children }: { children: ReactNode }) {
           <p className="mono text-xs">
             © {new Date().getFullYear()} Tessera · No token, ever · Testnet only · Not financial advice.
           </p>
-          <div className="flex items-center gap-4">
-            <Link className="hover:text-[color:var(--color-foreground)]" href="/">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <Link className="whitespace-nowrap hover:text-[color:var(--color-foreground)]" href="/">
               Home
             </Link>
-            <Link className="hover:text-[color:var(--color-foreground)]" href="/agent">
-              Agent log
+            <Link className="whitespace-nowrap hover:text-[color:var(--color-foreground)]" href="/agent">
+              Activity
             </Link>
-            <Link className="hover:text-[color:var(--color-foreground)]" href="/status">
+            <Link className="whitespace-nowrap hover:text-[color:var(--color-foreground)]" href="/status">
               Status
             </Link>
-            <Link className="hover:text-[color:var(--color-foreground)]" href="/security">
+            <Link className="whitespace-nowrap hover:text-[color:var(--color-foreground)]" href="/security">
               Security
             </Link>
-            <Link className="hover:text-[color:var(--color-foreground)]" href="/start">
+            <Link className="whitespace-nowrap hover:text-[color:var(--color-foreground)]" href="/start">
               Get started
             </Link>
-            <Link className="hover:text-[color:var(--color-foreground)]" href="/explore">
+            <Link className="whitespace-nowrap hover:text-[color:var(--color-foreground)]" href="/explore">
               Explore
             </Link>
-            <Link className="hover:text-[color:var(--color-foreground)]" href="/sandbox">
+            <Link className="whitespace-nowrap hover:text-[color:var(--color-foreground)]" href="/sandbox">
               Sandbox
             </Link>
-            <Link className="hover:text-[color:var(--color-foreground)]" href="/developers">
+            <Link className="whitespace-nowrap hover:text-[color:var(--color-foreground)]" href="/developers">
               Developers
             </Link>
-            <Link className="hover:text-[color:var(--color-foreground)]" href="/roadmap">
+            <Link className="whitespace-nowrap hover:text-[color:var(--color-foreground)]" href="/roadmap">
               Roadmap
             </Link>
             {isAdmin ? (
-              <Link className="hover:text-[color:var(--color-foreground)]" href="/admin">
+              <Link className="whitespace-nowrap hover:text-[color:var(--color-foreground)]" href="/admin">
                 Admin
               </Link>
             ) : null}

@@ -36,9 +36,9 @@
   --blue-wash: #eef2fe;
 
   /* Risk system — Health Factor zones */
-  --safe: #0e8a5f;
+  --safe: #0a6e4c;
   --safe-wash: #e7f4ee;
-  --warn: #b26a00;
+  --warn: #8a5200;
   --warn-wash: #fbf1df;
   --danger: #c5283d;
   --danger-wash: #fbebed;
@@ -84,13 +84,13 @@
    * Warning / Danger). Map: safe+healthy -> green, watch+atrisk -> amber,
    * liquidating -> red. Always paired with a label+icon in the badges. */
   --color-safe-bg: #e7f4ee;
-  --color-safe-fg: #0e8a5f;
+  --color-safe-fg: #0a6e4c;
   --color-healthy-bg: #e7f4ee;
-  --color-healthy-fg: #0e8a5f;
+  --color-healthy-fg: #0a6e4c;
   --color-watch-bg: #fbf1df;
-  --color-watch-fg: #b26a00;
+  --color-watch-fg: #8a5200;
   --color-atrisk-bg: #fbf1df;
-  --color-atrisk-fg: #b26a00;
+  --color-atrisk-fg: #8a5200;
   --color-liquidating-bg: #fbebed;
   --color-liquidating-fg: #c5283d;
 
