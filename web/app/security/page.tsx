@@ -58,9 +58,21 @@ export default function SecurityPage() {
             not to us, not to a third party. There is no flow in which value leaves your control to
             anyone but your own debt.
           </Fact>
-          <Fact title="Agent-only liquidation at MVP">
-            At MVP the agent is the sole liquidator. A permissionless, heartbeat-gated backstop (so a
-            down agent can&apos;t strand lenders) is wired in storage and turns on before mainnet.
+          <Fact title="Permissionless backstop — live + proven on Robinhood Chain">
+            If the agent goes silent, a heartbeat-gated backstop lets <em>anyone</em> liquidate an
+            unhealthy position — running the identical close-factor + post-HF-improvement guards, so
+            it&apos;s provably as safe as an agent liquidation. The full vault carrying this backstop +
+            the dual-oracle deviation guard is ~1KB over Sepolia&apos;s 24KB code limit, so it runs
+            live on{" "}
+            <a className="font-medium underline" href="https://explorer.testnet.chain.robinhood.com/address/0xf10acf61b480c24102b303ebafb97d9392d693f2" target="_blank" rel="noopener noreferrer">
+              Robinhood Chain
+            </a>{" "}
+            (an Arbitrum Orbit L2 with a larger limit — and the native home of tokenized equities).
+            It&apos;s not just deployed, it&apos;s <strong>proven</strong>: a non-agent address
+            backstop-liquidated a stale-heartbeat position on-chain, health factor 0.94 → 1.20 —{" "}
+            <a className="font-medium underline" href="https://explorer.testnet.chain.robinhood.com/tx/0x1c2f6a9024c4ec3018d074510a6bee7eea8a06823a9c975e74f0fe62c4881c76" target="_blank" rel="noopener noreferrer">
+              verify the liquidation ↗
+            </a>.
           </Fact>
         </CardContent>
       </Card>
@@ -149,7 +161,7 @@ export default function SecurityPage() {
         <CardContent>
           <ol className="ml-5 list-decimal space-y-1 text-sm">
             <li>Independent audit complete</li>
-            <li>Permissionless, heartbeat-gated liquidation backstop live</li>
+            <li>Permissionless, heartbeat-gated liquidation backstop live <em>(built + proven on Robinhood Chain; enabled per-chain at mainnet)</em></li>
             <li>Public bug bounty</li>
             <li>Insurance / safety reserve seeded (from the reserve factor)</li>
             <li>Legal review of ToS + risk disclosure; US + sanctioned-jurisdiction geo-block</li>

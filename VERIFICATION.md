@@ -119,6 +119,32 @@ This is the live cost of the risk computation the agent runs every block. (A
 measured Stylus-vs-Solidity head-to-head against an equivalent contract is
 tracked as honest future work — we don't ship a contrived twin.)
 
+## 9. Robinhood Chain + the backstop, proven on-chain
+
+Tessera also runs on **Robinhood Chain testnet (chain 46630)** — the native home
+of tokenized equities, an Arbitrum Orbit L2 whose larger code-size limit fits the
+**complete** vault: the permissionless backstop liquidator + dual-oracle deviation
+guard that are ~1KB over Sepolia's 24KB limit.
+
+```
+Vault (full backstop)  0xf10acf61b480c24102b303ebafb97d9392d693f2
+RPC                    https://rpc.testnet.chain.robinhood.com/rpc
+Explorer               https://explorer.testnet.chain.robinhood.com
+```
+
+The backstop isn't just deployed — it's **proven**. A non-agent address
+liquidated a stale-heartbeat position on-chain (the permissionless safety release
+valve for a down agent), running the same close-factor + post-HF-improvement
+guards; the position's health factor went 0.94 → 1.20:
+
+```
+Backstop liquidation tx (non-agent, stale heartbeat):
+https://explorer.testnet.chain.robinhood.com/tx/0x1c2f6a9024c4ec3018d074510a6bee7eea8a06823a9c975e74f0fe62c4881c76
+```
+
+Reproduce the whole RH deployment: `pwsh scripts/deploy-robinhood.ps1` (needs the
+deployer funded with RH testnet ETH).
+
 ---
 
 *If any command above doesn't reproduce the claim, that's a bug — open an issue.

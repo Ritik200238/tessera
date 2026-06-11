@@ -9,6 +9,13 @@ export const metadata = { title: "For developers & agents" };
  */
 const API_BASE = "https://tessera-web-delta.vercel.app";
 
+const RH_ADDRESSES = `Robinhood Chain testnet (chain 46630)
+Vault (full backstop)  0xf10acf61b480c24102b303ebafb97d9392d693f2
+USDC                   0x753b9aC945Feb9dD0C5DD1861B8905e8E03B41dD
+Oracle                 0x65e6926BCD4EC600d4175019f20abAE07F95316D
+tAAPL / tTSLA / tSPY   0xFD0d…E8e8 / 0xd7fC…C0be / 0x2A1f…6A0e
+explorer.testnet.chain.robinhood.com`;
+
 const MARKET_EXAMPLE = `GET /api/risk
 {
   "regime": "open",
@@ -108,6 +115,28 @@ export default function DevelopersPage() {
               live API roundtrip.
             </p>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Also live on Robinhood Chain — with the full safety stack</CardTitle>
+          <CardDescription>
+            Tokenized equities&apos; native home. An Arbitrum Orbit L2 whose larger code-size limit
+            fits the complete vault — including the permissionless backstop + dual-oracle guard that
+            don&apos;t fit Sepolia&apos;s 24KB.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3 text-sm">
+          <Code>{RH_ADDRESSES}</Code>
+          <p>
+            <strong>The backstop is proven, not just deployed.</strong> A non-agent address
+            liquidated a stale-heartbeat position on-chain (health factor 0.94 → 1.20), running the
+            same close-factor + post-HF-improvement guards as an agent liquidation —{" "}
+            <a className="font-medium underline" href="https://explorer.testnet.chain.robinhood.com/tx/0x1c2f6a9024c4ec3018d074510a6bee7eea8a06823a9c975e74f0fe62c4881c76" target="_blank" rel="noopener noreferrer">
+              verify the liquidation ↗
+            </a>. The same agent + UI are chain-agnostic; the vault redeploys to any Orbit chain.
+          </p>
         </CardContent>
       </Card>
 

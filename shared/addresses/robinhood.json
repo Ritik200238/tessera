@@ -1,0 +1,25 @@
+{
+  "collateralTokens": [
+    {
+      "address": "0xFD0deB24BB217853A54a3D560cd3FdD794B9E8e8",
+      "decimals": 18,
+      "priceUsd8": 20000000000,
+      "symbol": "tAAPL"
+    },
+    {
+      "address": "0xd7fC0f4EA57272C7F5150EDA47f6BC318a0eC0be",
+      "decimals": 18,
+      "priceUsd8": 25000000000,
+      "symbol": "tTSLA"
+    },
+    {
+      "address": "0x2A1fb8a2E9A7D56A38a7B7643cc0B7fDFFff6A0e",
+      "decimals": 18,
+      "priceUsd8": 50000000000,
+      "symbol": "tSPY"
+    }
+  ],
+  "oracle": "0x65e6926BCD4EC600d4175019f20abAE07F95316D",
+  "usdc": "0x753b9aC945Feb9dD0C5DD1861B8905e8E03B41dD",
+  "vault": "0xf10acf61b480c24102b303ebafb97d9392d693f2"
+}
