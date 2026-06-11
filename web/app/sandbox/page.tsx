@@ -1,7 +1,13 @@
 import Link from "next/link";
 import { GapSandbox } from "@/components/gap-sandbox";
 
-export const metadata = { title: "Gap sandbox" };
+export const metadata = {
+  title: "Gap sandbox",
+  openGraph: {
+    title: "Tessera — Gap sandbox",
+    description: "Drag a crash and watch the exact decision the AI agent makes, on the real engine. No wallet.",
+  },
+};
 
 export default function SandboxPage() {
   return (

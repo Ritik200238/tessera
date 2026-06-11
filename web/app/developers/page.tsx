@@ -1,6 +1,12 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 
-export const metadata = { title: "For developers & agents" };
+export const metadata = {
+  title: "For developers & agents",
+  openGraph: {
+    title: "Tessera — risk layer for AI agents",
+    description: "A public Risk API + an MCP server so other AI agents can consume Tessera's risk signals.",
+  },
+};
 
 /**
  * Developer / agentic surface — Tessera as the risk layer other apps and AI
@@ -129,6 +135,10 @@ export default function DevelopersPage() {
         </CardHeader>
         <CardContent className="space-y-3 text-sm">
           <Code>{RH_ADDRESSES}</Code>
+          <p className="text-xs text-[color:var(--color-muted-foreground)]">
+            Some addresses match a Sepolia contract — that&apos;s expected, not a copy-paste error: an
+            identical deployer + nonce produces the same CREATE address on each chain.
+          </p>
           <p>
             <strong>The backstop is proven, not just deployed.</strong> A non-agent address
             liquidated a stale-heartbeat position on-chain (health factor 0.94 → 1.20), running the
@@ -151,7 +161,7 @@ export default function DevelopersPage() {
 
 function Code({ children }: { children: string }) {
   return (
-    <pre className="overflow-x-auto rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-muted)] p-3 text-xs leading-relaxed">
+    <pre className="overflow-x-auto whitespace-pre-wrap break-words rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-muted)] p-3 text-xs leading-relaxed">
       <code className="font-mono">{children}</code>
     </pre>
   );

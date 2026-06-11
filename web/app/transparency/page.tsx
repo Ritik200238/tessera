@@ -3,7 +3,13 @@ import { GapBacktestCard } from "@/components/gap-backtest-card";
 import { getAgentActions } from "@/lib/agent";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 
-export const metadata = { title: "Transparency" };
+export const metadata = {
+  title: "Transparency",
+  openGraph: {
+    title: "Tessera — Transparency",
+    description: "Every protocol number and every agent action, on-chain. What's real vs mocked, stated up front.",
+  },
+};
 export const dynamic = "force-dynamic";
 
 // What a skeptical reviewer should know before trusting anything here — stated

@@ -7,7 +7,13 @@ import { GapSandbox } from "@/components/gap-sandbox";
 import { SafetyBar } from "@/components/safety-bar";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 
-export const metadata = { title: "Explore" };
+export const metadata = {
+  title: "Explore",
+  openGraph: {
+    title: "Explore Tessera — no wallet needed",
+    description: "A live look at the protocol and a real on-chain protected position, read straight from the chain.",
+  },
+};
 export const dynamic = "force-dynamic";
 
 // A real borrower position on the LIVE vault — read-only, no wallet needed.

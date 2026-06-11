@@ -1,7 +1,13 @@
 import Link from "next/link";
 import { DrillClient } from "@/components/drill-client";
 
-export const metadata = { title: "Live Drill" };
+export const metadata = {
+  title: "Live Drill",
+  openGraph: {
+    title: "Tessera — Live Drill",
+    description: "You pick the crash; the production AI agent rescues a real on-chain loan in seconds.",
+  },
+};
 
 export default function DrillPage() {
   return (
