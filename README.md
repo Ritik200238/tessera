@@ -317,9 +317,9 @@ cargo test -p interest-model
 
 <a id="principles"></a>
 
-## 🧭 Principles
+## 🧭 Engineering principles
 
-The product must never feel like AI-generated slop. Every feature is fully implemented, connected end-to-end, and documentation-driven — see [`CLAUDE.md`](CLAUDE.md), [`PRD/`](PRD), and [`TDD/`](TDD).
+Built to be production-grade and verifiable end to end: security-first contracts, real implementations over mocks, and documentation-driven design. The full product requirements and technical design are public — see [`PRD/`](PRD) and [`TDD/`](TDD).
 
 ---
 
