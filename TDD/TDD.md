@@ -2,8 +2,10 @@
 
 **Version:** 1.0
 **Date:** 2026-05-22
-**Status:** Draft — implementation blueprint for Arbitrum Open House London MVP
+**Status:** Living implementation blueprint
 **Companion:** `PRD/PRD.md`
+
+> **Tessera is a real product being built to launch in the market — not a buildathon or hackathon entry.** This document describes how we build durable, autonomous financial infrastructure for the long term. Any event participation along the way is incidental and never shapes what we build or how we build it.
 
 ---
 
@@ -343,7 +345,7 @@ Implementation calls into the external oracle contract via `stylus_sdk::call::ca
 ### 3.6 Access control
 
 - `owner` — multisig in prod, single EOA in testnet. Configures parameters.
-- `agent` — single agent address. Only address allowed to call `liquidate` for the MVP (this is a deliberate trade-off for hackathon timeline; mainnet will open liquidation to any address with a small bond, per Aave's permissionless model).
+- `agent` — single agent address. Only address allowed to call `liquidate` at the MVP stage (a deliberate early-stage trade-off; the permissionless heartbeat-gated backstop already generalizes this, and mainnet opens liquidation to any address with a small bond, per Aave's permissionless model).
 - Everyone else — vault user.
 
 Modifier helpers in `admin.rs` (`only_owner`, `only_agent`) revert with typed errors.
@@ -425,7 +427,7 @@ setInterval(tick, 10_000);
 - The **decision logic for liquidation is rules-based, not LLM-decided.** The LLM never authors a `liquidate` call. The framework's tool-call surface is used only by:
   - The `/agent` UI page (user types natural-language strategy → LLM parses to params → stored).
   - The alert-copy generator (rule fires → LLM rewrites JSON into plain-English alert).
-- The Trailblazer 2.0 application reuses this same registration; nothing is rebuilt post-hackathon.
+- This same registration carries straight into production; nothing is rebuilt later.
 
 If the Vibekit package surface changes meaningfully before week 1, the fallback is a thin Vibekit-shaped wrapper (same tool names, same JSON contract) so the demo and grant narrative are preserved without blocking on upstream.
 
@@ -702,7 +704,7 @@ cd ../web     && pnpm dev
 - Build: `cargo stylus check` against testnet (ensures contract is deployable, doesn't deploy)
 - Type-check: `tsc --noEmit` in `agent/` and `web/`
 
-PRs cannot merge with red CI. We don't bother with deploy-on-merge for the hackathon; deploys are manual via the script above.
+PRs cannot merge with red CI. Deploys are manual via the script above at this stage; deploy-on-merge is a later hardening step.
 
 ---
 
@@ -891,7 +893,7 @@ PRD §10 demands `agent uptime > 99.5%` and `100% of liquidations succeed → ze
 
 ### 17.3 Uptime SLO (PRD §10 target: 99.5%)
 
-`99.5% over 30 days` allows 3.6 hours of downtime. Single Fly.io instance + UptimeRobot is sufficient to *measure* this. Achieving it during the hackathon demo period is the on-call's job (i.e. someone keeps Slack notifications on).
+`99.5% over 30 days` allows 3.6 hours of downtime. A single always-on instance + UptimeRobot is sufficient to *measure* this; redundant hosting is a pre-mainnet hardening step. Achieving the SLO in production is the on-call's job (alerting wired to a channel someone watches).
 
 Mainnet plan: two agents in active/standby, leader election via on-chain `agent` address rotation. Out of scope for MVP.
 
@@ -994,7 +996,7 @@ External services: Robinhood Chain RPC, Anthropic API, Vercel (UI hosting), Fly.
 
 ## 21. Documentation Deliverables (resolves G14)
 
-By demo day, judges and a new contributor should be able to onboard from these documents alone. Each has an owner and a definition-of-done.
+A new contributor or teammate should be able to onboard from these documents alone. Each has an owner and a definition-of-done.
 
 | Doc | Path | DoD |
 |---|---|---|
