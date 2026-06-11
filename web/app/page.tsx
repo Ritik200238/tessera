@@ -68,7 +68,7 @@ function nyseState(): { s: string; open: boolean } {
 const TL_STEPS = [
   {
     cls: "monitor",
-    title: "Monitoring TSLA position",
+    title: "Monitoring a tTSLA position",
     time: "14:02 UTC",
     body: (
       <>
@@ -84,7 +84,7 @@ const TL_STEPS = [
     time: "15:38 UTC",
     body: (
       <>
-        &ldquo;TSLA is down 6% intraday. Your health factor is{" "}
+        &ldquo;tTSLA is down 6% intraday. Your health factor is{" "}
         <span className="hfb" style={{ color: "var(--warn)" }}>1.18</span>. Consider repaying or adding collateral.&rdquo;
       </>
     ),
@@ -97,7 +97,7 @@ const TL_STEPS = [
     time: "15:41 UTC",
     body: (
       <>
-        HF crossed the <span className="hfb">1.10</span> protection trigger. Tessera repaid{" "}
+        HF crossed the <span className="hfb">1.10</span> act line. Tessera repaid{" "}
         <span className="hfb" style={{ color: "var(--blue)" }}>420.00 USDC</span> from your approved allowance.
       </>
     ),
@@ -120,78 +120,15 @@ const TL_STEPS = [
 ];
 
 const CHECK = (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+  <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
     <path d="M5 12.5l4.5 4.5L19 7.5" />
   </svg>
 );
 const ARROW = (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+  <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
     <path d="M5 12h14M13 6l6 6-6 6" />
   </svg>
 );
-
-function CountUp({
-  target,
-  dec = 0,
-  prefix = "",
-  suffix = "",
-  className = "",
-}: {
-  target: number;
-  dec?: number;
-  prefix?: string;
-  suffix?: string;
-  className?: string;
-}) {
-  const ref = useRef<HTMLSpanElement>(null);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const fmt = (v: number) =>
-      prefix + v.toLocaleString("en-US", { minimumFractionDigits: dec, maximumFractionDigits: dec }) + suffix;
-    if (reduce) {
-      el.textContent = fmt(target);
-      return;
-    }
-    let raf = 0;
-    let started = false;
-    const run = () => {
-      let start: number | null = null;
-      const step = (ts: number) => {
-        if (start === null) start = ts;
-        const p = Math.min((ts - start) / 1400, 1);
-        const eased = 1 - Math.pow(1 - p, 3);
-        el.textContent = fmt(target * eased);
-        if (p < 1) raf = requestAnimationFrame(step);
-        else el.textContent = fmt(target);
-      };
-      raf = requestAnimationFrame(step);
-    };
-    const io = new IntersectionObserver(
-      (es) => {
-        es.forEach((e) => {
-          if (e.isIntersecting && !started) {
-            started = true;
-            run();
-            io.disconnect();
-          }
-        });
-      },
-      { threshold: 0.3 },
-    );
-    io.observe(el);
-    return () => {
-      io.disconnect();
-      cancelAnimationFrame(raf);
-    };
-  }, [target, dec, prefix, suffix]);
-  return (
-    <span ref={ref} className={`sv ${className}`.trim()}>
-      {prefix}0{suffix}
-    </span>
-  );
-}
 
 export default function LandingPage() {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -260,10 +197,12 @@ export default function LandingPage() {
     };
   }, []);
 
-  // reveal-on-scroll
+  // reveal-on-scroll (with a safety net so content is NEVER left permanently
+  // hidden — no-scroll, fast-scroll, full-page screenshots, or OG/no-JS renders).
   useEffect(() => {
     const root = rootRef.current;
     if (!root) return;
+    const els = Array.from(root.querySelectorAll<HTMLElement>(".reveal"));
     const io = new IntersectionObserver(
       (entries) => {
         entries.forEach((e) => {
@@ -273,10 +212,14 @@ export default function LandingPage() {
           }
         });
       },
-      { threshold: 0.18 },
+      { threshold: 0, rootMargin: "0px 0px -8% 0px" },
     );
-    root.querySelectorAll(".reveal").forEach((el) => io.observe(el));
-    return () => io.disconnect();
+    els.forEach((el) => io.observe(el));
+    const t = setTimeout(() => els.forEach((el) => el.classList.add("in")), 1600);
+    return () => {
+      io.disconnect();
+      clearTimeout(t);
+    };
   }, []);
 
   // timeline autoplay when scrolled into view
@@ -374,7 +317,7 @@ export default function LandingPage() {
               </div>
               <div className="hero-note">
                 <span className="it">{CHECK} Non-custodial</span>
-                <span className="it">{CHECK} Chainlink oracles</span>
+                <span className="it">{CHECK} Chainlink-style oracle</span>
                 <span className="it">{CHECK} Every action public</span>
               </div>
             </div>
@@ -432,11 +375,7 @@ export default function LandingPage() {
                   </svg>{" "}
                   Supply APY
                 </span>
-                {live ? (
-                  <CountUp target={stats.supplyBps / 100} dec={2} suffix="%" className="safe" />
-                ) : (
-                  <span className="sv safe">—</span>
-                )}
+                <span className="sv safe">{live ? `${(stats.supplyBps / 100).toFixed(2)}%` : "—"}</span>
                 <span className="sm">Variable · paid by borrowers</span>
               </div>
               <div className="stat">
@@ -451,11 +390,7 @@ export default function LandingPage() {
               </div>
               <div className="stat">
                 <span className="sl">Utilization</span>
-                {live ? (
-                  <CountUp target={stats.utilBps / 100} dec={1} suffix="%" />
-                ) : (
-                  <span className="sv">—</span>
-                )}
+                <span className="sv">{live ? `${(stats.utilBps / 100).toFixed(1)}%` : "—"}</span>
                 <span className="sm">
                   {live
                     ? // Count the curated user-facing assets (the on-chain list also
@@ -542,7 +477,7 @@ export default function LandingPage() {
                   <div className="asset-tabs">
                     {(Object.keys(ASSETS) as AssetKey[]).map((s) => (
                       <button key={s} className={`atab${s === sym ? " active" : ""}`} onClick={() => pickAsset(s)}>
-                        {s}
+                        t{s}
                       </button>
                     ))}
                   </div>
@@ -633,7 +568,7 @@ export default function LandingPage() {
                       Weekend gap risk
                     </div>
                     <p className="gp">
-                      If <span className="hfx" style={{ color: "var(--ink)" }}>{sym}</span> gaps{" "}
+                      If <span className="hfx" style={{ color: "var(--ink)" }}>t{sym}</span> gaps{" "}
                       <span className="hfx" style={{ color: "var(--warn)" }}>{Math.round(a.gap * 100)}%</span> down before
                       markets reopen, your health factor becomes{" "}
                       <span className="hfx" style={{ color: gz.col }}>{ghf >= 9.99 ? "∞" : ghf.toFixed(2)}</span>. This is
@@ -722,9 +657,14 @@ export default function LandingPage() {
                   ))}
                 </div>
                 <div className="tl-hf">
-                  <span className="lab">Live health factor</span>
+                  <span className="lab">Example health factor</span>
                   <span className="v" style={{ color: tlCol }}>{tlHf}</span>
                 </div>
+                <p style={{ fontSize: 12, color: "var(--ink-2)", margin: "12px 0 0", lineHeight: 1.5 }}>
+                  An illustrative example of how Active Protection responds — see the real on-chain
+                  record on{" "}
+                  <a href="/transparency" style={{ textDecoration: "underline" }}>Transparency</a>.
+                </p>
               </div>
 
               <div className="agent-points">
@@ -736,7 +676,7 @@ export default function LandingPage() {
                     </svg>
                   </div>
                   <div>
-                    <h4>It watches, every block</h4>
+                    <h3>It watches, every block</h3>
                     <p>
                       The agent reads your health factor on a constant loop — through nights, weekends, and market
                       closures, when stocks can gap.
@@ -750,7 +690,7 @@ export default function LandingPage() {
                     </svg>
                   </div>
                   <div>
-                    <h4>It explains in plain English</h4>
+                    <h3>It explains in plain English</h3>
                     <p>
                       Alerts arrive on Telegram, Discord, or email — written to be understood, never to alarm. The same
                       copy lands in your activity feed.
@@ -765,7 +705,7 @@ export default function LandingPage() {
                     </svg>
                   </div>
                   <div>
-                    <h4>It repays only what you allow</h4>
+                    <h3>It repays only what you allow</h3>
                     <p>
                       Auto-repay is opt-in, capped per transaction and per day, and pulls only from the USDC allowance
                       you signed. Nothing more.
@@ -931,7 +871,7 @@ export default function LandingPage() {
                   <br />
                   through the weekend.
                 </h2>
-                <p>Connect a wallet to see live rates. Non-custodial, geo-compliant, and watched around the clock.</p>
+                <p>Connect a wallet to see live rates. Non-custodial and watched around the clock.</p>
                 <div className="cta-btns">
                   <Link className="lbtn primary lg" href="/lend" onClick={() => track("landing_cta_click", { cta: "lend" })}>
                     I want to lend

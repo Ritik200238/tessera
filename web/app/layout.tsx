@@ -60,10 +60,12 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" className={`${sans.variable} ${mono.variable}`} suppressHydrationWarning>
       <head>
-        {/* Apply the saved Simple/Advanced view before paint (no flash). */}
+        {/* Before paint: mark JS-enabled (so scroll-reveal content is only hidden
+            when JS can reveal it — no-JS/OG/static renders stay fully visible) and
+            apply the saved Simple/Advanced view (no flash). */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `try{document.documentElement.dataset.view=localStorage.getItem('tessera-view')||'advanced'}catch(e){}`,
+            __html: `document.documentElement.classList.add('js');try{document.documentElement.dataset.view=localStorage.getItem('tessera-view')||'advanced'}catch(e){}`,
           }}
         />
       </head>

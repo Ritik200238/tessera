@@ -46,10 +46,13 @@
 .sec-h { font-size: clamp(30px, 4.4vw, 46px); line-height: 1.05; letter-spacing: -.035em; font-weight: 700; max-width: 18ch; margin: 0; }
 .sec-sub { font-size: 18px; color: var(--ink-2); max-width: 56ch; margin-top: 16px; line-height: 1.55; }
 
-/* reveal */
-.reveal { opacity: 0; transform: translateY(22px); transition: opacity .7s cubic-bezier(.2,.7,.2,1), transform .7s cubic-bezier(.2,.7,.2,1); }
-.reveal.in { opacity: 1; transform: none; }
-@media (prefers-reduced-motion: reduce) { .reveal { opacity: 1 !important; transform: none !important; } }
+/* reveal — the hide is gated behind html.js so a no-JS / OG-preview / static
+ * render shows the full page (JS adds .js before paint, then reveals on scroll
+ * with a timeout safety net). Never leave content permanently invisible. */
+.reveal { transition: opacity .7s cubic-bezier(.2,.7,.2,1), transform .7s cubic-bezier(.2,.7,.2,1); }
+html.js .reveal { opacity: 0; transform: translateY(22px); }
+html.js .reveal.in { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) { html.js .reveal { opacity: 1 !important; transform: none !important; } }
 
 /* ---------- HERO ---------- */
 .hero { padding: 148px 0 90px; position: relative; }
@@ -183,7 +186,7 @@
 .apoint { display: flex; gap: 14px; }
 .apoint .ab { flex-shrink: 0; width: 34px; height: 34px; border-radius: 10px; background: var(--blue-wash); color: var(--blue); display: flex; align-items: center; justify-content: center; }
 .apoint .ab svg { width: 18px; height: 18px; }
-.apoint h4 { font-size: 15.5px; font-weight: 600; letter-spacing: -.01em; margin: 0; }
+.apoint h3 { font-size: 15.5px; font-weight: 600; letter-spacing: -.01em; margin: 0; }
 .apoint p { font-size: 14px; color: var(--muted); margin-top: 5px; line-height: 1.5; }
 .killnote { margin-top: 6px; padding: 14px 16px; border: 1px solid var(--line-2); border-radius: 11px; background: var(--surface); display: flex; align-items: center; gap: 11px; font-size: 13.5px; color: var(--ink-2); }
 .killnote svg { width: 17px; height: 17px; color: var(--danger); flex-shrink: 0; }
