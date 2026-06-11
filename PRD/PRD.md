@@ -6,7 +6,7 @@
 
 > **Corrections (v1.1) — read first.** Some v1.0 framing was superseded by the locked strategic blueprint and the shipped product:
 > - **Primary user is the DeFi-native USDC yield seeker (the "Aave migrator")**, not Robinhood retail. Tokenized-equity holders are a *secondary* persona.
-> - **Risk parameters are conservative and per-asset:** max LTV **40–60%** and liquidation threshold **55–70%** (not the 70%/85% in some legacy tables below), reflecting overnight/weekend equity gap risk.
+> - **Risk parameters are conservative and per-asset:** max LTV **40–60%** and liquidation threshold **55–75%** (not the 70%/85% in some legacy tables below), reflecting overnight/weekend equity gap risk.
 > - **The agent does not "rebalance yield" or run a strategy optimizer.** Its real actions are: monitor health, send plain-English alerts, **auto-repay** from a user's pre-approved USDC, and **partial liquidation** as a last resort. Any "yield rebalancing / strategy optimizer" language below is V2 aspiration, not shipped.
 > - **No token, ever** — Tessera is a pure protocol-revenue business (15% reserve factor).
 
@@ -204,7 +204,7 @@ This is the same model Aave uses — Stylus makes it 10–100x cheaper to comput
 | Parameter | Value | Rationale |
 |-----------|-------|-----------|
 | Max LTV | 40–60% (per asset) | Conservative for volatile equities; accounts for overnight/weekend gap risk |
-| Liquidation threshold | 55–70% (per asset) | Buffer above max LTV so a fresh loan has room before liquidation |
+| Liquidation threshold | 55–75% (per asset) | Buffer above max LTV so a fresh loan has room before liquidation |
 | Liquidation bonus | 5% | Incentivizes liquidators (agent) |
 | Base borrow rate | 2% APY | Competitive with TradFi margin |
 | Optimal utilization | 80% | Balances yield and liquidity |

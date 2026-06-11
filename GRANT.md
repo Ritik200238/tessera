@@ -32,7 +32,7 @@ speculative launch.
 ## Technical credibility (all in the public repo)
 
 - **Tested + CI-green.** Pure interest/liquidation math is host-tested in Rust;
-  the agent has 88 tests; the web has a typed test suite; GitHub Actions runs
+  the agent has 100 tests; the web has 41; GitHub Actions runs
   Rust, Solidity (forge), agent, and web on every push.
 - **Security-first.** Accrue-before-read, HF post-checks on borrow/withdraw,
   oracle staleness reverts, no `unwrap` in contract paths, conservative LTVs

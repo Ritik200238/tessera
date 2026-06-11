@@ -35,17 +35,22 @@ On screen: Active Protection card → cap → kill switch. "Where you stand" car
 
 ## Shot 4 — THE LIVE DRILL (1:10–2:10) · /drill — the centerpiece
 
-> "Don't take my word for it. This button opens a real loan on the live vault,
-> crashes its collateral price thirty-three percent, and the production agent —
-> the same one watching real users — has to notice and save it. No script. Watch."
+> "Don't take my word for it. YOU pick the crash. This button opens a real loan
+> on the live vault, gaps its collateral by the size you choose — say forty
+> percent — and the production agent, the same one watching real users, has to
+> notice and save it. No script. Watch."
 
-On screen: click **Start the drill**. Let the stepper run UNCUT:
-deposit → borrow (HF 1.53) → gap to $67.42 (HF 1.03) → *"Agent auto-repaid
-~241 USDC — health factor restored to 1.55"*. Click the rescue tx → Arbiscan.
+On screen: pick **−40%**, click **Crash it −40% and watch**. Let the stepper run
+UNCUT: open the position → gap the price → *danger zone* → the agent auto-repays
+from the pre-approved cap and the health factor is restored. Alongside it, the
+**unprotected twin** hit by the same gap is **liquidated**. Click the rescue tx →
+Arbiscan. (Capture the exact repay amount + restored HF live from the run — don't
+script numbers.)
 
-> "Eight seconds. The agent repaid from the pre-approved cap and restored the
-> position to exactly the regime target — it's a weekend-aware target, because
-> gap risk isn't constant. Every step you just saw is a real transaction."
+> "Seconds later — restored. The agent repaid from the pre-approved cap to the
+> regime target (weekend-aware, because gap risk isn't constant), while the
+> unprotected position was liquidated by the same gap. Every step is a real
+> transaction you can open on Arbiscan."
 
 ## Shot 5 — Proof, not promises (2:10–2:35) · /transparency
 

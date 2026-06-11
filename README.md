@@ -62,7 +62,7 @@ Live app: **[tessera-web-delta.vercel.app](https://tessera-web-delta.vercel.app)
 - **🧭 [Explore (no wallet)](https://tessera-web-delta.vercel.app/explore)** · **[Guided start](https://tessera-web-delta.vercel.app/start)** — browse a real live position read-only, or open your own in five real-tx steps with free faucet funds.
 - **🤖 [Risk layer for agents](https://tessera-web-delta.vercel.app/developers)** — a public read-only Risk API (`GET /api/risk`, `GET /api/risk/:address`) and an [MCP server](mcp/) so *other* AI agents consume Tessera's risk signals. Run the live demo: `cd mcp && npm install && node demo-agent.mjs`.
 - **🟣 Live on Robinhood Chain too — with the full safety stack** — the native home of tokenized equities (Orbit L2, chain 46630) runs the *complete* vault, including the **permissionless backstop + dual-oracle guard** that are ~1KB over Sepolia's 24KB limit. And the backstop is **proven**: a non-agent address backstop-liquidated a stale-heartbeat position on-chain (HF 0.94 → 1.20) — [verify ↗](https://explorer.testnet.chain.robinhood.com/tx/0x1c2f6a9024c4ec3018d074510a6bee7eea8a06823a9c975e74f0fe62c4881c76).
-- **🔍 [Verify every claim yourself](VERIFICATION.md)** — a copy-paste runbook: reproduce all ~220 tests, the CI-locked backtest, the property invariants, the Risk API, and the on-chain state. None of it needs our cooperation.
+- **🔍 [Verify every claim yourself](VERIFICATION.md)** — a copy-paste runbook: reproduce all 230+ tests, the CI-locked backtest, the property invariants, the Risk API, and the on-chain state. None of it needs our cooperation.
 
 ### The differentiator, in one line
 Tokenized stocks gap while the market is closed. Tessera's agent is **regime-aware** — it widens its protection bands automatically for after-hours, weekends, and earnings, and acts *before* the gap, restoring health from USDC you pre-approve. It can only ever reduce your debt; a language model never moves money.
@@ -227,7 +227,7 @@ npm run dev                         # http://localhost:3000
 cd agent
 npm install
 cp .env.example .env                # set RPC_URL, VAULT_ADDRESS, AGENT_PRIVATE_KEY, NVIDIA_API_KEY
-npm test                            # 82 tests
+npm test                            # 100 tests
 npm start                           # begins the monitoring loop
 ```
 
@@ -285,12 +285,12 @@ KEEPER_PRIVATE_KEY=0x... node scripts/keeper.mjs --once    # single refresh
 |---|---|
 | `interest-model` | HF, rate-curve, and liquidation math (property + unit) |
 | `tessera-vault` | vault entrypoints, accounting, access control |
-| `agent` | **82 tests** — tick loop, liquidator + auto-repay safety order, alerts, LLM, idempotency |
-| `web` | **35 tests** — health classification, safety score, badges |
+| `agent` | **100 tests** — tick loop, liquidator + auto-repay safety order, alerts, LLM, idempotency |
+| `web` | **41 tests** — health classification, safety score, badges |
 
 ```bash
-cd agent && npm test       # 82 passing
-cd web && npm test         # 35 passing
+cd agent && npm test       # 100 passing
+cd web && npm test         # 41 passing
 cargo test -p interest-model
 ```
 
@@ -299,7 +299,7 @@ cargo test -p interest-model
 ## 🔐 Security & status
 
 - **Non-custodial** — funds live in the contract; the agent acts only via permissioned entrypoints and user-signed approvals, and can only *reduce* debt.
-- **Conservative by design** — per-asset LTVs of 40–60% and liquidation thresholds of 55–70%, sized to absorb overnight gaps.
+- **Conservative by design** — per-asset LTVs of 40–60% and liquidation thresholds of 55–75%, sized to absorb overnight gaps.
 - **No token, ever** — no airdrops, points, or governance coin.
 - **Defense in depth** — `accrue → state writes → health post-check`, oracle staleness reverts, reentrancy guards, no `unwrap`/`expect` in contract code.
 

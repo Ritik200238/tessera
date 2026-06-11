@@ -33,19 +33,19 @@ liquidate transaction.
 - Every agent action (alert / auto-repay / liquidation) is logged with its tx
   hash on `/transparency`.
 
-## 3. Reproduce every test suite (4 suites, ~220 tests)
+## 3. Reproduce every test suite (230+ tests across the suites)
 
 ```bash
-# Rust math primitives — 50 unit tests + 13 property tests (proptest):
+# Rust math primitives — 67 tests (unit + property-based, proptest):
 cargo test -p interest-model
 
 # Stylus vault (host-tested logic):
-cargo test -p vault
+cargo test -p tessera-vault
 
-# TypeScript risk agent — 92 tests:
+# TypeScript risk agent — 100 tests:
 pnpm --filter @tessera/agent test
 
-# Web — 38 tests (incl. the CI-locked backtest):
+# Web — 41 tests (incl. the CI-locked backtest):
 pnpm --filter @tessera/web test
 
 # Solidity mocks (Foundry) — 30 tests:
