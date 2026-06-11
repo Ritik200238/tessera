@@ -245,10 +245,16 @@ export class DrillOrchestrator {
     await this.setPrice(BASELINE_PRICE);
     this.step("baseline", "Drill asset priced at $100.00 (fresh oracle round)");
 
-    // 2. Reset any leftover position from a previous drill.
+    // 2. Reset any leftover position from a previous drill. Repay a 1-USDC buffer
+    // OVER the snapshot debt: interest accrues between this read and the tx, so
+    // repaying the exact snapshot leaves a few wei of debt and the full-collateral
+    // withdraw below then reverts with HealthFactorTooLow. repay() caps at the
+    // actual debt, so the buffer is safe (only the real debt is pulled).
     const leftoverDebt = await this.read<bigint>("debtOf", [me]);
     if (leftoverDebt > 0n) {
-      const tx = await this.send(this.drill, d.vaultAddress, vaultAbi, "repay", [leftoverDebt]);
+      const tx = await this.send(this.drill, d.vaultAddress, vaultAbi, "repay", [
+        leftoverDebt + 1_000_000n,
+      ]);
       this.step("reset", "Cleared leftover drill debt", tx);
     }
     const leftoverColl = await this.read<bigint>("collateralOf", [me, d.drillAsset]);
