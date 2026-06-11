@@ -64,30 +64,45 @@ const STATE_LABEL: Record<DrillStatus["state"], string> = {
 export function DrillClient() {
   const [status, setStatus] = useState<DrillStatus | null>(null);
   const [unavailable, setUnavailable] = useState(false);
+  const [checked, setChecked] = useState(false);
   const [starting, setStarting] = useState(false);
   const [gapPct, setGapPct] = useState<number>(40);
-  const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const unavailableRef = useRef(false);
 
   const poll = useCallback(async () => {
     try {
       const r = await fetch("/api/drill", { cache: "no-store" });
       if (r.status === 404 || r.status === 503) {
         setUnavailable(true);
+        unavailableRef.current = true;
         return;
       }
       const j = (await r.json()) as DrillStatus;
       setStatus(j);
       setUnavailable(false);
+      unavailableRef.current = false;
     } catch {
       /* transient — keep last status */
+    } finally {
+      setChecked(true);
     }
   }, []);
 
+  // Poll briskly while the rig is live; back off to a slow recovery probe when
+  // it's unavailable, so we don't flood the console with 404s (and still recover
+  // if it's armed later).
   useEffect(() => {
-    void poll();
-    timer.current = setInterval(() => void poll(), 2_500);
+    let cancelled = false;
+    let t: ReturnType<typeof setTimeout> | undefined;
+    const tick = async () => {
+      await poll();
+      if (cancelled) return;
+      t = setTimeout(tick, unavailableRef.current ? 30_000 : 2_500);
+    };
+    void tick();
     return () => {
-      if (timer.current) clearInterval(timer.current);
+      cancelled = true;
+      if (t) clearTimeout(t);
     };
   }, [poll]);
 
@@ -107,7 +122,7 @@ export function DrillClient() {
 
   const active = status ? ACTIVE_STATES.has(status.state) : false;
   const cooldownMin = status ? Math.ceil(status.cooldownMsRemaining / 60_000) : 0;
-  const canStart = !active && !starting && (status?.cooldownMsRemaining ?? 0) === 0 && !unavailable;
+  const canStart = checked && !active && !starting && (status?.cooldownMsRemaining ?? 0) === 0 && !unavailable;
 
   return (
     <div className="space-y-6">
@@ -124,12 +139,18 @@ export function DrillClient() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {unavailable ? (
+          {!checked ? (
+            <p className="text-sm text-[color:var(--color-muted-foreground)]">Checking the drill rig…</p>
+          ) : unavailable ? (
             <Alert tone="warning">
-              <AlertTitle>The drill rig isn&apos;t available right now</AlertTitle>
+              <AlertTitle>The drill rig isn&apos;t armed right now</AlertTitle>
               <AlertDescription>
-                The agent host doesn&apos;t have the drill configured (or is waking up). Everything
-                the drill demonstrates is also verifiable on the{" "}
+                Want to see it instantly?{" "}
+                <a className="font-medium underline" href="/sandbox">
+                  Run the drill&apos;s decision engine yourself in the Sandbox
+                </a>{" "}
+                — no wallet, no waiting. The reproducible on-chain backtest and every agent action are
+                on the{" "}
                 <a className="font-medium underline" href="/transparency">
                   Transparency
                 </a>{" "}
