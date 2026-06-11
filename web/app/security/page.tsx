@@ -79,6 +79,38 @@ export default function SecurityPage() {
 
       <Card>
         <CardHeader>
+          <CardTitle>Admin powers &amp; upgradeability</CardTitle>
+          <CardDescription>Exactly what the owner key can — and cannot — do.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3 text-sm">
+          <Fact title="What the owner CAN do (all owner-gated, all emit events)">
+            Set per-asset risk parameters (LTV, liquidation threshold, supply/borrow caps, reserve
+            factor) and the rate-curve params; replace the oracle and the agent address; set the
+            price-staleness window; pause the vault or freeze an individual asset; and transfer
+            ownership. Each is a single <code className="font-mono">only_owner</code> entrypoint.
+          </Fact>
+          <Fact title="What the owner CANNOT do">
+            There is <strong>no entrypoint</strong> that lets the owner withdraw, move, or mint user
+            funds, or increase anyone&apos;s debt. The owner cannot take balances. The agent address it
+            sets is still bound by the agent&apos;s own on-chain limits (reduce-debt-only, capped by
+            the allowance <em>you</em> grant) — a malicious agent key still cannot move your collateral.
+          </Fact>
+          <Fact title="Not upgradeable — the code is immutable at its address">
+            The Stylus vault is deployed directly, <strong>not</strong> behind an upgradeable proxy, so
+            there is no <code className="font-mono">delegatecall</code> and no function to swap the
+            logic out from under you. An &quot;upgrade&quot; means deploying a fresh vault and migrating
+            — a visible, opt-in, on-chain event at a new address, never a silent change to the contract
+            you&apos;re using.
+          </Fact>
+          <Fact title="Owner key → multisig before mainnet">
+            On testnet the owner is a single key. Moving it to a 2-of-N multisig is a stated mainnet
+            gate (below), alongside the audit and bug bounty.
+          </Fact>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle>Risk parameters</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3 text-sm">
@@ -116,6 +148,13 @@ export default function SecurityPage() {
           <Fact title="Single-keeper risk">
             Today the agent is a single signer. That is a known MVP limitation; the permissionless
             backstop + an always-on host + monitoring address it before mainnet.
+          </Fact>
+          <Fact title="How do I verify the deployed code is the source?">
+            The whole stack is open source, and the deployed addresses are listed on{" "}
+            <Link href="/transparency" className="font-medium underline">Transparency</Link>. The repo&apos;s
+            <code className="font-mono"> VERIFICATION.md</code> is a copy-paste runbook to rebuild the
+            Stylus vault from source and reproduce every test, the CI-locked backtest, and the on-chain
+            state — none of it needs our cooperation.
           </Fact>
           <Fact title="What if my wallet can't cover the repay?">
             Auto-repay pulls from <em>your</em> USDC. If your balance or remaining allowance
