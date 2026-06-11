@@ -231,7 +231,7 @@ export function TransparencyClient({ actions }: { actions: AgentAction[] }) {
           </p>
           <p>
             <span className="font-medium text-[color:var(--color-foreground)]">Conservative by design.</span> Per-asset
-            LTVs of 40–60% and liquidation thresholds of 55–70% are sized to absorb overnight and weekend gaps.
+            LTVs of 40–60% and liquidation thresholds of 55–75% are sized to absorb overnight and weekend gaps.
           </p>
         </CardContent>
       </Card>

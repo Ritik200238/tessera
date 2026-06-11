@@ -110,7 +110,7 @@ export function HealthHistory({ address, hf, hasDebt }: { address: string; hf: b
         {samples.length < 2 ? (
           <p className="text-sm text-[color:var(--color-muted-foreground)]">
             Building your health history — it fills in as you visit while this position is open. Tessera
-            watches the <span className="font-mono">1.10</span> protection trigger the whole time.
+            watches the <span className="font-mono">1.10</span> act line the whole time.
           </p>
         ) : (
           <>

@@ -88,7 +88,7 @@ export function DashboardClient({ agentStatus }: { agentStatus: AgentStatusSumma
     <div className="space-y-6">
       <GapRiskClock />
       <PositionOutlook />
-      <div className="grid gap-6 lg:grid-cols-[1fr_1fr]">
+      <div className="grid items-start gap-6 lg:grid-cols-[1fr_1fr]">
         <div className="space-y-3">
           {hasPosition ? (
             <>
@@ -247,7 +247,7 @@ function NotDeployed() {
 
 function Landing() {
   return (
-    <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
+    <div className="grid items-start gap-6 lg:grid-cols-[1.4fr_1fr]">
       <Card>
         <CardHeader>
           <CardTitle className="text-3xl">Deposit. Earn. AI protects.</CardTitle>
@@ -286,7 +286,7 @@ function Landing() {
             accounts for overnight and weekend gap risk — at a dynamic rate.
           </Step>
           <Step n={3} title="AI keeps an eye on it — 24/7">
-            The agent watches your health factor every block and alerts you in plain English
+            The agent watches your Safety Score every block and alerts you in plain English
             when risk rises. Switch on{" "}
             <span className="font-medium text-[color:var(--color-foreground)]">Active Protection</span>{" "}
             and it can auto-repay from USDC you pre-approve, restoring your position before a

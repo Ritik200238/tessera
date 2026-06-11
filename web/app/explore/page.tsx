@@ -45,10 +45,13 @@ export default async function ExplorePage() {
           <CardContent className="space-y-3 text-sm">
             {market ? (
               <>
+                <p className="text-xs text-[color:var(--color-muted-foreground)]">
+                  Health factor is how safe a loan is — 1.00 is the liquidation line; higher is safer.
+                </p>
                 <Row label="Market regime" value={market.regimeLabel} />
-                <Row label="AI acts below HF" value={market.aiActsBelowHf.toFixed(2)} />
-                <Row label="Restores toward HF" value={market.restoresTowardHf.toFixed(2)} />
-                <Row label="Liquidation below HF" value={market.liquidationHf.toFixed(2)} />
+                <Row label="AI acts below health factor" value={market.aiActsBelowHf.toFixed(2)} />
+                <Row label="Restores toward health factor" value={market.restoresTowardHf.toFixed(2)} />
+                <Row label="Liquidation below health factor" value={market.liquidationHf.toFixed(2)} />
                 <div className="pt-1">
                   {market.assets.map((a) => (
                     <div key={a.symbol} className="flex items-baseline justify-between border-t border-[color:var(--color-border)] py-1.5 tabular-nums">
@@ -85,10 +88,7 @@ export default async function ExplorePage() {
                 {position.healthFactor !== null && (
                   <SafetyBar hf={position.healthFactor} actAt={position.aiActsBelowHf} protectAt={position.restoresTowardHf} />
                 )}
-                <div className="grid grid-cols-2 gap-3">
-                  <Stat label="Safety score" value={position.safetyScore !== null ? String(position.safetyScore) : "—"} />
-                  <Stat label="Debt" value={position.debtUsdc !== null ? `$${position.debtUsdc.toLocaleString()}` : "—"} />
-                </div>
+                <Stat label="Debt outstanding" value={position.debtUsdc !== null ? `$${position.debtUsdc.toLocaleString()}` : "—"} />
                 <p className="text-[color:var(--color-muted-foreground)]">{position.verdict}</p>
               </>
             ) : (

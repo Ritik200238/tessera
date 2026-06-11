@@ -23,12 +23,14 @@ import { track } from "@/lib/analytics";
 /**
  * Borrow form.
  *
- * Slider expresses target borrow as a percentage of collateral value up to
- * the protocol's 70% max LTV. Projected health factor is recomputed on
- * every drag via lib/health.projectHealthFactor — fully client-side so
- * there is no RPC roundtrip per slider tick.
+ * Slider expresses target borrow as a percentage of collateral value, capped at
+ * the protocol's highest per-asset max LTV (60%, SPY) so it never targets a
+ * borrow the contract would reject. Per-asset caps (TSLA 40 / AAPL 50 / SPY 60)
+ * are still enforced on-chain and surfaced by the live Safety Score below.
+ * Projected health factor is recomputed on every drag via
+ * lib/health.projectHealthFactor — fully client-side, no RPC per slider tick.
  */
-const MAX_LTV_BPS = 7000n; // 70% — TDD §7.3
+const MAX_LTV_BPS = 6000n; // 60% — the highest per-asset max LTV (SPY)
 
 export function BorrowForm() {
   const { address, isConnected } = useAccount();
@@ -173,7 +175,7 @@ export function BorrowForm() {
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1.2fr_1fr]">
+    <div className="grid items-start gap-6 lg:grid-cols-[1.2fr_1fr]">
       <GapAckModal
         open={showGapAck}
         projectedHf={projectedHf}
@@ -236,8 +238,8 @@ export function BorrowForm() {
             />
             <div className="flex justify-between text-xs text-[color:var(--color-muted-foreground)]">
               <span>0%</span>
-              <span>35%</span>
-              <span>70% (max)</span>
+              <span>30%</span>
+              <span>60% (max)</span>
             </div>
           </div>
 

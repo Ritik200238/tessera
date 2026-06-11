@@ -44,13 +44,13 @@ export function GapRiskClock({ className = "" }: { className?: string }) {
     line = (
       <>
         Closes in <span className="font-semibold tabular-nums">{formatCountdown(s.next.msUntil)}</span> → {into}. The AI
-        protect target then rises <span className="tabular-nums">{base} → {afterTarget}</span>, so the agent acts earlier.
+        restore target then rises <span className="tabular-nums">{base} → {afterTarget}</span>, so the agent acts earlier.
       </>
     );
   } else {
     line = (
       <>
-        Reopens <span className="font-medium">{s.next.label}</span>. AI protect target raised to{" "}
+        Reopens <span className="font-medium">{s.next.label}</span>. Restore target raised to{" "}
         <span className="font-semibold tabular-nums">{nowTarget}</span> (vs {base} when open) — the agent de-risks earlier
         through the gap.
       </>
