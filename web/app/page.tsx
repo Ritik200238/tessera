@@ -297,11 +297,11 @@ export default function LandingPage() {
                 <Mark size={13} color="var(--blue)" /> <b>No token, ever.</b> &nbsp;Just yield and credit.
               </span>
               <h1>
-                When the market
+                When the market crashes,
                 <br />
-                crashes, an AI
+                an AI fights
                 <br />
-                <span className="grad">saves your loan.</span>
+                <span className="grad">to save your loan.</span>
               </h1>
               <p className="hsub">
                 Tessera lets you borrow cash against tokenized stocks — and an autonomous agent watches
