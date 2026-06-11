@@ -2,9 +2,9 @@
 
 <img src=".github/assets/tessera-banner.svg" alt="Tessera" width="760" />
 
-### The safest venue to lend USDC against — and borrow against — tokenized equities.
+### An AI agent that automatically protects lending positions during market crashes.
 
-An autonomous AI agent watches every position **24/7** and acts **before** a liquidation, not after.
+Tokenized stocks trade 24/7, but the market behind them doesn't — so they **gap** overnight and on weekends. Tessera lets you borrow against them, and an autonomous agent repays from funds you pre-approve to stop a liquidation **before** it happens, not after. You hold the keys; it can only ever reduce your own debt. No token, ever.
 
 <br/>
 

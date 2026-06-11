@@ -296,16 +296,16 @@ export default function LandingPage() {
                 <Mark size={13} color="var(--blue)" /> <b>No token, ever.</b> &nbsp;Just yield and credit.
               </span>
               <h1>
-                Borrow against your
+                When the market
                 <br />
-                tokenized stocks.
+                crashes, an AI
                 <br />
-                <span className="grad">Watched 24/7.</span>
+                <span className="grad">saves your loan.</span>
               </h1>
               <p className="hsub">
-                Borrow cash against your tokenized stocks without selling them. If the market gaps down while
-                you sleep, Tessera&apos;s AI repays just enough to keep you from being liquidated —
-                automatically, from funds you approve and can revoke anytime.
+                Tessera lets you borrow cash against tokenized stocks — and an autonomous agent watches
+                the position 24/7, repaying from USDC you pre-approve to stop a liquidation <em>before</em>
+                {" "}it happens, not after. You hold the keys; it can only ever reduce your own debt.
               </p>
               <div className="hero-cta">
                 <Link className="lbtn brand lg arrow" href="/drill" onClick={() => track("landing_cta_click", { cta: "drill" })}>

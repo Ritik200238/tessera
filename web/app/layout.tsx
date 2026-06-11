@@ -27,13 +27,15 @@ const mono = IBM_Plex_Mono({
 });
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+// One canonical positioning sentence, used everywhere.
+const TITLE = "Tessera — an AI that protects your loan when the market crashes";
 const DESCRIPTION =
-  "The safest venue to lend USDC or borrow against tokenized equities. An AI agent watches every position 24/7 and acts before a liquidation, not after. No token, ever.";
+  "Tessera is an AI agent that automatically protects tokenized-stock lending positions during market crashes — repaying from funds you pre-approve, before a liquidation, not after. Live on Arbitrum. No token, ever.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: "Tessera — Borrow against tokenized stocks, safely",
+    default: TITLE,
     template: "%s · Tessera",
   },
   description: DESCRIPTION,
@@ -41,13 +43,13 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     siteName: "Tessera",
-    title: "Tessera — Borrow against tokenized stocks, safely",
+    title: TITLE,
     description: DESCRIPTION,
     url: SITE_URL,
   },
   twitter: {
     card: "summary_large_image",
-    title: "Tessera — Borrow against tokenized stocks, safely",
+    title: TITLE,
     description: DESCRIPTION,
   },
 };
