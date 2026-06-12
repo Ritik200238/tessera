@@ -249,7 +249,16 @@ export async function runTick(deps: TickDeps): Promise<TickResult> {
 
     // Liquidation path.
     if (hf < deps.config.liquidationThreshold) {
-      const repay = debt / 2n; // 50% close factor (TDD §3.4.4)
+      // 50% close factor normally (TDD §3.4.4). But a deeply underwater position
+      // (HF < 0.95) is non-viable: the vault opens a 100% close (full-close path,
+      // rulbookImprvmnts.md Phase 1), so pass the FULL debt to wind it down in one
+      // shot — otherwise compute_liquidation still caps the repay at what we pass,
+      // and the position can stay frozen. Any residual beyond the seized
+      // collateral is absorbed on-chain by the insolvency waterfall (reserve
+      // first, then socialized). If the agent can't afford the full debt it skips
+      // and the permissionless backstop / a deeper-pocketed liquidator finishes it.
+      const FULL_CLOSE_HF = 950_000_000_000_000_000n; // 0.95e18
+      const repay = hf < FULL_CLOSE_HF ? debt : debt / 2n;
       const collateralToken = await findCollateralToken(deps.publicClient, deps.vaultAddress, user, blockNumber);
       if (!collateralToken) {
         deps.log.append(action.error("tick.liquidate", `no collateral token found for ${user}`));

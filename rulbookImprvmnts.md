@@ -369,13 +369,14 @@ Each phase's *Definition of Done* = code + tests + deploy + UI/agent surfacing +
 ### Phase 1 — Reserves + Insolvency Waterfall — ⏳ IN PROGRESS
 - ✅ **Contract** (commit `7ea21d2`): reserve skim in `interest::roll_index` (rounds down, lenders keep dust); `reserve_factor` default 1500, capped 2500 in `setRateParams`; `withdrawReserves` (owner-gated, CEI, reentrancy-locked, bounded by reserve **and** idle); `bad_debt` storage + `reserves()`/`badDebt()` views; full-close path (HF < 0.95 → 100% close factor); atomic absorption (reserve absorbs first → remainder socialized via `bad_debt`) replacing log-only `BadDebtRealized` with `BadDebtAbsorbed`. Docs consulted: stylus-sdk storage/event/`sol!` macros — no invented APIs. `cargo check -p tessera-vault` green locally.
 - ✅ **Unit tests** (same commit): exact-15%-skim math via `roll_index`, no-op-without-debt, view zeros, `withdrawReserves` gates + balance/liquidity bounds, reserve-factor 25% cap. (Run on CI — `cl.exe`/MSVC missing locally blocks running vault tests; `cargo check` is the local gate, CI is the test gate.)
-- ⬜ **CI green confirmation** for `7ea21d2` (the contract+tests) — verify before proceeding.
-- ⬜ **UI surfacing:** `/transparency` solvency card (reserve, lifetime bad debt) + `/security` economics copy corrected to match code (it currently over-claims the 15%).
-- ⬜ **Agent:** liquidator full-close awareness (pass full debt as repay when HF < 0.95).
-- ⬜ **Invariants:** I-R1/R2 partially covered (skim math); I-W1/W2 + master conservation property pending (need the e2e/Foundry liquidation flow — host unit tests can't mock the full token+oracle dance).
-- ⬜ **E2E testnet drill:** reserve accrues (visible) + reserve-absorbs-first proof + fresh redeploy via the reseed script.
+- ✅ **CI green confirmation**: all 4 jobs (Rust/Solidity/Web/Agent) green on `87424e5` — the Rust job compiled and ran the new vault tests. Contract + tests validated.
+- ✅ **Agent** (commit pending): liquidator passes FULL debt as repay when HF < 0.95 so the full-close path actually winds the position down (else `compute_liquidation` caps at the passed amount); skips to the backstop if it can't afford it. `agent tsc` green.
+- ⬜ **DEPLOY GATE — blocks the rest.** Everything below needs the new bytecode on testnet; the live vault is still the old build (reserve_factor 0, no waterfall, no `reserves()`/`badDebt()` views). Redeploy is outward-facing (new addresses, gas, reseed) → founder decision on cadence (deploy per phase vs. batch phases then deploy once). Until redeploy:
+  - ⬜ **UI surfacing:** `/transparency` solvency card (reserve, lifetime bad debt) — deferred so it's written + tested against the live new contract, not the old one. `/security` economics copy: currently TRUE-once-deployed; today it still over-claims on the live (old) product — corrected at redeploy.
+  - ⬜ **Invariants:** I-R1/R2 partially covered (skim math, host); I-W1/W2 + master conservation property need the e2e/Foundry liquidation flow (host unit tests can't mock the full token+oracle dance).
+  - ⬜ **E2E testnet drill:** reserve accrues (visible) + reserve-absorbs-first proof, on the fresh deploy via the reseed script.
 
-> Phase 1 is DONE only when every box above is ticked. Currently: contract + unit tests shipped; CI-confirm, UI, agent, e2e remain.
+> Phase 1 status: **contract + tests + agent shipped and CI-green.** The remaining items are gated on a testnet redeploy — a founder decision (cadence/gas), so we stop here and confirm before deploying.
 
 ### Phases 2–7 — ⬜ NOT STARTED
 
