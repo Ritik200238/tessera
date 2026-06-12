@@ -406,6 +406,13 @@ impl TesseraVault {
         }
         let pay = core::cmp::min(amount, cur_debt);
         let new_debt = cur_debt - pay;
+        // Min-debt floor (Phase 2.4): a repay may clear the position fully or leave
+        // it at/above the floor — never strand a dust position whose liquidation
+        // would cost more than its bonus. Repay fully, or repay less.
+        let min_debt_floor = self.config.min_debt.get();
+        if !new_debt.is_zero() && !min_debt_floor.is_zero() && new_debt < min_debt_floor {
+            return Err(VaultError::InvalidParameter(InvalidParameter {}));
+        }
         let idx = interest::current_index(&self.interest);
 
         let prev_principal = self.debt.principal.get(user);
@@ -472,6 +479,9 @@ impl TesseraVault {
         // lenders earn the other 85% via the share price. Adjustable via the
         // (timelocked, Phase 3) `setRateParams`, bounded <= 25%.
         self.interest.reserve_factor_bps.set(alloy_primitives::U16::from(1_500u16));
+        // Min-debt floor: 100 USDC. No dust positions whose liquidation would cost
+        // more than the bonus. Timelock-adjustable (Phase 3), bounded <= 1000 USDC.
+        self.config.min_debt.set(U256::from(100_000_000u64)); // 100e6
         self.interest.borrow_index.set(U256::from(WAD));
         self.interest.last_accrual_ts.set(U64::from(self.vm().block_timestamp()));
         self.vm().log(OwnershipTransferred {
@@ -612,6 +622,40 @@ impl TesseraVault {
         r
     }
 
+    /// Owner (timelock): minimum per-user debt (USDC, 6dp). Bounded <= 1000 USDC
+    /// so it can't lock ordinary borrowers out. 0 disables the floor.
+    #[selector(name = "setMinDebt")]
+    pub fn set_min_debt(&mut self, amount: U256) -> Result<(), VaultError> {
+        self.only_owner()?;
+        if amount > U256::from(1_000_000_000u64) {
+            return Err(VaultError::InvalidParameter(InvalidParameter {}));
+        }
+        self.config.min_debt.set(amount);
+        self.vm().log(ParamUpdate { key: key(b"min_debt"), value: amount });
+        Ok(())
+    }
+
+    /// Owner (timelock): global borrow cap (USDC, 6dp). 0 = uncapped.
+    #[selector(name = "setBorrowCap")]
+    pub fn set_borrow_cap(&mut self, amount: U256) -> Result<(), VaultError> {
+        self.only_owner()?;
+        self.config.borrow_cap.set(amount);
+        self.vm().log(ParamUpdate { key: key(b"borrow_cap"), value: amount });
+        Ok(())
+    }
+
+    /// Owner (timelock): per-asset supply cap (collateral token units). 0 =
+    /// uncapped. The asset must already be listed.
+    #[selector(name = "setSupplyCap")]
+    pub fn set_supply_cap(&mut self, token: Address, cap: U256) -> Result<(), VaultError> {
+        self.only_owner()?;
+        if self.config.asset_whitelist.get(token).decimals.get().is_zero() {
+            return Err(VaultError::AssetNotEnabled(AssetNotEnabled { asset: token }));
+        }
+        self.config.asset_whitelist.setter(token).supply_cap.set(cap);
+        Ok(())
+    }
+
     pub fn set_rate_params(
         &mut self,
         base: u16,
@@ -683,6 +727,15 @@ impl TesseraVault {
             // We treat "decimals already set" as "already listed".
             !p.decimals.get().is_zero() || p.enabled.get()
         };
+        // Decimals are IMMUTABLE once listed. Live positions' balances are scaled
+        // by this value, so changing it (e.g. 18 -> 6) would silently mis-account
+        // every holder by 10^12. Re-listing may update risk params; never decimals.
+        if already {
+            let stored = self.config.asset_whitelist.get(token).decimals.get().to::<u8>();
+            if stored != decimals {
+                return Err(VaultError::InvalidParameter(InvalidParameter {}));
+            }
+        }
         let mut p = self.config.asset_whitelist.setter(token);
         p.enabled.set(true);
         p.decimals.set(alloy_primitives::U8::from(decimals));
@@ -767,6 +820,15 @@ impl TesseraVault {
     #[selector(name = "setBackstopDelay")]
     pub fn set_backstop_delay(&mut self, secs: U64) -> Result<(), VaultError> {
         self.only_owner()?;
+        // Stamp the heartbeat when ENABLING the backstop (from disabled). Without
+        // a prior agent tick `agent_last_heartbeat` can be 0, so `now - 0 > delay`
+        // would be true immediately — opening every position to permissionless
+        // liquidation the instant the delay is set. Stamping now gives the agent a
+        // full `secs` grace window before the dead-man's switch can fire.
+        let was_disabled = self.config.backstop_delay_secs.get().is_zero();
+        if !secs.is_zero() && was_disabled {
+            self.config.agent_last_heartbeat.set(U64::from(self.now_ts()));
+        }
         self.config.backstop_delay_secs.set(secs);
         Ok(())
     }
@@ -1068,7 +1130,12 @@ impl TesseraVault {
         token: Address,
         amount: U256,
     ) -> Result<(), VaultError> {
-        self.check_not_paused()?;
+        // Depositing collateral is de-risking — it can only raise your health
+        // factor — so it is permitted even while paused. A borrower holding stocks
+        // but no spare USDC must always be able to top up to save themselves in the
+        // exact crisis that triggers a pause. (Pause still blocks the risk-ADDING
+        // paths: borrow, withdraw_collateral, and lender deposit/withdraw. A frozen
+        // asset still rejects new deposits below.)
         self.lock_reentrancy()?;
         let r = (|| -> Result<(), VaultError> {
             if amount.is_zero() {
@@ -1097,6 +1164,15 @@ impl TesseraVault {
                     .setter(token)
                     .set(true);
             }
+            // Per-asset supply cap + concentration counter (Phase 2.6): bound how
+            // much of a single (often correlated) equity collateral the shared pool
+            // will hold. 0 = uncapped.
+            let new_total_coll = self.collateral.total_collateral.get(token).saturating_add(amount);
+            let supply_cap = self.config.asset_whitelist.get(token).supply_cap.get();
+            if !supply_cap.is_zero() && new_total_coll > supply_cap {
+                return Err(VaultError::InvalidParameter(InvalidParameter {}));
+            }
+            self.collateral.total_collateral.setter(token).set(new_total_coll);
             self::token::pull(self, token, user, amount)?;
             self.vm().log(CollateralDeposit {
                 user,
@@ -1131,6 +1207,8 @@ impl TesseraVault {
                 .setter(user)
                 .setter(token)
                 .set(prev - amount);
+            let new_total_coll = self.collateral.total_collateral.get(token).saturating_sub(amount);
+            self.collateral.total_collateral.setter(token).set(new_total_coll);
 
             // HF post-check (I1).
             let hf = self.hf(user)?;
@@ -1178,6 +1256,18 @@ impl TesseraVault {
             let prev_index = self.debt.user_index.get(user);
             let total = self.lending.total_principal.get();
             let total_after = total.saturating_sub(prev_principal).saturating_add(new_principal);
+
+            // Min-debt floor + global borrow cap (Phase 2.4 / 2.6). A borrow always
+            // increases debt, so the new position must clear the floor; total
+            // protocol borrows may not exceed the cap. 0 = unset.
+            let min_debt_floor = self.config.min_debt.get();
+            if !min_debt_floor.is_zero() && new_principal < min_debt_floor {
+                return Err(VaultError::InvalidParameter(InvalidParameter {}));
+            }
+            let borrow_cap = self.config.borrow_cap.get();
+            if !borrow_cap.is_zero() && total_after > borrow_cap {
+                return Err(VaultError::InvalidParameter(InvalidParameter {}));
+            }
 
             self.debt.principal.setter(user).set(new_principal);
             self.debt.user_index.setter(user).set(idx);
@@ -1342,6 +1432,16 @@ impl TesseraVault {
                 .setter(borrower)
                 .setter(collateral_token)
                 .set(new_coll);
+            // Keep the per-asset concentration counter in sync with the seize.
+            let coll_after_seize = self
+                .collateral
+                .total_collateral
+                .get(collateral_token)
+                .saturating_sub(res.seize_collateral);
+            self.collateral
+                .total_collateral
+                .setter(collateral_token)
+                .set(coll_after_seize);
 
             self.lending
                 .idle_assets
@@ -1496,6 +1596,30 @@ impl TesseraVault {
     #[selector(name = "badDebt")]
     pub fn bad_debt(&self) -> U256 {
         self.lending.bad_debt.get()
+    }
+
+    /// Minimum per-user debt floor (USDC, 6dp).
+    #[selector(name = "minDebt")]
+    pub fn min_debt(&self) -> U256 {
+        self.config.min_debt.get()
+    }
+
+    /// Global borrow cap (USDC, 6dp). 0 = uncapped.
+    #[selector(name = "borrowCap")]
+    pub fn borrow_cap(&self) -> U256 {
+        self.config.borrow_cap.get()
+    }
+
+    /// Per-asset supply cap (collateral units). 0 = uncapped.
+    #[selector(name = "supplyCap")]
+    pub fn supply_cap(&self, token: Address) -> U256 {
+        self.config.asset_whitelist.get(token).supply_cap.get()
+    }
+
+    /// Total collateral currently deposited for a token (collateral units).
+    #[selector(name = "totalCollateral")]
+    pub fn total_collateral(&self, token: Address) -> U256 {
+        self.collateral.total_collateral.get(token)
     }
 
     #[selector(name = "assetParams")]

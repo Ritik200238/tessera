@@ -289,14 +289,21 @@ fn paused_blocks_borrow() {
 }
 
 #[test]
-fn paused_blocks_deposit_collateral() {
+fn paused_allows_deposit_collateral() {
+    // Phase 2.1: de-risking must work while paused — a borrower can always top up
+    // collateral to save themselves in the exact crisis that triggers a pause.
     let vm = TestVM::default();
     let mut v = deploy(&vm);
     v.list_collateral(addr(TAAPL), 7_000, 8_500, 500, 18).unwrap();
     v.pause().unwrap();
     vm.set_sender(addr(ALICE));
+    // The pause gate must NOT reject it. (The ERC-20 pull then fails under the
+    // host harness with no token mock — but crucially it is NOT a Paused error.)
     let err = v.deposit_collateral(addr(TAAPL), U256::from(1u64)).unwrap_err();
-    assert!(matches!(err, VaultError::Paused(_)));
+    assert!(
+        !matches!(err, VaultError::Paused(_)),
+        "deposit_collateral must be permitted while paused"
+    );
 }
 
 #[test]
@@ -786,6 +793,79 @@ fn set_rate_params_caps_reserve_factor_at_25_percent() {
     ));
     // 2500 bps (25%) accepted.
     v.set_rate_params(200, 400, 6_000, 8_000, 2_500).unwrap();
+}
+
+// =============================================================================
+// 11c. Phase 2 — safety batch (heartbeat stamp, decimals lock, min-debt, caps)
+// =============================================================================
+
+#[test]
+fn set_backstop_delay_stamps_heartbeat() {
+    // Enabling the backstop from disabled must stamp the heartbeat, else
+    // `now - 0 > delay` would open it to everyone instantly.
+    let vm = TestVM::default();
+    let mut v = deploy(&vm); // block_timestamp == 1_000_000
+    assert_eq!(v.config.agent_last_heartbeat.get().to::<u64>(), 0);
+    v.set_backstop_delay(U64::from(900u64)).unwrap(); // 15 min
+    assert_eq!(v.config.agent_last_heartbeat.get().to::<u64>(), 1_000_000);
+}
+
+#[test]
+fn relist_cannot_change_decimals() {
+    let vm = TestVM::default();
+    let mut v = deploy(&vm);
+    v.list_collateral(addr(TAAPL), 5_000, 6_500, 500, 18).unwrap();
+    // Re-list with DIFFERENT decimals → rejected (would mis-account live positions).
+    assert!(matches!(
+        v.list_collateral(addr(TAAPL), 5_000, 6_500, 500, 6).unwrap_err(),
+        VaultError::InvalidParameter(_)
+    ));
+    // Re-list with SAME decimals but new risk params → allowed.
+    v.list_collateral(addr(TAAPL), 4_000, 5_500, 500, 18).unwrap();
+}
+
+#[test]
+fn min_debt_defaults_to_100_usdc_and_is_bounded() {
+    let vm = TestVM::default();
+    let mut v = deploy(&vm);
+    assert_eq!(v.min_debt(), U256::from(100_000_000u64)); // 100e6 = 100 USDC
+    assert!(matches!(
+        v.set_min_debt(U256::from(1_000_000_001u64)).unwrap_err(), // > 1000 USDC
+        VaultError::InvalidParameter(_)
+    ));
+    v.set_min_debt(U256::from(500_000_000u64)).unwrap();
+    assert_eq!(v.min_debt(), U256::from(500_000_000u64));
+}
+
+#[test]
+fn caps_setters_and_views() {
+    let vm = TestVM::default();
+    let mut v = deploy(&vm);
+    assert_eq!(v.borrow_cap(), U256::ZERO);
+    v.set_borrow_cap(U256::from(1_000_000_000_000u64)).unwrap();
+    assert_eq!(v.borrow_cap(), U256::from(1_000_000_000_000u64));
+    // Per-asset supply cap requires the asset to be listed.
+    assert!(matches!(
+        v.set_supply_cap(addr(TAAPL), U256::from(1u64)).unwrap_err(),
+        VaultError::AssetNotEnabled(_)
+    ));
+    v.list_collateral(addr(TAAPL), 5_000, 6_500, 500, 18).unwrap();
+    v.set_supply_cap(addr(TAAPL), U256::from(42u64)).unwrap();
+    assert_eq!(v.supply_cap(addr(TAAPL)), U256::from(42u64));
+    assert_eq!(v.total_collateral(addr(TAAPL)), U256::ZERO);
+}
+
+#[test]
+fn caps_and_min_debt_are_owner_only() {
+    let vm = TestVM::default();
+    let mut v = deploy(&vm);
+    vm.set_sender(addr(ALICE));
+    assert!(matches!(v.set_min_debt(U256::from(1u64)).unwrap_err(), VaultError::NotOwner(_)));
+    assert!(matches!(v.set_borrow_cap(U256::from(1u64)).unwrap_err(), VaultError::NotOwner(_)));
+    assert!(matches!(
+        v.set_supply_cap(addr(TAAPL), U256::from(1u64)).unwrap_err(),
+        VaultError::NotOwner(_)
+    ));
 }
 
 // =============================================================================

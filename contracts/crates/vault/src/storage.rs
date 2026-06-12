@@ -45,6 +45,10 @@ pub struct AssetParams {
     /// existing listings keep working; mainnet feeds that aren't 8-decimal are
     /// normalised to 8dp using this value (see `oracle_price`).
     pub feed_decimals: StorageU8,
+    /// Per-asset supply cap, in collateral token units. Bounds concentration of a
+    /// single (often correlated) equity collateral against the shared pool.
+    /// 0 = uncapped. Checked in `deposit_collateral` against `total_collateral`.
+    pub supply_cap: StorageU256,
 }
 
 #[storage]
@@ -81,6 +85,15 @@ pub struct Config {
     pub secondary_oracle: StorageAddress,
     /// Max allowed primary↔secondary deviation, in bps. 0 disables (default).
     pub max_deviation_bps: StorageU16,
+    // ----- appended (ABI/layout: append-only) -----
+    /// Minimum per-user debt (USDC, 6dp). A borrow must leave the user at 0 or
+    /// >= this floor; prevents dust positions whose liquidation costs more than
+    /// the bonus (guaranteed micro-bad-debt + spam). 0 = no floor.
+    pub min_debt: StorageU256,
+    /// Global borrow cap (USDC, 6dp). `total_principal` may not exceed it. Bounds
+    /// total protocol exposure. 0 = uncapped. (v1: a single global cap + per-asset
+    /// supply caps; exact per-asset borrow attribution is a later refinement.)
+    pub borrow_cap: StorageU256,
 }
 
 #[storage]
@@ -118,6 +131,12 @@ pub struct CollateralBook {
     pub deposits: StorageMap<Address, StorageMap<Address, StorageU256>>,
     /// Set bit for each (user, token) so iteration skips never-deposited rows.
     pub has_deposited: StorageMap<Address, StorageMap<Address, StorageBool>>,
+    // ----- appended (ABI/layout: append-only) -----
+    /// Total collateral deposited per token (across all users), in token units.
+    /// Maintained on deposit (+), withdraw (−), and liquidation seize (−); the
+    /// denominator the per-asset `supply_cap` is checked against. O(1) vs an
+    /// unbounded scan.
+    pub total_collateral: StorageMap<Address, StorageU256>,
 }
 
 #[storage]

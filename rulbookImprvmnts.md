@@ -378,7 +378,19 @@ Each phase's *Definition of Done* = code + tests + deploy + UI/agent surfacing +
 
 > Phase 1 status: **contract + tests + agent shipped and CI-green.** The remaining items are gated on a testnet redeploy — a founder decision (cadence/gas), so we stop here and confirm before deploying.
 
-### Phases 2–7 — ⬜ NOT STARTED
+### Phase 2 — Safety batch — ⏳ IN PROGRESS (5 of 6 + tests, deploy-gated like Phase 1)
+- ✅ **2.1 Pause semantics:** `depositCollateral` permitted while paused (de-risking); pause still blocks borrow / withdraw_collateral / lender deposit & withdraw. Existing `paused_blocks_deposit_collateral` test corrected to `paused_allows_…`.
+- ✅ **2.3 Heartbeat stamp:** `setBackstopDelay` stamps `agent_last_heartbeat = now` when enabling from disabled — the backstop can't be instantly open.
+- ✅ **2.4 Min-debt floor:** `min_debt` (default 100 USDC, `setMinDebt` bounded ≤ 1000 USDC) enforced on `borrow` (new debt ≥ floor) and `repay`/`agentRepayFor` (no dust remainder; repay fully or leave ≥ floor).
+- ✅ **2.5 Decimals lock:** re-listing a token may update risk params but reverts on a decimals change.
+- ✅ **2.6 Per-asset caps:** per-asset `supply_cap` (+ an O(1) `total_collateral` counter maintained on deposit/withdraw/seize) checked in `deposit_collateral`; global `borrow_cap` checked in `borrow`; `setSupplyCap`/`setBorrowCap` + `minDebt`/`borrowCap`/`supplyCap`/`totalCollateral` views.
+- ✅ **Tests** (same commit): heartbeat-stamp, decimals-lock, min-debt default+bound, caps setters/views, owner-only gates. `cargo check -p tessera-vault` green.
+- ⬜ **2.2 Init hardening (constructor)** — DEFERRED to do carefully last: replacing `initialize()` with a Stylus `#[constructor]` (atomic deploy+init, per `docs/stylus-sdk-rs`) touches every test's `deploy()` helper + the deploy scripts, so it gets its own focused pass.
+- ⬜ **CI green confirmation** for the Phase 2 commit.
+- ⬜ **DEPLOY GATE** (shared with Phase 1): UI surfacing of caps/min-debt on `/risk` + backstop state on `/status`; e2e drills (paused-deposit, dust-borrow, cap-exceeded, decimals-relist) — all at the batched redeploy.
+
+### Phase 3 — Governance (timelock + guardian + two-step ownership) — ⬜ NOT STARTED
+### Phases 4–7 — ⬜ NOT STARTED
 
 ---
 
