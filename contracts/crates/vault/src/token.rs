@@ -47,6 +47,37 @@ pub fn pull<S: TopLevelStorage + HostAccess>(
     Ok(())
 }
 
+/// Pull tokens and return the amount ACTUALLY received, measured by the vault's
+/// own balance delta (Phase 6.2). A fee-on-transfer / non-standard RWA token then
+/// credits only what truly arrived, never the requested amount — so vault
+/// accounting can never be inflated by a token that takes a cut on transfer.
+pub fn pull_measured<S: TopLevelStorage + HostAccess>(
+    storage: &mut S,
+    token: Address,
+    from: Address,
+    amount: U256,
+) -> Result<U256, VaultError> {
+    if amount.is_zero() {
+        return Ok(U256::ZERO);
+    }
+    let erc20 = IErc20::new(token);
+    let vault = storage.vm().contract_address();
+    let before = erc20
+        .balance_of(storage.vm(), Call::new(), vault)
+        .map_err(|_| VaultError::TokenTransferFailed(TokenTransferFailed {}))?;
+    let cfg = Call::new_mutating(storage);
+    let ok = erc20
+        .transfer_from(storage.vm(), cfg, from, vault, amount)
+        .map_err(|_| VaultError::TokenTransferFailed(TokenTransferFailed {}))?;
+    if !ok {
+        return Err(VaultError::TokenTransferFailed(TokenTransferFailed {}));
+    }
+    let after = erc20
+        .balance_of(storage.vm(), Call::new(), vault)
+        .map_err(|_| VaultError::TokenTransferFailed(TokenTransferFailed {}))?;
+    Ok(after.saturating_sub(before))
+}
+
 /// Push `amount` tokens of `token` from the vault to `to`.
 pub fn push<S: TopLevelStorage + HostAccess>(
     storage: &mut S,

@@ -1216,12 +1216,29 @@ impl TesseraVault {
             self.accrue();
             let user = self.vm().msg_sender();
 
+            // Per-asset supply cap (Phase 2.6), checked on the REQUESTED amount
+            // BEFORE the pull (CEI): since `received <= amount` for any honest
+            // token, this is a conservative bound on `total_collateral`.
+            let supply_cap = self.config.asset_whitelist.get(token).supply_cap.get();
+            if !supply_cap.is_zero()
+                && self.collateral.total_collateral.get(token).saturating_add(amount) > supply_cap
+            {
+                return Err(VaultError::InvalidParameter(InvalidParameter {}));
+            }
+
+            // Pull, then credit the amount ACTUALLY received (Phase 6.2): a
+            // fee-on-transfer / non-standard RWA token credits only what truly
+            // arrived, so vault accounting can never be inflated.
+            let received = self::token::pull_measured(self, token, user, amount)?;
+            if received.is_zero() {
+                return Err(VaultError::ZeroAmount(ZeroAmount {}));
+            }
             let prev = self.collateral.deposits.get(user).get(token);
             self.collateral
                 .deposits
                 .setter(user)
                 .setter(token)
-                .set(prev.saturating_add(amount));
+                .set(prev.saturating_add(received));
             if !self.collateral.has_deposited.get(user).get(token) {
                 self.collateral
                     .has_deposited
@@ -1229,20 +1246,12 @@ impl TesseraVault {
                     .setter(token)
                     .set(true);
             }
-            // Per-asset supply cap + concentration counter (Phase 2.6): bound how
-            // much of a single (often correlated) equity collateral the shared pool
-            // will hold. 0 = uncapped.
-            let new_total_coll = self.collateral.total_collateral.get(token).saturating_add(amount);
-            let supply_cap = self.config.asset_whitelist.get(token).supply_cap.get();
-            if !supply_cap.is_zero() && new_total_coll > supply_cap {
-                return Err(VaultError::InvalidParameter(InvalidParameter {}));
-            }
+            let new_total_coll = self.collateral.total_collateral.get(token).saturating_add(received);
             self.collateral.total_collateral.setter(token).set(new_total_coll);
-            self::token::pull(self, token, user, amount)?;
             self.vm().log(CollateralDeposit {
                 user,
                 token,
-                amount,
+                amount: received,
             });
             Ok(())
         })();
