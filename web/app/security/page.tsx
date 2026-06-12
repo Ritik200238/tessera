@@ -176,13 +176,16 @@ export default function SecurityPage() {
             classic money-market interest spread, nothing more.
           </Fact>
           <Fact title="15% reserve factor">
-            Of the interest borrowers pay, 85% flows to lenders (your supply APY) and 15% accrues to
-            a protocol reserve. That split is the whole business model.
+            Of the interest borrowers pay, 85% flows to lenders (your supply APY) and 15% is set
+            aside as a protocol reserve — the entire business model. <em>(The on-chain skim and
+            reserve accounting are built and CI-tested; they go live on the next testnet deploy,
+            together with the insolvency waterfall below.)</em>
           </Fact>
-          <Fact title="The reserve is a first-loss buffer, not a treasury">
-            The reserve capitalizes the safety buffer that absorbs bad debt before lenders are
-            touched, and funds operations (oracle keeper, hosting, audit). It is not a payout to
-            insiders — there are no insiders to pay.
+          <Fact title="The reserve is first-loss capital, not a treasury">
+            By design the reserve is drawn down to absorb bad debt <em>before</em> any loss reaches
+            lenders — the insolvency waterfall: reserve first, then a single visible pro-rata
+            socialization, never a silent share-price hit. It also funds operations (oracle keeper,
+            hosting, audit) — not insiders; there are none.
           </Fact>
           <Fact title="Protection is funded by you, liquidation by the liquidator">
             Auto-repay spends <em>your</em> pre-approved USDC to save <em>your</em> position — never
