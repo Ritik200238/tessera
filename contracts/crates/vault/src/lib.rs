@@ -526,13 +526,52 @@ impl TesseraVault {
         if new_owner.is_zero() {
             return Err(VaultError::ZeroAddress(ZeroAddress {}));
         }
-        let old = self.config.owner.get();
-        self.config.owner.set(new_owner);
-        self.vm().log(OwnershipTransferred {
-            previous_owner: old,
+        // Two-step (OZ Ownable2Step semantics): set the PENDING owner; ownership
+        // only moves once `new_owner` calls accept_ownership. No one-step,
+        // irreversible handoff to a wrong/dead address (typo, un-spendable multisig).
+        self.config.pending_owner.set(new_owner);
+        self.vm().log(OwnershipTransferStarted {
+            previous_owner: self.config.owner.get(),
             new_owner,
         });
         Ok(())
+    }
+
+    /// Second step of ownership transfer: the pending owner claims ownership.
+    #[selector(name = "acceptOwnership")]
+    pub fn accept_ownership(&mut self) -> Result<(), VaultError> {
+        let pending = self.config.pending_owner.get();
+        if pending.is_zero() || self.vm().msg_sender() != pending {
+            return Err(VaultError::NotOwner(NotOwner {}));
+        }
+        let old = self.config.owner.get();
+        self.config.owner.set(pending);
+        self.config.pending_owner.set(Address::ZERO);
+        self.vm().log(OwnershipTransferred {
+            previous_owner: old,
+            new_owner: pending,
+        });
+        Ok(())
+    }
+
+    #[selector(name = "pendingOwner")]
+    pub fn pending_owner(&self) -> Address {
+        self.config.pending_owner.get()
+    }
+
+    /// Owner (timelock): set the guardian — a role whose ONLY power is `pause`.
+    /// address(0) disables it.
+    #[selector(name = "setGuardian")]
+    pub fn set_guardian(&mut self, guardian: Address) -> Result<(), VaultError> {
+        self.only_owner()?;
+        self.config.guardian.set(guardian);
+        self.vm().log(GuardianSet { guardian });
+        Ok(())
+    }
+
+    #[selector(name = "guardian")]
+    pub fn guardian(&self) -> Address {
+        self.config.guardian.get()
     }
 
     pub fn set_oracle(&mut self, new_oracle: Address) -> Result<(), VaultError> {
@@ -851,15 +890,21 @@ impl TesseraVault {
 
 
     pub fn pause(&mut self) -> Result<(), VaultError> {
-        self.only_owner()?;
+        // Pause is the one INSTANT power, held by the owner (timelock) AND a
+        // guardian whose ONLY ability is to pause — safety fast. Unpause and every
+        // parameter change stay owner/timelock-gated — theft slow.
+        let sender = self.vm().msg_sender();
+        let guardian = self.config.guardian.get();
+        let allowed =
+            sender == self.config.owner.get() || (!guardian.is_zero() && sender == guardian);
+        if !allowed {
+            return Err(VaultError::NotOwner(NotOwner {}));
+        }
         if self.pause.paused.get() {
             return Ok(());
         }
         self.pause.paused.set(true);
-        self.vm().log(PausedSet {
-            by: self.vm().msg_sender(),
-            paused: true,
-        });
+        self.vm().log(PausedSet { by: sender, paused: true });
         Ok(())
     }
 

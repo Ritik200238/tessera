@@ -64,5 +64,9 @@ sol! {
     event OracleSet(address indexed old_oracle, address indexed new_oracle);
     event AgentSet(address indexed old_agent, address indexed new_agent);
     event OwnershipTransferred(address indexed previous_owner, address indexed new_owner);
+    /// Two-step transfer initiated: `new_owner` must call acceptOwnership to take over.
+    event OwnershipTransferStarted(address indexed previous_owner, address indexed new_owner);
+    /// Guardian (pause-only role) set/rotated.
+    event GuardianSet(address indexed guardian);
     event PausedSet(address indexed by, bool paused);
 }

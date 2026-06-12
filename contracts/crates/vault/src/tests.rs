@@ -84,11 +84,23 @@ fn initialize_rejects_zero_owner() {
 }
 
 #[test]
-fn transfer_ownership_changes_owner() {
+fn transfer_ownership_is_two_step() {
+    // Phase 3: ownership moves only after the pending owner accepts — no one-step
+    // handoff to a wrong/dead address.
     let vm = TestVM::default();
     let mut v = deploy(&vm);
     v.transfer_ownership(addr(0xAA)).unwrap();
+    // Step 1: owner unchanged; pending set.
+    assert_eq!(v.owner(), addr(OWNER));
+    assert_eq!(v.pending_owner(), addr(0xAA));
+    // Only the pending owner may accept.
+    vm.set_sender(addr(BOB));
+    assert!(matches!(v.accept_ownership().unwrap_err(), VaultError::NotOwner(_)));
+    // Step 2: pending owner accepts → ownership moves, pending clears.
+    vm.set_sender(addr(0xAA));
+    v.accept_ownership().unwrap();
     assert_eq!(v.owner(), addr(0xAA));
+    assert_eq!(v.pending_owner(), Address::ZERO);
 }
 
 #[test]
@@ -866,6 +878,55 @@ fn caps_and_min_debt_are_owner_only() {
         v.set_supply_cap(addr(TAAPL), U256::from(1u64)).unwrap_err(),
         VaultError::NotOwner(_)
     ));
+}
+
+// =============================================================================
+// 11d. Phase 3 — governance (two-step ownership, guardian pause-only)
+// =============================================================================
+
+#[test]
+fn guardian_can_pause_only() {
+    let vm = TestVM::default();
+    let mut v = deploy(&vm);
+    let guard = addr(0x99);
+    v.set_guardian(guard).unwrap();
+    assert_eq!(v.guardian(), guard);
+    // Guardian pauses (safety fast).
+    vm.set_sender(guard);
+    v.pause().unwrap();
+    assert!(v.paused());
+    // Guardian CANNOT unpause...
+    assert!(matches!(v.unpause().unwrap_err(), VaultError::NotOwner(_)));
+    // ...and CANNOT change parameters.
+    assert!(matches!(v.set_oracle(addr(0xAB)).unwrap_err(), VaultError::NotOwner(_)));
+    // Owner unpauses.
+    vm.set_sender(addr(OWNER));
+    v.unpause().unwrap();
+    assert!(!v.paused());
+}
+
+#[test]
+fn pause_rejects_non_owner_non_guardian() {
+    let vm = TestVM::default();
+    let mut v = deploy(&vm);
+    vm.set_sender(addr(ALICE));
+    assert!(matches!(v.pause().unwrap_err(), VaultError::NotOwner(_)));
+}
+
+#[test]
+fn set_guardian_is_owner_only() {
+    let vm = TestVM::default();
+    let mut v = deploy(&vm);
+    vm.set_sender(addr(ALICE));
+    assert!(matches!(v.set_guardian(addr(0x99)).unwrap_err(), VaultError::NotOwner(_)));
+}
+
+#[test]
+fn accept_ownership_rejects_without_pending() {
+    let vm = TestVM::default();
+    let mut v = deploy(&vm);
+    vm.set_sender(addr(0xAA));
+    assert!(matches!(v.accept_ownership().unwrap_err(), VaultError::NotOwner(_)));
 }
 
 // =============================================================================

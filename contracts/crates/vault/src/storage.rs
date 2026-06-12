@@ -94,6 +94,13 @@ pub struct Config {
     /// total protocol exposure. 0 = uncapped. (v1: a single global cap + per-asset
     /// supply caps; exact per-asset borrow attribution is a later refinement.)
     pub borrow_cap: StorageU256,
+    /// Pending owner for two-step ownership transfer (OZ Ownable2Step semantics).
+    /// Ownership only moves when this address calls `accept_ownership` — no
+    /// one-step, irreversible handoff to a wrong / dead address. Append-only.
+    pub pending_owner: StorageAddress,
+    /// Guardian: may ONLY `pause` (safety-fast). Cannot unpause or touch any
+    /// parameter. address(0) disables. Append-only.
+    pub guardian: StorageAddress,
 }
 
 #[storage]
