@@ -398,7 +398,16 @@ Each phase's *Definition of Done* = code + tests + deploy + UI/agent surfacing +
 - ✅ Depth-based bonus `interest_model::liquidation_bonus_bps(hf, base, max)`: per-asset bonus is the floor, ramps to 15% (`MAX_LIQ_BONUS_BPS`) by HF 0.90 — pure function of HF, no griefable mark tx, no extra storage. Wired into the vault's `liquidate`; `compute_liquidation` already caps seize at the collateral balance (closes finding N4). 4 property tests (floor ≥1.0, max ≤0.90, monotonic ramp, base≥max), **run locally** in interest-model (54+17 green) + on CI.
 - ⬜ UI (bonus curve on `/risk`) + e2e two-depth drill — at the batched deploy.
 
-### Phases 5–7 — ⬜ NOT STARTED (5 = PriceGuard oracle router; 6 = medium tier; 7 = low tier)
+### Phase 6 — Medium tier — ⏳ IN PROGRESS
+- ✅ **6.1 Rate ceiling:** `setRateParams` rejects base+slope1+slope2 > 300% APR. (commit `8d6d9eb`)
+- ✅ **6.2 Token defenses:** `deposit_collateral` credits the amount ACTUALLY received (`token::pull_measured` balance delta) — fee-on-transfer/non-standard RWA tokens can't inflate accounting. (commit `53cfad0`)
+- ✅ **6.5 Bank-run buffer:** a borrow may not push utilization > 95%. (commit `8d6d9eb`)
+- ✅ **6.3 / 6.7 / 6.8 Policy + methodology:** published `RISK-METHODOLOGY.md` — parameter-derivation model (gap distributions, 99th-pct target, volatility-scaled buffer), close-factor/auction/waterfall/caps rationale, corporate-actions policy (splits/dividends/halts/freeze), multi-collateral most-liquid-first ordering, and the timelocked governance process. Turns "we guessed" into "here's the model + the process."
+- ⬜ **6.4 Emergency settlement (global shutdown)** — timelock-only `initiateShutdown` end-state. Bigger contract item; pending.
+- ⬜ **6.6 Audit-grade math pass** — rounding map + per-path proptests; review item.
+
+### Phase 5 — PriceGuard oracle router — ⬜ NOT STARTED (the largest remaining piece; new contract)
+### Phase 7 — Low tier — ⬜ NOT STARTED (verified source [deploy], events/subgraph, NatSpec, gas)
 ### Deferred: Phase 2.2 constructor (atomic init) — ⬜ pending its careful pass.
 
 ---
