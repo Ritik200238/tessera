@@ -91,8 +91,13 @@ export function DepositForm({ tokens }: { tokens: CollateralToken[] }) {
   const needsApproval =
     parsedAmount > 0n && (allowance as bigint | undefined ?? 0n) < parsedAmount;
 
+  // Don't let a user approve/deposit more than they hold — otherwise the approve
+  // succeeds, the deposit reverts, and it reads as a broken flow.
+  const insufficient =
+    !wrongChain && parsedAmount > 0n && balance !== undefined && parsedAmount > (balance as bigint);
+
   const canSubmit =
-    isConnected && isVaultDeployed() && parsedAmount > 0n && !isPending && !isMining && !wrongChain;
+    isConnected && isVaultDeployed() && parsedAmount > 0n && !isPending && !isMining && !wrongChain && !insufficient;
 
   function approve() {
     if (!vault.address) return;
@@ -166,6 +171,11 @@ export function DepositForm({ tokens }: { tokens: CollateralToken[] }) {
                 ? `Switch to ${activeChainName} to see your balance.`
                 : `Balance: ${balance !== undefined ? formatToken(balance as bigint, token.decimals, { symbol: token.symbol }) : "—"}`}
             </p>
+            {insufficient ? (
+              <p className="text-xs font-medium text-[color:var(--color-watch-fg)]">
+                Not enough {token.symbol} in your wallet — use <strong>Get test funds</strong> above first.
+              </p>
+            ) : null}
           </div>
 
           {!isVaultDeployed() && (
