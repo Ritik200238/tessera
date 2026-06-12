@@ -403,12 +403,19 @@ Each phase's *Definition of Done* = code + tests + deploy + UI/agent surfacing +
 - ✅ **6.2 Token defenses:** `deposit_collateral` credits the amount ACTUALLY received (`token::pull_measured` balance delta) — fee-on-transfer/non-standard RWA tokens can't inflate accounting. (commit `53cfad0`)
 - ✅ **6.5 Bank-run buffer:** a borrow may not push utilization > 95%. (commit `8d6d9eb`)
 - ✅ **6.3 / 6.7 / 6.8 Policy + methodology:** published `RISK-METHODOLOGY.md` — parameter-derivation model (gap distributions, 99th-pct target, volatility-scaled buffer), close-factor/auction/waterfall/caps rationale, corporate-actions policy (splits/dividends/halts/freeze), multi-collateral most-liquid-first ordering, and the timelocked governance process. Turns "we guessed" into "here's the model + the process."
-- ⬜ **6.4 Emergency settlement (global shutdown)** — timelock-only `initiateShutdown` end-state. Bigger contract item; pending.
-- ⬜ **6.6 Audit-grade math pass** — rounding map + per-path proptests; review item.
+- ⏳ **6.6 Audit-grade math pass** — added property tests proving `compute_liquidation` **never seizes more than the collateral balance** (the N4 proof) and the Dutch-auction bonus stays bounded `[base,max]` and monotonic in depth (run locally, 56+ green). Remaining: a written rounding-direction map for every conversion (review item).
+- ⬜ **6.4 Emergency settlement (global shutdown)** — a timelock-only `initiateShutdown` end-state needs exit-path rewiring (during shutdown, exits must be ALLOWED while pause blocks them) — a substantial, careful contract change best coupled to the deploy. Design captured in RISK-METHODOLOGY §; pending.
 
-### Phase 5 — PriceGuard oracle router — ⬜ NOT STARTED (the largest remaining piece; new contract)
-### Phase 7 — Low tier — ⬜ NOT STARTED (verified source [deploy], events/subgraph, NatSpec, gas)
-### Deferred: Phase 2.2 constructor (atomic init) — ⬜ pending its careful pass.
+### Phase 5 — PriceGuard oracle router — ⬜ DESIGN COMPLETE, build coupled to deploy
+The largest remaining piece: a **separate** contract (per §2.2 — code size + evolvability). Full interface + behavior specced in §4 Phase 5 and RISK-METHODOLOGY §8. It must be built with the batched deploy because (a) it needs a `size-check` against the canonical-chain budget, (b) the vault's `oracle` pointer switch + deletion of the in-vault deviation/staleness logic is one rehearsed transition, and (c) the market-hours/TWAP/breaker state machine needs an integration test (the host `TestVM` can't drive a second contract). The vault already enforces staleness + a dual-oracle deviation guard today, so the protocol is not unguarded in the interim.
+
+### Phase 7 — Low tier — ⏳ PARTIAL
+- ✅ **Events**: every new state change emits a typed event (BadDebtAbsorbed, ReservesWithdrawn, GuardianSet, OwnershipTransferStarted, ParamUpdate on every setter).
+- ✅ **Docs**: extensive doc comments on every new entrypoint + the published RISK-METHODOLOGY.md (the NatSpec-grade intent).
+- ⬜ Verified/reproducible source on the explorers (`cargo stylus verify`) — **deploy-gated**. Subgraph schema + gas micro-pass — review/deploy items.
+
+### Deferred: Phase 2.2 constructor (atomic init) — ⬜ DEPLOY-COUPLED (verified rationale)
+The proper fix is a Stylus `#[constructor]` (atomic deploy+init, per `docs/stylus-sdk-rs`). **Verified against the docs:** constructors are exercised by *integration* tests against a node (`examples/constructor/tests/`), and the host `TestVM` has no constructor helper — so converting `initialize()` now would break all 80+ unit tests with no local way to verify. It is therefore done WITH the deploy (constructor + updated deploy scripts + an integration test, together). The interim front-run window is minimized by deploying+initializing back-to-back in one script.
 
 ---
 

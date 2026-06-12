@@ -10,8 +10,8 @@
 //! its minimal form).
 
 use crate::{
-    accrue_index, borrow_rate_bps, current_debt, health_factor, supply_rate_bps, utilization_bps,
-    wad_u256, BPS_DENOM,
+    accrue_index, borrow_rate_bps, compute_liquidation, current_debt, health_factor,
+    liquidation_bonus_bps, supply_rate_bps, utilization_bps, wad_u256, BPS_DENOM, WAD,
 };
 use alloy_primitives::U256;
 use proptest::prelude::*;
@@ -124,5 +124,39 @@ proptest! {
         let current_index = user_index + U256::from(growth) * U256::from(1_000_000_000_000u64);
         let debt = current_debt(U256::from(principal), current_index, user_index);
         prop_assert!(debt >= U256::from(principal), "debt fell below principal as the index grew");
+    }
+
+    // ---- liquidation: seize never exceeds collateral balance (proof of N4) --
+    #[test]
+    fn liquidation_never_seizes_more_than_balance(
+        debt in 1u128..=MAX_AMT,
+        requested in 0u128..=MAX_AMT,
+        bal in 0u128..=1_000_000_000_000_000_000_000u128,
+        price in 1u128..=1_000_000_000_000u128,
+        cf in 0u32..=20_000u32,
+        bonus in 0u32..=5_000u32,
+    ) {
+        let res = compute_liquidation(
+            U256::from(debt), U256::from(requested), U256::from(bal),
+            18, U256::from(price), cf, bonus,
+        );
+        prop_assert!(res.seize_collateral <= U256::from(bal),
+            "seized {} > balance {}", res.seize_collateral, bal);
+    }
+
+    // ---- liquidation bonus: bounded in [base, max], monotonic in depth ------
+    #[test]
+    fn bonus_within_bounds_and_monotonic(
+        hf_num in 0u128..=2_000u128, base in 0u32..=2_000u32, extra in 0u32..=2_000u32,
+    ) {
+        let max = base + extra; // max >= base
+        let hf = U256::from(WAD) * U256::from(hf_num) / U256::from(1_000u128); // hf in [0, 2.0]
+        let b = liquidation_bonus_bps(hf, base, max);
+        prop_assert!(b >= base && b <= max, "bonus {b} out of [{base},{max}]");
+        // Deeper underwater (lower hf) never pays a smaller bonus.
+        if hf_num > 0 {
+            let deeper = U256::from(WAD) * U256::from(hf_num - 1) / U256::from(1_000u128);
+            prop_assert!(liquidation_bonus_bps(deeper, base, max) >= b, "bonus fell as hf fell");
+        }
     }
 }
