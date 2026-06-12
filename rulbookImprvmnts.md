@@ -389,8 +389,17 @@ Each phase's *Definition of Done* = code + tests + deploy + UI/agent surfacing +
 - ⬜ **CI green confirmation** for the Phase 2 commit.
 - ⬜ **DEPLOY GATE** (shared with Phase 1): UI surfacing of caps/min-debt on `/risk` + backstop state on `/status`; e2e drills (paused-deposit, dust-borrow, cap-exceeded, decimals-relist) — all at the batched redeploy.
 
-### Phase 3 — Governance (timelock + guardian + two-step ownership) — ⬜ NOT STARTED
-### Phases 4–7 — ⬜ NOT STARTED
+### Phase 3 — Governance — ⏳ vault side done (CI-green), Timelock deploy batched
+- ✅ **Two-step ownership** (OZ Ownable2Step): `transferOwnership` sets a pending owner; ownership moves only when that address calls `acceptOwnership`. `pendingOwner` view. (commit `b0cdf9b`)
+- ✅ **Guardian (pause-only)**: `pause` callable by owner OR guardian; unpause + all params stay owner/timelock-gated. `setGuardian` + `guardian` view + events. Tests green on CI.
+- ⬜ **OZ `TimelockController` deploy** (Foundry) + **ownership handoff** to it + `/security` pending-changes panel — at the batched deploy (the timelock becomes the `owner`, so every existing only_owner setter is auto-gated by the 24h delay).
+
+### Phase 4 — Dutch-auction liquidation — ✅ DONE (contract + tests CI-green)
+- ✅ Depth-based bonus `interest_model::liquidation_bonus_bps(hf, base, max)`: per-asset bonus is the floor, ramps to 15% (`MAX_LIQ_BONUS_BPS`) by HF 0.90 — pure function of HF, no griefable mark tx, no extra storage. Wired into the vault's `liquidate`; `compute_liquidation` already caps seize at the collateral balance (closes finding N4). 4 property tests (floor ≥1.0, max ≤0.90, monotonic ramp, base≥max), **run locally** in interest-model (54+17 green) + on CI.
+- ⬜ UI (bonus curve on `/risk`) + e2e two-depth drill — at the batched deploy.
+
+### Phases 5–7 — ⬜ NOT STARTED (5 = PriceGuard oracle router; 6 = medium tier; 7 = low tier)
+### Deferred: Phase 2.2 constructor (atomic init) — ⬜ pending its careful pass.
 
 ---
 

@@ -26,7 +26,7 @@ mod proptests;
 
 pub use health::{collateral_value_usd_8, health_factor, CollateralLeg};
 pub use index::{accrue_index, current_debt};
-pub use liquidate::{compute_liquidation, LiquidationResult};
+pub use liquidate::{compute_liquidation, liquidation_bonus_bps, LiquidationResult};
 pub use rate::{borrow_rate_bps, supply_rate_bps};
 pub use utilization::utilization_bps;
 

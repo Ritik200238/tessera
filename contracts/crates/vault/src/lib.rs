@@ -38,6 +38,12 @@ use interest_model::{
 };
 use stylus_sdk::prelude::*;
 
+/// Ceiling for the depth-based Dutch-auction liquidation bonus (Phase 4). The
+/// per-asset `liq_bonus_bps` is the floor; the effective bonus ramps up to this
+/// as a position sinks toward HF 0.90. 15% covers thin-market slippage on
+/// tokenized equities without being predatory.
+const MAX_LIQ_BONUS_BPS: u32 = 1_500;
+
 pub mod errors;
 pub mod events;
 pub mod interest;
@@ -1438,7 +1444,11 @@ impl TesseraVault {
             }
             let params = self.config.asset_whitelist.get(collateral_token);
             let coll_decimals = u32::from(params.decimals.get().to::<u8>());
-            let bonus = u32::from(params.liq_bonus_bps.get().to::<u16>());
+            let base_bonus = u32::from(params.liq_bonus_bps.get().to::<u16>());
+            // Depth-based Dutch-auction bonus (Phase 4): the per-asset bonus is the
+            // floor; it ramps toward MAX_LIQ_BONUS_BPS as HF falls to 0.90, so even
+            // thin-market collateral becomes profitable to liquidate eventually.
+            let bonus = interest_model::liquidation_bonus_bps(hf, base_bonus, MAX_LIQ_BONUS_BPS);
             // Full-close path: a deeply underwater position (HF < 0.95) is not
             // viable — permit a 100% close so an honest liquidator can wind it
             // down in one shot (seize all collateral; any residual is absorbed by

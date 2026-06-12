@@ -134,6 +134,42 @@ pub fn compute_liquidation(
     }
 }
 
+/// Depth-based Dutch-auction liquidation bonus (Phase 4 — rulbookImprvmnts.md).
+///
+/// The flat per-asset bonus is the FLOOR; the effective bonus ramps linearly up
+/// to `max_bonus_bps` the deeper a position is underwater, reaching the max at
+/// health factor 0.90. This makes even thin-market collateral eventually
+/// profitable to liquidate — and it needs no griefable "mark underwater"
+/// transaction or extra storage: the bonus is a pure function of the HF the
+/// vault already reads at liquidation time.
+///
+/// `hf` is WAD-scaled (1e18 == 1.0). At `hf >= 1.0` (we never liquidate healthy
+/// positions) or `base >= max`, the floor is returned unchanged. Monotonic
+/// non-decreasing as `hf` falls; always within `[base_bonus_bps, max_bonus_bps]`.
+#[must_use]
+pub fn liquidation_bonus_bps(hf: U256, base_bonus_bps: u32, max_bonus_bps: u32) -> u32 {
+    if base_bonus_bps >= max_bonus_bps {
+        return base_bonus_bps;
+    }
+    let wad = U256::from(crate::WAD);
+    if hf >= wad {
+        return base_bonus_bps;
+    }
+    let depth = wad - hf; // in (0, wad]
+    // Reach the max at depth == 10% of WAD (HF == 0.90).
+    let full_depth = wad / U256::from(10u64);
+    if depth >= full_depth {
+        return max_bonus_bps;
+    }
+    let span = U256::from(u64::from(max_bonus_bps - base_bonus_bps));
+    let extra = span
+        .saturating_mul(depth)
+        .checked_div(full_depth)
+        .unwrap_or(U256::ZERO)
+        .to::<u64>() as u32;
+    base_bonus_bps + extra
+}
+
 #[inline]
 fn pow10(n: u32) -> U256 {
     let mut acc = U256::from(1u64);
@@ -257,5 +293,44 @@ mod tests {
         assert_eq!(res.seize_collateral, stock(1));
         // repay is NOT clamped — bad-debt accounting handled by vault.
         assert_eq!(res.repay_usdc, usdc(5_000));
+    }
+
+    // ----- Phase 4: depth-based Dutch-auction bonus -----
+
+    fn wad_hf(numer: u128, denom: u128) -> U256 {
+        U256::from(crate::WAD) * U256::from(numer) / U256::from(denom)
+    }
+
+    #[test]
+    fn bonus_is_floor_at_or_above_one() {
+        assert_eq!(liquidation_bonus_bps(U256::from(crate::WAD), 500, 1500), 500);
+        assert_eq!(
+            liquidation_bonus_bps(U256::from(crate::WAD) * U256::from(2u64), 500, 1500),
+            500
+        );
+    }
+
+    #[test]
+    fn bonus_maxes_at_or_below_ninety_percent_hf() {
+        assert_eq!(liquidation_bonus_bps(wad_hf(90, 100), 500, 1500), 1500);
+        assert_eq!(liquidation_bonus_bps(wad_hf(80, 100), 500, 1500), 1500);
+        assert_eq!(liquidation_bonus_bps(U256::ZERO, 500, 1500), 1500);
+    }
+
+    #[test]
+    fn bonus_ramps_and_is_monotonic() {
+        // Halfway into the 1.0 -> 0.90 ramp pays strictly between floor and max.
+        let mid = liquidation_bonus_bps(wad_hf(95, 100), 500, 1500);
+        assert!(mid > 500 && mid < 1500, "mid={mid}");
+        // Deeper underwater never pays less, never below the floor.
+        let shallow = liquidation_bonus_bps(wad_hf(99, 100), 500, 1500);
+        let deep = liquidation_bonus_bps(wad_hf(92, 100), 500, 1500);
+        assert!(deep >= shallow && shallow >= 500);
+    }
+
+    #[test]
+    fn bonus_returns_floor_when_base_ge_max() {
+        assert_eq!(liquidation_bonus_bps(U256::ZERO, 1500, 1500), 1500);
+        assert_eq!(liquidation_bonus_bps(wad_hf(50, 100), 2000, 1500), 2000);
     }
 }
