@@ -41,7 +41,15 @@ sol! {
         uint256 seize_amount
     );
     /// Emitted when a user's collateral is exhausted but principal > 0.
+    /// (Retained for ABI stability; the waterfall now emits BadDebtAbsorbed.)
     event BadDebtRealized(address indexed user, uint256 residual);
+    /// Insolvency waterfall: an underwater position was wound down. `covered`
+    /// was absorbed by the protocol reserve (no lender impact); `socialized` was
+    /// charged to lender share price (reserve exhausted). Always one visible
+    /// event — never a silent share-price poison.
+    event BadDebtAbsorbed(address indexed borrower, uint256 covered, uint256 socialized);
+    /// Protocol reserve withdrawn to the treasury `to`.
+    event ReservesWithdrawn(address indexed to, uint256 amount);
 
     // ===== Accrual / config =====
     event AccrueInterest(uint256 dt_seconds, uint256 borrow_rate_bps, uint256 new_index);

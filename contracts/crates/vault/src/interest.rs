@@ -104,11 +104,32 @@ pub fn roll_index(
     let rate = current_borrow_rate(interest, lending);
     let new_idx = accrue_index(idx, rate, dt);
 
-    // NOTE: the reserve-factor skim (divert `reserve_factor_bps` of accrued
-    // interest into `reserve_assets`) is a pre-mainnet gate, intentionally not run
-    // here. On testnet `reserve_factor_bps == 0`, so it would be a no-op anyway; it
-    // is re-added in the audited mainnet build. The `reserve_assets` storage and
-    // the `total_assets` exclusion are already wired for it.
+    // Reserve-factor skim: divert `reserve_factor_bps` of the interest accrued
+    // this roll into the protocol reserve (first-loss capital + revenue). The
+    // borrower still owes the FULL interest (priced into `new_idx`); the reserve
+    // captures its cut, and lenders receive the remaining (1 - rf) via the share
+    // price (`total_assets` excludes `reserve_assets`). Rounds DOWN at each step
+    // so any dust accrues to the lenders' pool, never to the reserve.
+    let rf = u64::from(interest.reserve_factor_bps.get().to::<u16>());
+    if rf > 0 && new_idx > idx {
+        let scaled = lending.scaled_total_principal.get();
+        if !scaled.is_zero() {
+            // interest accrued = scaled_total_principal * (new_idx - idx) / WAD
+            let interest_delta = scaled
+                .saturating_mul(new_idx - idx)
+                .checked_div(U256::from(WAD))
+                .unwrap_or(U256::ZERO);
+            let skim = interest_delta
+                .saturating_mul(U256::from(rf))
+                .checked_div(U256::from(10_000u64))
+                .unwrap_or(U256::ZERO);
+            if !skim.is_zero() {
+                let r = lending.reserve_assets.get();
+                lending.reserve_assets.set(r.saturating_add(skim));
+            }
+        }
+    }
+
     interest.borrow_index.set(new_idx);
     interest.last_accrual_ts.set(U64::from(now_ts));
     (dt, rate, new_idx)

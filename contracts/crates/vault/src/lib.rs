@@ -466,12 +466,12 @@ impl TesseraVault {
         self.interest.slope1_bps.set(alloy_primitives::U16::from(400u16));
         self.interest.slope2_bps.set(alloy_primitives::U16::from(6_000u16));
         self.interest.optimal_util_bps.set(alloy_primitives::U16::from(8_000u16));
-        // Reserve factor stays 0 on testnet by design: it MUST ship together with the
-        // reserve-factor skim (deferred to the audited mainnet build for the 24KB code
-        // limit). With no skim, a non-zero factor would only make the lender supply-rate
-        // view understate what lenders actually earn. The blueprint's 15% activates with
-        // the skim at mainnet (owner sets it via setRateParams once the skim is live).
-        self.interest.reserve_factor_bps.set(alloy_primitives::U16::from(0u16));
+        // Reserve factor = 15% (the blueprint's number, now real in code). The
+        // skim runs in `interest::roll_index`, diverting 15% of accrued interest
+        // into the on-chain reserve (first-loss capital + protocol revenue);
+        // lenders earn the other 85% via the share price. Adjustable via the
+        // (timelocked, Phase 3) `setRateParams`, bounded <= 25%.
+        self.interest.reserve_factor_bps.set(alloy_primitives::U16::from(1_500u16));
         self.interest.borrow_index.set(U256::from(WAD));
         self.interest.last_accrual_ts.set(U64::from(self.vm().block_timestamp()));
         self.vm().log(OwnershipTransferred {
@@ -576,6 +576,42 @@ impl TesseraVault {
         Ok(())
     }
 
+    /// Owner (timelock at mainnet): move accrued protocol reserve to the treasury
+    /// `to`. The reserve is the protocol's cut of interest and the first-loss
+    /// buffer; withdrawing it does NOT change lender share price (already excluded
+    /// from `total_assets`) but is bounded by both the reserve balance and the
+    /// idle USDC available, so it can never tap lender liquidity.
+    #[selector(name = "withdrawReserves")]
+    pub fn withdraw_reserves(&mut self, to: Address, amount: U256) -> Result<(), VaultError> {
+        self.lock_reentrancy()?;
+        let r = (|| -> Result<(), VaultError> {
+            self.only_owner()?;
+            if to.is_zero() {
+                return Err(VaultError::ZeroAddress(ZeroAddress {}));
+            }
+            if amount.is_zero() {
+                return Err(VaultError::ZeroAmount(ZeroAmount {}));
+            }
+            let reserve = self.lending.reserve_assets.get();
+            if amount > reserve {
+                return Err(VaultError::InsufficientBalance(InsufficientBalance {}));
+            }
+            let idle = self.lending.idle_assets.get();
+            if amount > idle {
+                return Err(VaultError::InsufficientLiquidity(InsufficientLiquidity {}));
+            }
+            // Effects before interaction.
+            self.lending.reserve_assets.set(reserve - amount);
+            self.lending.idle_assets.set(idle - amount);
+            let usdc = self.config.usdc.get();
+            self::token::push(self, usdc, to, amount)?;
+            self.vm().log(ReservesWithdrawn { to, amount });
+            Ok(())
+        })();
+        self.unlock_reentrancy();
+        r
+    }
+
     pub fn set_rate_params(
         &mut self,
         base: u16,
@@ -585,7 +621,9 @@ impl TesseraVault {
         reserve_factor: u16,
     ) -> Result<(), VaultError> {
         self.only_owner()?;
-        if optimal == 0 || optimal > 10_000 || reserve_factor > 10_000 {
+        // Reserve factor capped at 25% — even a (timelocked) misconfig can't
+        // starve lenders of most of the interest they're owed.
+        if optimal == 0 || optimal > 10_000 || reserve_factor > 2_500 {
             return Err(VaultError::InvalidParameter(InvalidParameter {}));
         }
         // Accrue under the old curve before installing the new one.
@@ -1266,7 +1304,18 @@ impl TesseraVault {
             let params = self.config.asset_whitelist.get(collateral_token);
             let coll_decimals = u32::from(params.decimals.get().to::<u8>());
             let bonus = u32::from(params.liq_bonus_bps.get().to::<u16>());
-            let cf = u32::from(self.config.close_factor_bps.get().to::<u16>());
+            // Full-close path: a deeply underwater position (HF < 0.95) is not
+            // viable — permit a 100% close so an honest liquidator can wind it
+            // down in one shot (seize all collateral; any residual is absorbed by
+            // the waterfall below), instead of the 50% close-factor leaving bad
+            // debt frozen and unliquidatable. The post-state guard still blocks a
+            // skim-and-leave (it requires new_debt == 0 OR new_coll == 0).
+            let full_close_hf = U256::from(WAD).saturating_mul(U256::from(95u64)) / U256::from(100u64);
+            let cf = if hf < full_close_hf {
+                10_000u32
+            } else {
+                u32::from(self.config.close_factor_bps.get().to::<u16>())
+            };
             let price = self.oracle_price(collateral_token)?;
 
             let res =
@@ -1306,6 +1355,41 @@ impl TesseraVault {
                 return Err(VaultError::HealthFactorTooLow(HealthFactorTooLow {}));
             }
 
+            // Insolvency waterfall (effects, before interactions): if this
+            // liquidation exhausted the borrower's LAST collateral while debt
+            // remains, the position is bad debt. Wind it down atomically — the
+            // reserve absorbs first, only the uncovered remainder socializes to
+            // lenders, and it is always visible in one BadDebtAbsorbed event.
+            // Never a silent share-price poison; never a frozen, unliquidatable
+            // position.
+            if new_coll.is_zero() && new_debt > U256::ZERO {
+                let coll_8 = self.collateral_legs(borrower)?;
+                if coll_8.is_zero() {
+                    let reserve = self.lending.reserve_assets.get();
+                    let covered = if new_debt > reserve { reserve } else { new_debt };
+                    let socialized = new_debt - covered;
+                    self.lending.reserve_assets.set(reserve - covered);
+                    if !socialized.is_zero() {
+                        self.lending
+                            .bad_debt
+                            .set(self.lending.bad_debt.get().saturating_add(socialized));
+                    }
+                    // Wipe the residual debt: principal -> 0. total_debt falls by
+                    // `new_debt`; reserve falls by `covered`; so lender-facing
+                    // total_assets falls by exactly `socialized` (new_debt - covered).
+                    self.debt.principal.setter(borrower).set(U256::ZERO);
+                    self.lending
+                        .total_principal
+                        .set(self.lending.total_principal.get().saturating_sub(new_debt));
+                    self.apply_scaled_debt(new_debt, idx, U256::ZERO, idx);
+                    self.vm().log(BadDebtAbsorbed {
+                        borrower,
+                        covered,
+                        socialized,
+                    });
+                }
+            }
+
             // Interactions: pull repay USDC from liquidator, push collateral to liquidator.
             let usdc = self.config.usdc.get();
             let liquidator = self.vm().msg_sender();
@@ -1319,18 +1403,6 @@ impl TesseraVault {
                 repay_amount: res.repay_usdc,
                 seize_amount: res.seize_collateral,
             });
-
-            // Bad debt detection: if collateral exhausted across *all* assets
-            // and principal > 0 → emit BadDebtRealized for off-chain attention.
-            if new_coll.is_zero() && new_debt > U256::ZERO {
-                let coll_8 = self.collateral_legs(borrower)?;
-                if coll_8.is_zero() {
-                    self.vm().log(BadDebtRealized {
-                        user: borrower,
-                        residual: new_debt,
-                    });
-                }
-            }
 
             Ok(res.seize_collateral)
         })();
@@ -1411,6 +1483,19 @@ impl TesseraVault {
     #[selector(name = "idleAssets")]
     pub fn idle_assets(&self) -> U256 {
         self.lending.idle_assets.get()
+    }
+
+    /// Accrued protocol reserve (USDC, 6dp) — first-loss capital + revenue.
+    #[selector(name = "reserves")]
+    pub fn reserves(&self) -> U256 {
+        self.lending.reserve_assets.get()
+    }
+
+    /// Lifetime bad debt socialized to lenders (USDC, 6dp) after the reserve was
+    /// exhausted. 0 = the reserve has covered every loss so far.
+    #[selector(name = "badDebt")]
+    pub fn bad_debt(&self) -> U256 {
+        self.lending.bad_debt.get()
     }
 
     #[selector(name = "assetParams")]

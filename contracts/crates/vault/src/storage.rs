@@ -102,8 +102,14 @@ pub struct LendingPool {
     /// that over-counted accrued interest and inflated lender share price.
     pub scaled_total_principal: StorageU256,
     /// Protocol reserve (USDC, 6dp) accrued from the reserve factor. Excluded
-    /// from `total_assets` so it never accrues to lenders.
+    /// from `total_assets` so it never accrues to lenders. First-loss capital:
+    /// the insolvency waterfall draws this down before any loss touches lenders.
     pub reserve_assets: StorageU256,
+    /// Lifetime bad debt socialized to lenders (USDC, 6dp) — the residue the
+    /// reserve could NOT cover when an underwater position was wound down. A
+    /// transparency counter; the share-price impact happens atomically at
+    /// absorption time in `liquidate`. Append-only.
+    pub bad_debt: StorageU256,
 }
 
 #[storage]

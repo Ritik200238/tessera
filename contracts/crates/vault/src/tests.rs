@@ -673,6 +673,122 @@ fn interest_current_index_module_helper() {
 }
 
 // =============================================================================
+// 11b. Phase 1 — reserve skim, reserve accounting, insolvency-waterfall plumbing
+// =============================================================================
+
+#[test]
+fn reserve_factor_defaults_to_fifteen_percent() {
+    // The blueprint's 15% is now real in code (was 0). We verify it through the
+    // supply-rate view: with the skim live, the lender rate is strictly below
+    // the borrow rate by the reserve cut once there's utilization.
+    let vm = TestVM::default();
+    let mut v = deploy(&vm);
+    // Create utilization so borrow rate > 0: 1000 borrowed against 1000 idle+debt.
+    v.lending.total_principal.set(U256::from(1_000_000_000u64));
+    v.lending.idle_assets.set(U256::from(0u64));
+    let br = v.borrow_rate_bps();
+    let sr = v.supply_rate_bps();
+    assert!(br > 0, "100% utilization should price a non-zero borrow rate");
+    // supply = borrow * util * (1 - reserve_factor); with rf=15% and util=100%,
+    // supply must be strictly less than borrow.
+    assert!(sr < br, "reserve factor must skim part of interest from lenders");
+}
+
+#[test]
+fn reserve_skim_diverts_reserve_factor_of_interest() {
+    let vm = TestVM::default();
+    let mut v = deploy(&vm);
+    // Seed an active debt position at the index level: 1000 USDC scaled @ 1.0.
+    let principal = U256::from(1_000_000_000u64); // 1000e6
+    v.interest.borrow_index.set(U256::from(interest_model::WAD));
+    v.interest.last_accrual_ts.set(U64::from(1_000_000u64));
+    v.lending.scaled_total_principal.set(principal);
+    v.lending.total_principal.set(principal); // drives non-zero utilization/rate
+    assert_eq!(v.reserves(), U256::ZERO);
+
+    // Roll the index forward one year.
+    let now = 1_000_000u64 + 365 * 24 * 3600;
+    let (_dt, _rate, new_idx) = interest::roll_index(&mut v.interest, &mut v.lending, now);
+
+    // Reserve must equal EXACTLY 15% of the interest accrued on the scaled debt,
+    // rounded down (lenders' pool keeps the dust).
+    let wad = U256::from(interest_model::WAD);
+    let interest_delta = principal * (new_idx - wad) / wad;
+    let expected = interest_delta * U256::from(1_500u64) / U256::from(10_000u64);
+    assert!(expected > U256::ZERO, "a year of interest should skim > 0");
+    assert_eq!(v.reserves(), expected);
+}
+
+#[test]
+fn reserve_skim_is_noop_without_debt() {
+    let vm = TestVM::default();
+    let mut v = deploy(&vm);
+    v.interest.borrow_index.set(U256::from(interest_model::WAD));
+    v.interest.last_accrual_ts.set(U64::from(1_000_000u64));
+    // No scaled debt → no interest → no skim.
+    let now = 1_000_000u64 + 365 * 24 * 3600;
+    let _ = interest::roll_index(&mut v.interest, &mut v.lending, now);
+    assert_eq!(v.reserves(), U256::ZERO);
+}
+
+#[test]
+fn reserves_and_bad_debt_zero_at_deploy() {
+    let vm = TestVM::default();
+    let v = deploy(&vm);
+    assert_eq!(v.reserves(), U256::ZERO);
+    assert_eq!(v.bad_debt(), U256::ZERO);
+}
+
+#[test]
+fn withdraw_reserves_only_owner() {
+    let vm = TestVM::default();
+    let mut v = deploy(&vm);
+    vm.set_sender(addr(ALICE));
+    assert!(matches!(
+        v.withdraw_reserves(addr(ALICE), U256::from(1u64)).unwrap_err(),
+        VaultError::NotOwner(_)
+    ));
+}
+
+#[test]
+fn withdraw_reserves_validates_inputs_and_balance() {
+    let vm = TestVM::default();
+    let mut v = deploy(&vm);
+    assert!(matches!(
+        v.withdraw_reserves(Address::ZERO, U256::from(1u64)).unwrap_err(),
+        VaultError::ZeroAddress(_)
+    ));
+    assert!(matches!(
+        v.withdraw_reserves(addr(0xAB), U256::ZERO).unwrap_err(),
+        VaultError::ZeroAmount(_)
+    ));
+    // Reserve is 0 at deploy → any positive amount exceeds it.
+    assert!(matches!(
+        v.withdraw_reserves(addr(0xAB), U256::from(1u64)).unwrap_err(),
+        VaultError::InsufficientBalance(_)
+    ));
+    // With reserve funded but no idle liquidity, it's bounded by idle.
+    v.lending.reserve_assets.set(U256::from(100u64));
+    assert!(matches!(
+        v.withdraw_reserves(addr(0xAB), U256::from(50u64)).unwrap_err(),
+        VaultError::InsufficientLiquidity(_)
+    ));
+}
+
+#[test]
+fn set_rate_params_caps_reserve_factor_at_25_percent() {
+    let vm = TestVM::default();
+    let mut v = deploy(&vm);
+    // 2501 bps (25.01%) rejected.
+    assert!(matches!(
+        v.set_rate_params(200, 400, 6_000, 8_000, 2_501).unwrap_err(),
+        VaultError::InvalidParameter(_)
+    ));
+    // 2500 bps (25%) accepted.
+    v.set_rate_params(200, 400, 6_000, 8_000, 2_500).unwrap();
+}
+
+// =============================================================================
 // 12. Pause gate covers withdraw/withdraw_collateral/mint/deposit
 // =============================================================================
 
