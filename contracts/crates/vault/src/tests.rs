@@ -868,6 +868,19 @@ fn caps_setters_and_views() {
 }
 
 #[test]
+fn set_rate_params_caps_max_borrow_rate() {
+    let vm = TestVM::default();
+    let mut v = deploy(&vm);
+    // base+slope1+slope2 = 35000 bps > 30000 ceiling → rejected.
+    assert!(matches!(
+        v.set_rate_params(10_000, 10_000, 15_000, 8_000, 1_000).unwrap_err(),
+        VaultError::InvalidParameter(_)
+    ));
+    // = 30000 (the ceiling) → accepted.
+    v.set_rate_params(10_000, 10_000, 10_000, 8_000, 1_000).unwrap();
+}
+
+#[test]
 fn caps_and_min_debt_are_owner_only() {
     let vm = TestVM::default();
     let mut v = deploy(&vm);

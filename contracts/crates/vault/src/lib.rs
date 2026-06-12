@@ -44,6 +44,15 @@ use stylus_sdk::prelude::*;
 /// tokenized equities without being predatory.
 const MAX_LIQ_BONUS_BPS: u32 = 1_500;
 
+/// Hard ceiling on the max borrow APR (base + slope1 + slope2, reached at 100%
+/// utilization). 300% — even a timelocked misconfig can't produce an absurd,
+/// position-destroying rate. (Phase 6.1)
+const MAX_BORROW_RATE_BPS: u32 = 30_000;
+
+/// Bank-run buffer (Phase 6.5): a borrow may not push utilization above this, so
+/// a withdrawal buffer of idle USDC always remains for lenders. 9500 = 95%.
+const MAX_UTIL_BPS: u64 = 9_500;
+
 pub mod errors;
 pub mod events;
 pub mod interest;
@@ -715,6 +724,11 @@ impl TesseraVault {
         if optimal == 0 || optimal > 10_000 || reserve_factor > 2_500 {
             return Err(VaultError::InvalidParameter(InvalidParameter {}));
         }
+        // Rate ceiling (Phase 6.1): the max borrow APR (at 100% utilization) is
+        // base + slope1 + slope2 — cap it so no misconfig can produce an absurd rate.
+        if u32::from(base) + u32::from(slope1) + u32::from(slope2) > MAX_BORROW_RATE_BPS {
+            return Err(VaultError::InvalidParameter(InvalidParameter {}));
+        }
         // Accrue under the old curve before installing the new one.
         self.accrue();
         self.interest.base_rate_bps.set(alloy_primitives::U16::from(base));
@@ -1318,6 +1332,16 @@ impl TesseraVault {
             let borrow_cap = self.config.borrow_cap.get();
             if !borrow_cap.is_zero() && total_after > borrow_cap {
                 return Err(VaultError::InvalidParameter(InvalidParameter {}));
+            }
+            // Bank-run buffer (Phase 6.5): the borrow may not push utilization past
+            // MAX_UTIL_BPS, keeping an idle buffer for lender withdrawals.
+            let idle_after = idle.saturating_sub(amount);
+            let deposits_after = total_after.saturating_add(idle_after);
+            if !deposits_after.is_zero() {
+                let util = total_after.saturating_mul(U256::from(10_000u64)) / deposits_after;
+                if util > U256::from(MAX_UTIL_BPS) {
+                    return Err(VaultError::InsufficientLiquidity(InsufficientLiquidity {}));
+                }
             }
 
             self.debt.principal.setter(user).set(new_principal);
