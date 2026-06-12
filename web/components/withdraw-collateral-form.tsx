@@ -10,6 +10,7 @@ import {
 } from "wagmi";
 import { useQueryClient } from "@tanstack/react-query";
 import { vault, isVaultDeployed } from "@/lib/contracts";
+import { useChainGuard } from "@/lib/use-chain-guard";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -26,6 +27,7 @@ interface CollateralToken {
  *  health below the safe threshold — that revert is decoded into plain English. */
 export function WithdrawCollateralForm({ tokens }: { tokens: CollateralToken[] }) {
   const { address, isConnected } = useAccount();
+  const { writeChainId } = useChainGuard();
   const queryClient = useQueryClient();
   const [tokenIdx, setTokenIdx] = useState(0);
   const [amount, setAmount] = useState("");
@@ -59,7 +61,7 @@ export function WithdrawCollateralForm({ tokens }: { tokens: CollateralToken[] }
     if (!vaultAddr || !token) return;
     reset();
     writeContract(
-      { address: vaultAddr, abi: vault.abi, functionName: "withdrawCollateral", args: [token.address as Address, parsed] },
+      { chainId: writeChainId, address: vaultAddr, abi: vault.abi, functionName: "withdrawCollateral", args: [token.address as Address, parsed] },
       { onSuccess: () => setTimeout(() => void queryClient.invalidateQueries(), 2500) },
     );
   }

@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
+import { useChainGuard } from "@/lib/use-chain-guard";
 import { erc20Abi, formatUnits } from "viem";
 import { vault } from "@/lib/contracts";
 import { addresses } from "@/lib/addresses";
@@ -16,6 +17,7 @@ import { Button } from "@/components/ui/button";
  */
 export function ApprovalsPanel() {
   const { address, isConnected } = useAccount();
+  const { writeChainId } = useChainGuard();
   const usdc = addresses.usdc;
   const { data: allowance, refetch } = useReadContract({
     address: usdc ?? undefined,
@@ -37,7 +39,7 @@ export function ApprovalsPanel() {
   function revoke() {
     if (!usdc || !vault.address) return;
     reset();
-    writeContract({ address: usdc, abi: erc20Abi, functionName: "approve", args: [vault.address, 0n] });
+    writeContract({ chainId: writeChainId, address: usdc, abi: erc20Abi, functionName: "approve", args: [vault.address, 0n] });
   }
 
   return (

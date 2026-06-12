@@ -13,6 +13,7 @@ import { Droplets, Check } from "lucide-react";
 import { faucet, isFaucetAvailable } from "@/lib/contracts";
 import { Button } from "@/components/ui/button";
 import { decodeTxError } from "@/lib/errors";
+import { useChainGuard } from "@/lib/use-chain-guard";
 import { ConnectButton } from "./connect-button";
 
 /**
@@ -29,6 +30,7 @@ export function FaucetButton({
   className?: string;
 }) {
   const { address, isConnected } = useAccount();
+  const { wrongChain, writeChainId, activeChainName, isSwitching, switchToActive } = useChainGuard();
   const queryClient = useQueryClient();
   const [done, setDone] = useState(false);
 
@@ -59,7 +61,7 @@ export function FaucetButton({
     reset();
     setDone(false);
     writeContract(
-      { address: faucet.address as Address, abi: faucet.abi, functionName: "drip" },
+      { chainId: writeChainId, address: faucet.address as Address, abi: faucet.abi, functionName: "drip" },
       {
         onSuccess: () => {
           // Refresh every cached read (balances, allowances, positions) once mined.
@@ -74,6 +76,19 @@ export function FaucetButton({
 
   if (!isConnected) {
     return <ConnectButton />;
+  }
+
+  if (wrongChain) {
+    return (
+      <div className={className}>
+        <Button type="button" variant={variant} onClick={switchToActive} disabled={isSwitching}>
+          {isSwitching ? "Switching…" : `Switch to ${activeChainName}`}
+        </Button>
+        <p className="mt-1.5 text-xs text-[color:var(--color-muted-foreground)]">
+          Your wallet is on the wrong network — switch to {activeChainName} to get test funds.
+        </p>
+      </div>
+    );
   }
 
   return (

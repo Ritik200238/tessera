@@ -14,6 +14,7 @@ import { vault, isVaultDeployed } from "@/lib/contracts";
 import { formatBps, formatToken } from "@/lib/format";
 import { decodeTxError } from "@/lib/errors";
 import { track } from "@/lib/analytics";
+import { useChainGuard } from "@/lib/use-chain-guard";
 import { ConnectButton } from "./connect-button";
 
 interface CollateralToken {
@@ -37,6 +38,7 @@ export function DepositForm({ tokens }: { tokens: CollateralToken[] }) {
   const token = list[tokenIdx]!;
 
   const { address, isConnected } = useAccount();
+  const { wrongChain, writeChainId, activeChainName, isSwitching, switchToActive } = useChainGuard();
   const { writeContract, data: txHash, isPending, error, reset } = useWriteContract();
   const { isLoading: isMining, isSuccess: isMined } = useWaitForTransactionReceipt({
     hash: txHash,
@@ -90,12 +92,13 @@ export function DepositForm({ tokens }: { tokens: CollateralToken[] }) {
     parsedAmount > 0n && (allowance as bigint | undefined ?? 0n) < parsedAmount;
 
   const canSubmit =
-    isConnected && isVaultDeployed() && parsedAmount > 0n && !isPending && !isMining;
+    isConnected && isVaultDeployed() && parsedAmount > 0n && !isPending && !isMining && !wrongChain;
 
   function approve() {
     if (!vault.address) return;
     reset();
     writeContract({
+      chainId: writeChainId,
       address: token.address as Address,
       abi: erc20Abi,
       functionName: "approve",
@@ -108,6 +111,7 @@ export function DepositForm({ tokens }: { tokens: CollateralToken[] }) {
     reset();
     track("first_action", { kind: "deposit" });
     writeContract({
+      chainId: writeChainId,
       address: vault.address,
       abi: vault.abi,
       functionName: "depositCollateral",
@@ -158,7 +162,9 @@ export function DepositForm({ tokens }: { tokens: CollateralToken[] }) {
               autoComplete="off"
             />
             <p className="text-xs text-[color:var(--color-muted-foreground)]">
-              Balance: {balance !== undefined ? formatToken(balance as bigint, token.decimals, { symbol: token.symbol }) : "—"}
+              {wrongChain
+                ? `Switch to ${activeChainName} to see your balance.`
+                : `Balance: ${balance !== undefined ? formatToken(balance as bigint, token.decimals, { symbol: token.symbol }) : "—"}`}
             </p>
           </div>
 
@@ -171,6 +177,17 @@ export function DepositForm({ tokens }: { tokens: CollateralToken[] }) {
               </AlertDescription>
             </Alert>
           )}
+
+          {wrongChain ? (
+            <Alert tone="warning">
+              <AlertTitle>Wrong network</AlertTitle>
+              <AlertDescription>
+                Your wallet is on a different network. Tessera runs on{" "}
+                <strong>{activeChainName}</strong> — switch to it to see your balance and deposit.
+                (This is what makes an action hang on &quot;Approving…&quot;.)
+              </AlertDescription>
+            </Alert>
+          ) : null}
 
           {error ? (
             <Alert tone="danger">
@@ -194,6 +211,10 @@ export function DepositForm({ tokens }: { tokens: CollateralToken[] }) {
           <div className="flex flex-wrap items-center gap-3">
             {!isConnected ? (
               <ConnectButton />
+            ) : wrongChain ? (
+              <Button onClick={switchToActive} disabled={isSwitching}>
+                {isSwitching ? "Switching…" : `Switch to ${activeChainName}`}
+              </Button>
             ) : needsApproval ? (
               <Button onClick={approve} disabled={!canSubmit}>
                 {isPending || isMining ? "Approving…" : `Approve ${token.symbol}`}

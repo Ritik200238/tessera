@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { parseUnits, formatUnits, erc20Abi } from "viem";
 import { useAccount, useReadContract, useReadContracts, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
+import { useChainGuard } from "@/lib/use-chain-guard";
 import { useQueryClient } from "@tanstack/react-query";
 import { vault, isVaultDeployed } from "@/lib/contracts";
 import { addresses } from "@/lib/addresses";
@@ -23,6 +24,7 @@ const USDC_DECIMALS = 6;
 
 export function LendForm() {
   const { address, isConnected } = useAccount();
+  const { writeChainId } = useChainGuard();
   const [mode, setMode] = useState<Mode>("deposit");
   const [amount, setAmount] = useState("");
 
@@ -89,6 +91,7 @@ export function LendForm() {
     if (!usdcAddr || !vaultAddr) return;
     reset();
     writeContract({
+      chainId: writeChainId,
       address: usdcAddr,
       abi: erc20Abi,
       functionName: "approve",
@@ -102,6 +105,7 @@ export function LendForm() {
     if (mode === "deposit") {
       track("first_action", { kind: "lend" });
       writeContract({
+        chainId: writeChainId,
         address: vaultAddr,
         abi: vault.abi,
         functionName: "deposit",
@@ -109,6 +113,7 @@ export function LendForm() {
       });
     } else {
       writeContract({
+        chainId: writeChainId,
         address: vaultAddr,
         abi: vault.abi,
         functionName: "withdraw",

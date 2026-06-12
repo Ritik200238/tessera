@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useAccount, useReadContracts, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
+import { useChainGuard } from "@/lib/use-chain-guard";
 import { useQueryClient } from "@tanstack/react-query";
 import { formatUnits } from "viem";
 import { vault, oracle, isVaultDeployed } from "@/lib/contracts";
@@ -34,6 +35,7 @@ const MAX_LTV_BPS = 6000n; // 60% — the highest per-asset max LTV (SPY)
 
 export function BorrowForm() {
   const { address, isConnected } = useAccount();
+  const { writeChainId } = useChainGuard();
   const [ltvBps, setLtvBps] = useState<number>(2500); // start at 25%
 
   const tokens = addresses.collateralTokens;
@@ -158,6 +160,7 @@ export function BorrowForm() {
     reset();
     track("first_action", { kind: "borrow" });
     writeContract({
+      chainId: writeChainId,
       address: vault.address,
       abi: vault.abi,
       functionName: "borrow",

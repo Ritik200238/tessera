@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { erc20Abi, formatUnits, parseUnits } from "viem";
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
+import { useChainGuard } from "@/lib/use-chain-guard";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -30,6 +31,7 @@ export function AgentControls() {
   const usdc = addresses.usdc;
   const [amount, setAmount] = useState("");
   const { address, isConnected } = useAccount();
+  const { writeChainId } = useChainGuard();
   const { writeContract, data: txHash, isPending, error, reset } = useWriteContract();
   const { isLoading: isMining, isSuccess: isMined } = useWaitForTransactionReceipt({ hash: txHash });
 
@@ -79,6 +81,7 @@ export function AgentControls() {
     reset();
     if (value > 0n) track("protection_enabled");
     writeContract({
+      chainId: writeChainId,
       address: usdc,
       abi: erc20Abi,
       functionName: "approve",

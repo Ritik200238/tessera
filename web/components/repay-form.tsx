@@ -8,6 +8,7 @@ import {
   useWriteContract,
   useWaitForTransactionReceipt,
 } from "wagmi";
+import { useChainGuard } from "@/lib/use-chain-guard";
 import { useQueryClient } from "@tanstack/react-query";
 import { vault, isVaultDeployed } from "@/lib/contracts";
 import { addresses } from "@/lib/addresses";
@@ -22,6 +23,7 @@ const USDC_DECIMALS = 6;
 /** Repay (partially or fully) the connected wallet's USDC debt. */
 export function RepayForm() {
   const { address, isConnected } = useAccount();
+  const { writeChainId } = useChainGuard();
   const queryClient = useQueryClient();
   const [amount, setAmount] = useState("");
   const vaultAddr = vault.address ?? undefined;
@@ -68,13 +70,13 @@ export function RepayForm() {
   function approve() {
     if (!usdcAddr || !vaultAddr) return;
     reset();
-    writeContract({ address: usdcAddr, abi: erc20Abi, functionName: "approve", args: [vaultAddr, parsed] });
+    writeContract({ chainId: writeChainId, address: usdcAddr, abi: erc20Abi, functionName: "approve", args: [vaultAddr, parsed] });
   }
   function repay() {
     if (!vaultAddr) return;
     reset();
     writeContract(
-      { address: vaultAddr, abi: vault.abi, functionName: "repay", args: [parsed] },
+      { chainId: writeChainId, address: vaultAddr, abi: vault.abi, functionName: "repay", args: [parsed] },
       { onSuccess: () => setTimeout(() => void queryClient.invalidateQueries(), 2500) },
     );
   }
