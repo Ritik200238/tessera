@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { getTxUrl } from "@/lib/chain";
+import { track } from "@/lib/analytics";
 
 /**
  * Live Drill — watch the production agent save a real on-chain position.
@@ -108,6 +109,7 @@ export function DrillClient() {
 
   async function start() {
     setStarting(true);
+    track("drill_started", { gapPct });
     try {
       await fetch("/api/drill", {
         method: "POST",
