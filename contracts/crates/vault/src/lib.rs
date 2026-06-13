@@ -514,9 +514,6 @@ impl TesseraVault {
     pub fn paused(&self) -> bool {
         self.pause.paused.get()
     }
-    pub fn max_price_age(&self) -> U64 {
-        self.config.max_price_age_secs.get()
-    }
     pub fn close_factor_bps(&self) -> u16 {
         self.config.close_factor_bps.get().to::<u16>()
     }
@@ -599,18 +596,8 @@ impl TesseraVault {
         Ok(())
     }
 
-    pub fn set_max_price_age(&mut self, secs: U64) -> Result<(), VaultError> {
-        self.only_owner()?;
-        if secs == U64::ZERO {
-            return Err(VaultError::InvalidParameter(InvalidParameter {}));
-        }
-        self.config.max_price_age_secs.set(secs);
-        self.vm().log(ParamUpdate {
-            key: key(b"max_price_age"),
-            value: U256::from(secs.to::<u64>()),
-        });
-        Ok(())
-    }
+    // set_max_price_age removed: oracle staleness is now PriceGuard's job
+    // (`setMaxPriceAge` on the PriceGuard contract), not the vault's.
 
     pub fn set_close_factor(&mut self, bps: u16) -> Result<(), VaultError> {
         self.only_owner()?;
@@ -877,21 +864,8 @@ impl TesseraVault {
         Ok(())
     }
 
-    /// Owner: configure the dual-oracle deviation guard. `secondary == address(0)`
-    /// or `max_deviation_bps == 0` disables it (the MVP/testnet default ⇒ no-op).
-    #[selector(name = "setDeviationGuard")]
-    pub fn set_deviation_guard(
-        &mut self,
-        secondary: Address,
-        max_deviation_bps: u16,
-    ) -> Result<(), VaultError> {
-        self.only_owner()?;
-        self.config.secondary_oracle.set(secondary);
-        self.config
-            .max_deviation_bps
-            .set(alloy_primitives::U16::from(max_deviation_bps));
-        Ok(())
-    }
+    // setDeviationGuard removed: the dual-feed deviation guard now lives on the
+    // PriceGuard contract (`setOracles`), which owns all oracle policy.
 
 
     pub fn pause(&mut self) -> Result<(), VaultError> {
@@ -947,35 +921,12 @@ impl TesseraVault {
         self.lending.shares_of.get(owner)
     }
 
-    #[selector(name = "convertToShares")]
-    pub fn convert_to_shares(&self, assets: U256) -> U256 {
-        self.convert_to_shares_round_down(assets)
-    }
-
-    #[selector(name = "convertToAssets")]
-    pub fn convert_to_assets(&self, shares: U256) -> U256 {
-        self.convert_to_assets_round_down(shares)
-    }
-
-    #[selector(name = "previewDeposit")]
-    pub fn preview_deposit(&self, assets: U256) -> U256 {
-        self.convert_to_shares_round_down(assets)
-    }
-
-    #[selector(name = "previewMint")]
-    pub fn preview_mint(&self, shares: U256) -> U256 {
-        self.convert_to_assets_round_up(shares)
-    }
-
-    #[selector(name = "previewWithdraw")]
-    pub fn preview_withdraw(&self, assets: U256) -> U256 {
-        self.convert_to_shares_round_up(assets)
-    }
-
-    #[selector(name = "previewRedeem")]
-    pub fn preview_redeem(&self, shares: U256) -> U256 {
-        self.convert_to_assets_round_down(shares)
-    }
+    // ERC-4626 quoting (convertToShares/convertToAssets/preview*) moved to the
+    // read-only TesseraLens (`contracts/crates/lens`) to keep the funds-holding
+    // vault under the 24KB code-size ceiling. The Lens reads `totalAssets` +
+    // `totalSupply` here and reuses the identical virtual-share math, so quotes
+    // are bit-for-bit the same. The internal `convert_to_*_round_*` helpers stay
+    // because the mutating deposit/mint/withdraw/redeem paths below still use them.
 
     pub fn deposit(&mut self, assets: U256, receiver: Address) -> Result<U256, VaultError> {
         self.check_not_paused()?;
@@ -1600,30 +1551,13 @@ impl TesseraVault {
         self.hf(user)
     }
 
-    /// Portfolio Safety Score 0..=100 (TDD §5.3). Convenience helper for the UI.
-    #[selector(name = "getSafetyScore")]
-    pub fn get_safety_score(&mut self, user: Address) -> Result<u8, VaultError> {
-        let hf = self.hf(user)?;
-        let two_wad = U256::from(WAD).saturating_mul(U256::from(2u64));
-        let cap = if hf > two_wad { two_wad } else { hf };
-        // score = cap * 100 / 2e18
-        let numerator = cap.saturating_mul(U256::from(100u64));
-        let score = numerator.checked_div(two_wad).unwrap_or(U256::ZERO);
-        let s = score.to::<u64>();
-        Ok(u8::try_from(s.min(100)).unwrap_or(100))
-    }
-
-    #[selector(name = "getAccountData")]
-    pub fn get_account_data(
-        &mut self,
-        user: Address,
-    ) -> Result<(U256, U256, U256), VaultError> {
-        // (collateral_value_usd_8_weighted, debt_usdc, hf_1e18)
-        let coll = self.collateral_legs(user)?;
-        let debt = self.user_debt(user);
-        let hf = self.hf(user)?;
-        Ok((coll, debt, hf))
-    }
+    // getSafetyScore + getAccountData moved to the read-only TesseraLens
+    // (`contracts/crates/lens`): both are pure aggregations of the raw getters
+    // (`debtOf`, `collateralOf`, `assetParams`, the listed-asset enumeration) and
+    // PriceGuard prices, and the Lens reuses the SAME interest-model functions
+    // (`collateral_value_usd_8`, `health_factor`) so the numbers are identical.
+    // `getHealthFactor` stays here: the agent reads it on its liquidation path and
+    // needs the freshly-accrued, authoritative value.
 
     #[selector(name = "collateralOf")]
     pub fn collateral_of(&self, user: Address, token: Address) -> U256 {

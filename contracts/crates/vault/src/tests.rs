@@ -58,7 +58,6 @@ fn initialize_sets_canonical_addresses() {
     assert_eq!(v.oracle(), addr(ORACLE));
     assert_eq!(v.agent(), addr(AGENT));
     assert!(!v.paused());
-    assert_eq!(v.max_price_age().to::<u64>(), 3600);
     assert_eq!(v.close_factor_bps(), 5_000);
 }
 
@@ -152,17 +151,8 @@ fn set_agent_only_owner() {
     assert_eq!(v.agent(), addr(0xBB));
 }
 
-#[test]
-fn set_max_price_age_rejects_zero() {
-    let vm = TestVM::default();
-    let mut v = deploy(&vm);
-    assert!(matches!(
-        v.set_max_price_age(U64::ZERO).unwrap_err(),
-        VaultError::InvalidParameter(_)
-    ));
-    v.set_max_price_age(U64::from(60u64)).unwrap();
-    assert_eq!(v.max_price_age().to::<u64>(), 60);
-}
+// set_max_price_age moved to the PriceGuard contract (oracle policy lives there
+// now); its zero-rejection test moved with it.
 
 #[test]
 fn set_close_factor_validates_range() {
@@ -349,20 +339,10 @@ fn default_state_views() {
     assert_eq!(v.borrow_index(), U256::from(WAD));
 }
 
-#[test]
-fn convert_uses_virtual_offset_and_round_trips() {
-    let vm = TestVM::default();
-    let v = deploy(&vm);
-    let assets = U256::from(1_000_000u64);
-    let offset = U256::from(1_000_000u64); // 10^6 virtual shares
-    // First-depositor inflation defense: shares are offset-scaled, never 1:1.
-    assert_eq!(v.convert_to_shares(assets), assets * offset);
-    assert_eq!(v.preview_deposit(assets), assets * offset);
-    // Converting those shares back recovers the original assets exactly.
-    let shares = v.convert_to_shares(assets);
-    assert_eq!(v.convert_to_assets(shares), assets);
-    assert_eq!(v.preview_redeem(shares), assets);
-}
+// convertToShares/convertToAssets/preview* moved to the TesseraLens (they read
+// totalAssets+totalSupply here and apply the SAME virtual-offset math). The
+// first-depositor virtual-offset invariant is still exercised in-vault through
+// the deposit/mint/withdraw/redeem flows, which use the same internal helpers.
 
 #[test]
 fn new_admin_setters_are_owner_gated_and_persist() {
@@ -391,14 +371,9 @@ fn new_admin_setters_are_owner_gated_and_persist() {
     ));
 }
 
-#[test]
-fn safety_score_clamps_at_100_for_infinite_hf() {
-    let vm = TestVM::default();
-    let mut v = deploy(&vm);
-    // No debt → HF == U256::MAX → score == 100.
-    let score = v.get_safety_score(addr(ALICE)).unwrap();
-    assert_eq!(score, 100);
-}
+// getSafetyScore moved to the TesseraLens. The closed-form HF→score mapping it
+// uses is still pinned by the pure-arithmetic test below (and mirrored in the
+// Lens), and the "no debt ⇒ HF == MAX ⇒ score 100" clamp is covered there.
 
 #[test]
 fn safety_score_at_one_wad_is_50() {
@@ -641,15 +616,10 @@ fn liquidate_healthy_position_reverts() {
 // 10. Account data
 // =============================================================================
 
-#[test]
-fn get_account_data_default_is_zero_zero_max() {
-    let vm = TestVM::default();
-    let mut v = deploy(&vm);
-    let (coll, debt, hf) = v.get_account_data(addr(ALICE)).unwrap();
-    assert_eq!(coll, U256::ZERO);
-    assert_eq!(debt, U256::ZERO);
-    assert_eq!(hf, U256::MAX);
-}
+// getAccountData moved to the TesseraLens. The vault still exposes the raw
+// inputs the Lens reads (debtOf == 0, collateralOf == 0, HF == MAX for a fresh
+// account), each covered by their own getters' tests below; getHealthFactor
+// stays in the vault for the agent's authoritative liquidation path.
 
 // =============================================================================
 // 11. interest::roll_index storage-free sanity (pure-piece coverage)
@@ -1022,7 +992,7 @@ fn admin_calls_revert_for_non_owner() {
     assert!(matches!(v.pause().unwrap_err(), VaultError::NotOwner(_)));
     assert!(matches!(v.unpause().unwrap_err(), VaultError::NotOwner(_)));
     assert!(matches!(
-        v.set_max_price_age(U64::from(60u64)).unwrap_err(),
+        v.set_oracle(addr(0xAB)).unwrap_err(),
         VaultError::NotOwner(_)
     ));
     assert!(matches!(
