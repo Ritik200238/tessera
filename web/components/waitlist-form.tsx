@@ -12,6 +12,7 @@ type Status = "idle" | "submitting" | "done" | "already" | "error";
  */
 export function WaitlistForm({ compact = false }: { compact?: boolean }) {
   const [email, setEmail] = useState("");
+  const [useCase, setUseCase] = useState("");
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState<string>("");
   const [count, setCount] = useState<number | null>(null);
@@ -38,7 +39,7 @@ export function WaitlistForm({ compact = false }: { compact?: boolean }) {
       const r = await fetch("/api/waitlist", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, useCase }),
       });
       const j = (await r.json().catch(() => ({}))) as { ok?: boolean; added?: boolean; count?: number; error?: string };
       if (!r.ok || !j.ok) {
@@ -48,7 +49,7 @@ export function WaitlistForm({ compact = false }: { compact?: boolean }) {
       }
       if (typeof j.count === "number") setCount(j.count);
       setStatus(j.added ? "done" : "already");
-      track("waitlist_signup", { added: !!j.added });
+      track("waitlist_signup", { added: !!j.added, with_use_case: !!useCase.trim() });
     } catch {
       setStatus("error");
       setError("Couldn't reach the list — try again in a moment.");
@@ -89,6 +90,17 @@ export function WaitlistForm({ compact = false }: { compact?: boolean }) {
           {status === "submitting" ? "Joining…" : "Get early access"}
         </button>
       </div>
+      {!compact ? (
+        <input
+          type="text"
+          value={useCase}
+          onChange={(e) => setUseCase(e.currentTarget.value)}
+          maxLength={500}
+          placeholder="What would you borrow against, and why? (optional)"
+          aria-label="What would you borrow against (optional)"
+          className="h-11 w-full rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-background)] px-3 text-sm outline-none focus:border-[color:var(--color-primary)]"
+        />
+      ) : null}
       <p className="text-xs text-[color:var(--color-muted-foreground)]">
         {error ? (
           <span className="text-[color:var(--color-liquidating-fg)]">{error}</span>

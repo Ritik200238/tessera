@@ -158,11 +158,12 @@ export class AgentDB {
       .run(json);
   }
 
-  /** Records an early-access signup. Returns false if the email is already on the list. */
-  addToWaitlist(email: string, source: string): boolean {
+  /** Records an early-access signup (with an optional use-case answer). Returns
+   *  false if the email is already on the list. */
+  addToWaitlist(email: string, source: string, useCase?: string): boolean {
     const res = this.db
-      .prepare("INSERT OR IGNORE INTO waitlist (email, source) VALUES (?, ?)")
-      .run(email.trim().toLowerCase(), source);
+      .prepare("INSERT OR IGNORE INTO waitlist (email, source, use_case) VALUES (?, ?, ?)")
+      .run(email.trim().toLowerCase(), source, useCase && useCase.trim() ? useCase.trim().slice(0, 500) : null);
     return res.changes > 0;
   }
 

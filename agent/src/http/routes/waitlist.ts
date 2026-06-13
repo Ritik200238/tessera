@@ -29,11 +29,16 @@ export function registerWaitlistRoute(app: Hono, db: AgentDB): void {
     const source = typeof (body as { source?: unknown })?.source === "string"
       ? ((body as { source: string }).source).slice(0, 40)
       : "web";
+    // Optional "what would you use it for?" answer — turns the waitlist into
+    // demand-validation data, not just a count.
+    const useCase = typeof (body as { useCase?: unknown })?.useCase === "string"
+      ? ((body as { useCase: string }).useCase).slice(0, 500)
+      : undefined;
 
     if (email.length > 254 || !EMAIL_RE.test(email)) {
       return c.json({ ok: false, error: "enter a valid email" }, 400);
     }
-    const added = db.addToWaitlist(email, source);
+    const added = db.addToWaitlist(email, source, useCase);
     return c.json({ ok: true, added, count: db.waitlistCount() });
   });
 }

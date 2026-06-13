@@ -57,4 +57,10 @@ export const MIGRATIONS: readonly string[] = Object.freeze([
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
   `,
+  // 004 — optional free-text "what would you use it for?" answer. Turns the
+  // waitlist into demand-validation data (what people actually want to borrow
+  // against), not just a count. Optional; never required.
+  `
+  ALTER TABLE waitlist ADD COLUMN use_case TEXT;
+  `,
 ]);

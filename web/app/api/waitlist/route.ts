@@ -33,8 +33,12 @@ export async function GET() {
 export async function POST(req: Request) {
   let body = "{}";
   try {
-    const json = (await req.json()) as { email?: unknown };
-    body = JSON.stringify({ email: typeof json.email === "string" ? json.email : "", source: "web" });
+    const json = (await req.json()) as { email?: unknown; useCase?: unknown };
+    body = JSON.stringify({
+      email: typeof json.email === "string" ? json.email : "",
+      useCase: typeof json.useCase === "string" ? json.useCase.slice(0, 500) : "",
+      source: "web",
+    });
   } catch {
     /* keep default */
   }
