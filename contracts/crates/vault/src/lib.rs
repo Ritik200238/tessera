@@ -461,10 +461,12 @@ impl TesseraVault {
 impl TesseraVault {
     // ===================== Initialization & admin =====================
 
-    /// One-time initializer. Idempotent: subsequent calls revert with
-    /// `NotOwner` (because owner is already set and the caller can re-run
-    /// individual setters as the owner).
-    pub fn initialize(
+    /// Constructor (Phase 2.2 — atomic init-hardening). Runs exactly once, AT
+    /// DEPLOY, in the same transaction as contract creation — so there is no
+    /// separate `initialize` tx for anyone to front-run. The `owner.is_zero()`
+    /// guard additionally rejects any direct re-invocation.
+    #[constructor]
+    pub fn constructor(
         &mut self,
         owner: Address,
         usdc: Address,
@@ -474,7 +476,8 @@ impl TesseraVault {
         if !self.config.owner.get().is_zero() {
             return Err(VaultError::NotOwner(NotOwner {}));
         }
-        if owner.is_zero() || usdc.is_zero() {
+        // Init hardening: reject zero for ALL core addresses (was owner/usdc only).
+        if owner.is_zero() || usdc.is_zero() || oracle.is_zero() || agent.is_zero() {
             return Err(VaultError::ZeroAddress(ZeroAddress {}));
         }
         self.config.owner.set(owner);
