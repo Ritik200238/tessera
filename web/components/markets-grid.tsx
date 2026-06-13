@@ -6,16 +6,16 @@ import { addresses } from "@/lib/addresses";
 import { vault, oracle, isVaultDeployed } from "@/lib/contracts";
 import { assetMeta } from "@/lib/equities";
 import { formatUsd8, formatBps } from "@/lib/format";
+import { getAddressUrl } from "@/lib/chain";
 
 /**
  * Live markets grid for the landing page (replaces the old hardcoded 5-asset
  * grid with invented prices). Reads ONLY the collateral actually listed on-chain
  * (`shared/addresses` → 3 assets) and shows each asset's LIVE oracle price
  * (`oracle.getFeed`) and on-chain risk params (`vault.assetParams`), refreshed
- * every block. Each card links to the token on Arbiscan. Nothing here is faked —
- * values render "—" until the reads resolve.
+ * on a short poll. Each card links to the token on the active chain's explorer.
+ * Nothing here is faked — values render "—" until the reads resolve.
  */
-const EXPLORER = "https://sepolia.arbiscan.io";
 
 export function MarketsGrid() {
   const tokens = addresses.collateralTokens;
@@ -66,12 +66,12 @@ export function MarketsGrid() {
               <span className="v">{liq}</span>
             </div>
             <a
-              href={`${EXPLORER}/address/${t.address}`}
+              href={getAddressUrl(t.address)}
               target="_blank"
               rel="noopener noreferrer"
               style={{ display: "inline-block", marginTop: 12, fontSize: "0.75rem", opacity: 0.7, textDecoration: "underline" }}
             >
-              View on Arbiscan ↗
+              View on explorer ↗
             </a>
           </div>
         );

@@ -7,6 +7,7 @@ import { vault, isVaultDeployed } from "@/lib/contracts";
 import { addresses } from "@/lib/addresses";
 import { useProtocolStats, formatUsdcUsd } from "@/lib/protocol";
 import { formatBps, formatToken } from "@/lib/format";
+import { getTxUrl } from "@/lib/chain";
 import { ActionLog, type AgentAction } from "@/components/action-log";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
@@ -188,7 +189,7 @@ export function TransparencyClient({ actions }: { actions: AgentAction[] }) {
                         <td className="px-3 py-2 text-right">
                           <a
                             className="mono text-xs text-[color:var(--blue)] hover:underline"
-                            href={`https://sepolia.arbiscan.io/tx/${l.tx}`}
+                            href={getTxUrl(l.tx)}
                             target="_blank"
                             rel="noreferrer noopener"
                           >

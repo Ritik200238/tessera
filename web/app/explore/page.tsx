@@ -6,6 +6,7 @@ import { GapBacktestCard } from "@/components/gap-backtest-card";
 import { GapSandbox } from "@/components/gap-sandbox";
 import { SafetyBar } from "@/components/safety-bar";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { getAddressUrl } from "@/lib/chain";
 
 export const metadata = {
   title: "Explore",
@@ -19,7 +20,6 @@ export const dynamic = "force-dynamic";
 // A real borrower position on the LIVE vault — read-only, no wallet needed.
 // Everything below is fetched from the chain, never fabricated.
 const DEMO = "0xBd4956F88e7bC946F775a68080D7730186fAdc25" as const;
-const EXPLORER = "https://sepolia.arbiscan.io/address/";
 
 export default async function ExplorePage() {
   const [market, position] = await Promise.all([
@@ -83,7 +83,7 @@ export default async function ExplorePage() {
             <CardTitle>A real protected position</CardTitle>
             <CardDescription>
               On-chain, read-only —{" "}
-              <a className="underline" href={`${EXPLORER}${DEMO}`} target="_blank" rel="noopener noreferrer">
+              <a className="underline" href={getAddressUrl(DEMO)} target="_blank" rel="noopener noreferrer">
                 view the wallet ↗
               </a>
             </CardDescription>

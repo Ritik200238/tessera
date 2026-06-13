@@ -5,6 +5,7 @@ import { useAccount, usePublicClient } from "wagmi";
 import { formatUnits, parseEventLogs } from "viem";
 import { vault } from "@/lib/contracts";
 import { addresses } from "@/lib/addresses";
+import { getTxUrl } from "@/lib/chain";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 
 /**
@@ -12,12 +13,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
  * granted the agent a spend allowance. Indexes the vault's events for the
  * connected wallet via chunked getLogs (public RPCs cap the range, so we scan a
  * bounded recent window), decodes them, and lists supplies/withdraws/borrows/
- * repays/collateral moves/liquidations with Arbiscan tx links. Agent auto-repays
- * surface here too (they emit Repay).
+ * repays/collateral moves/liquidations with active-chain explorer tx links. Agent
+ * auto-repays surface here too (they emit Repay).
  */
 const LOOKBACK = 45_000n;
 const CHUNK = 9_000n;
-const EXPLORER_TX = "https://sepolia.arbiscan.io/tx/";
 
 interface Row {
   kind: string;
@@ -147,7 +147,7 @@ export function TransactionHistory() {
                 </div>
                 {r.tx ? (
                   <a
-                    href={`${EXPLORER_TX}${r.tx}`}
+                    href={getTxUrl(r.tx)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="shrink-0 text-xs underline text-[color:var(--color-muted-foreground)]"

@@ -88,6 +88,27 @@ export function getActiveChain(): Chain {
 
 export const activeChain = getActiveChain();
 
+/**
+ * Block-explorer base URL for the ACTIVE chain — the single source of truth for
+ * every explorer link in the app. Never hardcode `sepolia.arbiscan.io`: on
+ * Robinhood Chain (46630) the explorer is Blockscout, so a hardcoded Arbiscan
+ * link 404s. Falls back to Arbitrum Sepolia's explorer only when the active
+ * chain declares none (the legacy `testnet` env path).
+ */
+const explorerBase = (
+  activeChain.blockExplorers?.default?.url ?? "https://sepolia.arbiscan.io"
+).replace(/\/$/, "");
+
+/** Explorer URL for an address on the active chain. */
+export function getAddressUrl(address: string): string {
+  return `${explorerBase}/address/${address}`;
+}
+
+/** Explorer URL for a transaction hash on the active chain. */
+export function getTxUrl(txHash: string): string {
+  return `${explorerBase}/tx/${txHash}`;
+}
+
 /** All chains we configure connectors for. */
 export const supportedChains: readonly [Chain, ...Chain[]] = [
   activeChain,

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useReadContracts } from "wagmi";
 import { oracle, isVaultDeployed } from "@/lib/contracts";
 import { addresses } from "@/lib/addresses";
-import { activeChain } from "@/lib/chain";
+import { activeChain, getAddressUrl } from "@/lib/chain";
 import { useProtocolStats } from "@/lib/protocol";
 import { formatUsd8 } from "@/lib/format";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -68,7 +68,7 @@ export function StatusClient({ agentHealth }: { agentHealth: AgentHealth }) {
   });
   const maxAge = Number((oracleData?.[0]?.result as bigint | undefined) ?? 0n);
 
-  const explorer = (a: string) => `https://sepolia.arbiscan.io/address/${a}`;
+  const explorer = (a: string) => getAddressUrl(a);
   const agentTone: "safe" | "warn" | "muted" = agentHealth.available
     ? agentHealth.ok
       ? "safe"

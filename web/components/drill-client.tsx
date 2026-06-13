@@ -5,6 +5,7 @@ import { ShieldCheck, Play, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { getTxUrl } from "@/lib/chain";
 
 /**
  * Live Drill — watch the production agent save a real on-chain position.
@@ -47,7 +48,6 @@ interface DrillStatus {
   cooldownMsRemaining: number;
 }
 
-const EXPLORER_TX = "https://sepolia.arbiscan.io/tx/";
 const ACTIVE_STATES = new Set(["preparing", "position-open", "gap", "waiting-for-agent"]);
 const GAP_CHOICES = [35, 40, 45] as const;
 
@@ -254,7 +254,7 @@ export function DrillClient() {
                           <>
                             {" "}
                             <a
-                              href={`${EXPLORER_TX}${s.tx}`}
+                              href={getTxUrl(s.tx)}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="font-mono text-xs underline"
@@ -283,7 +283,7 @@ export function DrillClient() {
                     {status.rationale ?? "The agent auto-repaid from the pre-approved cap and restored the health factor."}{" "}
                     {status.rescueTx ? (
                       <a
-                        href={`${EXPLORER_TX}${status.rescueTx}`}
+                        href={getTxUrl(status.rescueTx)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="font-medium underline"
