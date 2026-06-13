@@ -9,6 +9,7 @@ import { useProtocolStats } from "@/lib/protocol";
 import { formatUsd8 } from "@/lib/format";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { AgentProtectionBanner } from "@/components/agent-protection-banner";
 import type { AgentHealth } from "@/lib/agent";
 
 function rel(ms: number): string {
@@ -86,7 +87,9 @@ export function StatusClient({ agentHealth }: { agentHealth: AgentHealth }) {
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
+    <div className="space-y-6">
+      <AgentProtectionBanner />
+      <div className="grid gap-6 lg:grid-cols-2">
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -225,6 +228,7 @@ export function StatusClient({ agentHealth }: { agentHealth: AgentHealth }) {
           </Row>
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }
