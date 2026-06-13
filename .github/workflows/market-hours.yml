@@ -1,0 +1,33 @@
+name: market-hours
+
+# Flips PriceGuard.setMarketClosed on the Robinhood Chain feed so the vault's
+# weekend/overnight LTV haircut engages (rulbookImprvmnts.md #8). Runs hourly and
+# is idempotent (only sends a tx when the on-chain state must change), so hourly
+# granularity is plenty for overnight/weekend gap risk. Uses the same keeper
+# secret (the deployer owns PriceGuard). No-ops until the secret is set.
+
+on:
+  schedule:
+    - cron: "5 * * * *" # hourly, offset from the price keeper
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  set-market-hours:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-save viem@2
+      - name: Set market-closed state (Robinhood Chain)
+        env:
+          KEEPER_PRIVATE_KEY: ${{ secrets.KEEPER_PRIVATE_KEY }}
+          RPC_URL: https://rpc.testnet.chain.robinhood.com/rpc
+          CHAIN_ID: "46630"
+          ADDR_FILE: shared/addresses/robinhood.json
+        run: node scripts/market-hours.mjs
