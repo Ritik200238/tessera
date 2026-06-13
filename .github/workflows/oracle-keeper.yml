@@ -1,9 +1,10 @@
 # Oracle keeper — re-stamps the MockOracle feeds on a schedule so vault price
 # reads never go stale (a stale read reverts borrow / deposit / liquidation by
-# design). Plays Chainlink's role on testnet. The vault's staleness window
-# (max_price_age_secs) is set to 86400s on testnet, so every 6h = 4x margin.
-# IMPORTANT: keep the keeper interval well under that window. Also runnable on
-# demand via workflow_dispatch (do this before a demo to warm everything).
+# design). Plays Chainlink's role on testnet. Targets ROBINHOOD CHAIN (chain
+# 46630), where the full Tessera stack is deployed; the oracle's staleness
+# window is 86400s, so every 6h = 4x margin. IMPORTANT: keep the interval well
+# under that window. Also runnable on demand via workflow_dispatch (do this
+# before a demo to warm everything).
 name: oracle-keeper
 
 on:
@@ -25,7 +26,11 @@ jobs:
           node-version: 22
       # viem is the keeper's only dependency; install just it (no workspace install).
       - run: npm install --no-save viem@2
-      - name: Refresh oracle prices
+      - name: Refresh oracle prices (Robinhood Chain)
         env:
           KEEPER_PRIVATE_KEY: ${{ secrets.KEEPER_PRIVATE_KEY }}
+          RPC_URL: https://rpc.testnet.chain.robinhood.com/rpc
+          CHAIN_ID: "46630"
+          CHAIN_NAME: robinhood-chain
+          ADDR_FILE: shared/addresses/robinhood.json
         run: node scripts/keeper.mjs --once

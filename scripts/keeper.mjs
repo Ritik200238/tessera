@@ -42,7 +42,10 @@ const ORACLE_ABI = [
 ];
 
 const account = privateKeyToAccount(PK.startsWith("0x") ? PK : `0x${PK}`);
-const chain = { id: 421614, name: "arbitrum-sepolia", nativeCurrency: { name: "ETH", symbol: "ETH", decimals: 18 }, rpcUrls: { default: { http: [RPC] } } };
+// CHAIN_ID must match the RPC's chain (EIP-155): 421614 = Arbitrum Sepolia,
+// 46630 = Robinhood Chain. A mismatch makes the node reject every signed tx.
+const CHAIN_ID = Number(process.env.CHAIN_ID ?? "421614");
+const chain = { id: CHAIN_ID, name: process.env.CHAIN_NAME ?? "tessera-keeper-chain", nativeCurrency: { name: "ETH", symbol: "ETH", decimals: 18 }, rpcUrls: { default: { http: [RPC] } } };
 const wallet = createWalletClient({ account, chain, transport: http(RPC) });
 const pub = createPublicClient({ chain, transport: http(RPC) });
 
