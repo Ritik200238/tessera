@@ -142,3 +142,35 @@ body {
    via html[data-view]. */
 .tessera-advanced { display: contents; }
 html[data-view="simple"] .tessera-advanced { display: none; }
+
+/* --- Print / PDF export (litepaper + deck Save-as-PDF) ---------------------
+   Tailwind v4 doesn't emit the break-* utilities in this build, so paging is
+   done with explicit CSS. Deck slides get one page each; the litepaper flows. */
+@media print {
+  @page {
+    margin: 12mm;
+  }
+  body {
+    background: #fff;
+  }
+  /* One deck slide per printed page. Chrome's --print-to-pdf is unreliable about
+     honouring `break-after: page` on flex boxes, so we make each slide nearly a
+     full page tall and forbid splitting it — slides then fall one-per-page via
+     natural pagination. 248mm is safe under both Letter and A4 printable height. */
+  /* Keep deck content narrower than the A4 printable width (190mm) so Chrome's
+     printToPDF does NOT fit-to-width scale it — then the fixed slide height
+     paginates predictably at one slide per page. */
+  .deck-page {
+    width: 180mm;
+    max-width: 180mm;
+    margin-inline: auto;
+  }
+  .deck-slide {
+    height: 250mm; /* ~ one A4 printable page (277mm), so one slide per page */
+    break-inside: avoid;
+    justify-content: center;
+    border: 0;
+    border-radius: 0;
+    padding: 0;
+  }
+}

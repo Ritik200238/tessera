@@ -20,7 +20,13 @@ export default function LitepaperPage() {
         <h1 className="mt-2 text-4xl font-semibold tracking-tight">Tessera</h1>
         <p className="mt-3 text-lg text-[color:var(--color-muted-foreground)]">{brand.tagline}</p>
         <div className="mt-6 flex flex-wrap items-center gap-3 print:hidden">
-          <PrintButton label="Download / print" />
+          <a
+            href="/tessera-litepaper.pdf"
+            className="inline-flex h-10 items-center rounded-md bg-[color:var(--color-primary)] px-4 text-sm font-semibold text-[color:var(--color-primary-foreground)] transition-opacity hover:opacity-90"
+          >
+            Download PDF ↓
+          </a>
+          <PrintButton label="Print" />
           <span className="text-xs text-[color:var(--color-muted-foreground)]">
             Testnet · {new Date().getFullYear()} · No token, ever
           </span>

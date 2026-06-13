@@ -10,19 +10,27 @@ export const metadata = {
 
 export default function DeckPage() {
   return (
-    <div className="mx-auto max-w-3xl py-4">
+    <div className="deck-page mx-auto max-w-3xl py-4">
       <div className="mb-6 flex items-center justify-between print:hidden">
         <p className="text-sm text-[color:var(--color-muted-foreground)]">
           {slides.length} slides · {brand.tagline}
         </p>
-        <PrintButton label="Save deck as PDF" />
+        <div className="flex items-center gap-3">
+          <a
+            href="/tessera-deck.pdf"
+            className="inline-flex h-10 items-center rounded-md bg-[color:var(--color-primary)] px-4 text-sm font-semibold text-[color:var(--color-primary-foreground)] transition-opacity hover:opacity-90"
+          >
+            Download PDF ↓
+          </a>
+          <PrintButton label="Print" />
+        </div>
       </div>
 
       <div className="space-y-6 print:space-y-0">
         {slides.map((s) => (
           <section
             key={s.n}
-            className="flex min-h-[420px] flex-col rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-background)] p-8 print:min-h-screen print:break-after-page print:rounded-none print:border-0"
+            className="deck-slide flex min-h-[420px] flex-col rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-background)] p-8"
           >
             <p className="text-xs font-medium uppercase tracking-wider text-[color:var(--color-primary)]">
               Tessera · {String(s.n).padStart(2, "0")}
