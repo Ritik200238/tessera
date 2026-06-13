@@ -101,6 +101,11 @@ pub struct Config {
     /// Guardian: may ONLY `pause` (safety-fast). Cannot unpause or touch any
     /// parameter. address(0) disables. Append-only.
     pub guardian: StorageAddress,
+    /// Max USDC (6dp) the agent may auto-repay for a single user in ONE tx — a
+    /// second, tighter bound on top of the daily cap (defense-in-depth against a
+    /// leaked agent key emptying the daily allowance in a single call). 0 = no
+    /// per-tx cap (still bounded by the daily cap). Append-only.
+    pub max_agent_repay_per_tx: StorageU256,
 }
 
 #[storage]

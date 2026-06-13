@@ -838,6 +838,33 @@ fn caps_setters_and_views() {
 }
 
 #[test]
+fn agent_repay_caps_set_at_init_and_reject_zero() {
+    let vm = TestVM::default();
+    let mut v = deploy(&vm);
+    // Caps land INSIDE initialize() — a fresh deploy is NEVER 0=unlimited.
+    assert_eq!(v.config.max_agent_repay_per_day.get(), U256::from(25_000_000_000u64));
+    assert_eq!(v.max_agent_repay_per_tx(), U256::from(10_000_000_000u64));
+    // The fail-dangerous 0 is rejected by both setters.
+    assert!(matches!(
+        v.set_max_agent_repay_per_day(U256::ZERO).unwrap_err(),
+        VaultError::InvalidParameter(_)
+    ));
+    assert!(matches!(
+        v.set_max_agent_repay_per_tx(U256::ZERO).unwrap_err(),
+        VaultError::InvalidParameter(_)
+    ));
+    // Valid non-zero values persist.
+    v.set_max_agent_repay_per_tx(U256::from(5_000_000_000u64)).unwrap();
+    assert_eq!(v.max_agent_repay_per_tx(), U256::from(5_000_000_000u64));
+    // Per-tx setter is owner-gated.
+    vm.set_sender(addr(ALICE));
+    assert!(matches!(
+        v.set_max_agent_repay_per_tx(U256::from(1u64)).unwrap_err(),
+        VaultError::NotOwner(_)
+    ));
+}
+
+#[test]
 fn set_rate_params_caps_max_borrow_rate() {
     let vm = TestVM::default();
     let mut v = deploy(&vm);

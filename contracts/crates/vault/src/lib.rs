@@ -137,6 +137,10 @@ impl TesseraVault {
     /// Enforce the on-chain per-(user, UTC-day) auto-repay ceiling and return the
     /// amount the agent is allowed to repay this call. `max == 0` disables the cap.
     fn charge_daily_repay(&mut self, user: Address, amount: U256) -> Result<U256, VaultError> {
+        // Per-tx cap first (defense-in-depth): bound any single auto-repay before
+        // the daily accounting. 0 = no per-tx cap (still bounded by the daily cap).
+        let per_tx = self.config.max_agent_repay_per_tx.get();
+        let amount = if per_tx.is_zero() { amount } else { core::cmp::min(amount, per_tx) };
         let max = self.config.max_agent_repay_per_day.get();
         if max.is_zero() {
             return Ok(amount);
@@ -487,6 +491,12 @@ impl TesseraVault {
         // Min-debt floor: 100 USDC. No dust positions whose liquidation would cost
         // more than the bonus. Timelock-adjustable (Phase 3), bounded <= 1000 USDC.
         self.config.min_debt.set(U256::from(100_000_000u64)); // 100e6
+        // Agent auto-repay caps — SET AT INIT so a fresh deploy is never "0 = unlimited".
+        // charge_daily_repay treats 0 as "no cap", which is the fail-DANGEROUS default a
+        // leaked agent key could exploit to drain a user's full allowance in one tx. Land a
+        // conservative non-zero default here; owner can raise it via setMaxAgentRepayPerDay.
+        self.config.max_agent_repay_per_day.set(U256::from(25_000_000_000u64)); // 25,000 USDC/user/day
+        self.config.max_agent_repay_per_tx.set(U256::from(10_000_000_000u64)); // 10,000 USDC/user/tx
         self.interest.borrow_index.set(U256::from(WAD));
         self.interest.last_accrual_ts.set(U64::from(self.vm().block_timestamp()));
         self.vm().log(OwnershipTransferred {
@@ -833,12 +843,38 @@ impl TesseraVault {
         Ok(())
     }
 
-    /// Per-(user, day) cap on agent auto-repay, in USDC (6dp). 0 = unlimited.
+    /// Per-(user, day) cap on agent auto-repay, in USDC (6dp). Rejects 0 — the
+    /// cap is a safety control and `0` means "unlimited" in `charge_daily_repay`,
+    /// so it must never be settable to the fail-dangerous value.
     #[selector(name = "setMaxAgentRepayPerDay")]
     pub fn set_max_agent_repay_per_day(&mut self, amount: U256) -> Result<(), VaultError> {
         self.only_owner()?;
+        if amount.is_zero() {
+            return Err(VaultError::InvalidParameter(InvalidParameter {}));
+        }
         self.config.max_agent_repay_per_day.set(amount);
+        self.vm().log(ParamUpdate { key: key(b"max_agent_repay_per_day"), value: amount });
         Ok(())
+    }
+
+    /// Per-(user, tx) cap on agent auto-repay, in USDC (6dp). Rejects 0 — like the
+    /// daily cap, this is a safety bound that must never be the fail-dangerous
+    /// "no cap" value.
+    #[selector(name = "setMaxAgentRepayPerTx")]
+    pub fn set_max_agent_repay_per_tx(&mut self, amount: U256) -> Result<(), VaultError> {
+        self.only_owner()?;
+        if amount.is_zero() {
+            return Err(VaultError::InvalidParameter(InvalidParameter {}));
+        }
+        self.config.max_agent_repay_per_tx.set(amount);
+        self.vm().log(ParamUpdate { key: key(b"max_agent_repay_per_tx"), value: amount });
+        Ok(())
+    }
+
+    /// Per-tx agent-repay cap (USDC, 6dp). 0 = no per-tx cap.
+    #[selector(name = "maxAgentRepayPerTx")]
+    pub fn max_agent_repay_per_tx(&self) -> U256 {
+        self.config.max_agent_repay_per_tx.get()
     }
 
     /// Agent liveness ping. Lets the agent prove it is alive on idle ticks (no
