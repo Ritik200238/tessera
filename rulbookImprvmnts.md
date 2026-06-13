@@ -412,8 +412,14 @@ Built as a **separate** Stylus contract (`contracts/crates/priceguard`, 11.9 KiB
 ### Phase 2.2-bis — TesseraLens data provider — ✅ BUILT (CI-green, deploy-ready)
 New read-only contract (`contracts/crates/lens`, 11.0 KiB, Aave UiPoolDataProvider pattern) hosts the derivable views — ERC-4626 quoting (`convertToShares/convertToAssets/preview*`) + `getSafetyScore` + `getAccountData` + `getHealthFactor` — by reading the vault's raw getters and reusing the SAME `interest-model` functions, so every number is bit-identical. Moved off the vault to recover code-size.
 
-### CODE-SIZE FINDING — the "24KB" limit was a phantom
-The premise that the vault had to fit 24576 bytes was **wrong**. `cargo stylus check` (which simulates on-chain activation against the Sepolia endpoint) is authoritative, and the **full-featured vault — every safety upgrade AND the backstop — passes at 25.8 KiB**. PriceGuard 11.9 KiB + Lens 11.0 KiB also pass. So nothing had to be cut: an interim "trim" (dropping the backstop) was started and **reverted** once cargo stylus confirmed the full stack activates. The PriceGuard + Lens splits remain — they are correct architecture (evolvable oracle policy behind the timelock; a thin funds contract) regardless of the size headroom. Deploy tooling: `scripts/deploy-stack.ps1` (PriceGuard → Vault → Lens, wired, collateral listed, writes a STAGING addresses file; live app untouched until `promote-stack`).
+### CODE-SIZE FINDING — 24KB is REAL; cargo stylus check does NOT enforce it
+A mid-effort claim that 24576 was "phantom" (because `cargo stylus check` passed at 26.4KB) was **WRONG** and got corrected: `cargo stylus check` only simulates activation/ink, NOT the EIP-170/`MaxCodeSize` codesize limit. The real deploy proves it — the vault CREATE reverted with StylusDeployer `ContractDeploymentError(bytes)`, and the live Sepolia vault is 24533 bytes (43 under the 24576 cap). The safety-hardened vault is **26.1KB — genuinely over Sepolia**. Brotli is non-monotonic (removing the backstop *grew* it 26431→26719; dedup helps nothing — duplicated code compresses away; only unique-logic removal shrinks).
+
+### DEPLOYED — full stack LIVE on Robinhood Chain (Orbit, chain 46630)
+`MaxCodeSize` is configurable up to 96KB on Orbit chains (fixed 24576 on public Sepolia), so the FULL feature set deploys on RH with **nothing cut**:
+- Vault `0x4b13620b6bb6f82219605c33a60da169ca6a3724` (26155B), PriceGuard `0xa16c3cf2b2f25e7da774d45931947f62d5e3f185`, Lens `0x9a682f2f8ea88258ee4c8aa3c3c75eaf22c40895`.
+- RH has no StylusDeployer → vault uses `initialize()` (plain CREATE) not `#[constructor]`.
+- e2e VERIFIED: lender deposit 10k USDC, 10 tAAPL collateral, 500 USDC borrow → HF 2.6, and `Lens.getAccountData` HF == `vault.getHealthFactor` (2.6e18) bit-for-bit. Web reads the moved views from the Lens (`web/lib/contracts.ts`, `lens.address ?? vault.address`). Remaining manual: set `NEXT_PUBLIC_CHAIN_ENV=robinhood` on Vercel + run a keeper on the RH oracle.
 
 ### Phase 7 — Low tier — ⏳ PARTIAL
 - ✅ **Events**: every new state change emits a typed event (BadDebtAbsorbed, ReservesWithdrawn, GuardianSet, OwnershipTransferStarted, ParamUpdate on every setter).
