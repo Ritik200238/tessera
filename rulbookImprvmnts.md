@@ -414,8 +414,8 @@ The largest remaining piece: a **separate** contract (per §2.2 — code size + 
 - ✅ **Docs**: extensive doc comments on every new entrypoint + the published RISK-METHODOLOGY.md (the NatSpec-grade intent).
 - ⬜ Verified/reproducible source on the explorers (`cargo stylus verify`) — **deploy-gated**. Subgraph schema + gas micro-pass — review/deploy items.
 
-### Deferred: Phase 2.2 constructor (atomic init) — ⬜ DEPLOY-COUPLED (verified rationale)
-The proper fix is a Stylus `#[constructor]` (atomic deploy+init, per `docs/stylus-sdk-rs`). **Verified against the docs:** constructors are exercised by *integration* tests against a node (`examples/constructor/tests/`), and the host `TestVM` has no constructor helper — so converting `initialize()` now would break all 80+ unit tests with no local way to verify. It is therefore done WITH the deploy (constructor + updated deploy scripts + an integration test, together). The interim front-run window is minimized by deploying+initializing back-to-back in one script.
+### Phase 2.2 constructor (atomic init) — ✅ DONE (contract + tests CI-green)
+Converted `initialize()` → a Stylus `#[constructor]` (runs once, atomically, at deploy — no separate front-runnable init tx) + added zero-checks for oracle & agent. **The earlier worry was wrong:** the `#[constructor]` *does* drive cleanly in the host `TestVM` — and it wasn't 80 rewrites, just the one shared `deploy()` helper + two direct-init tests switched to `.constructor()`. Confirmed by pushing to CI (commit `6be3e56`, Rust job green). `deploy-testnet.ps1` updated to `cargo stylus deploy --constructor-args` (correct ordering: mocks before vault). `deploy-robinhood.ps1` flagged: it deploys mocks AFTER the vault, so it needs a one-time reorder at the batched deploy to feed the constructor.
 
 ---
 

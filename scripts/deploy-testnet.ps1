@@ -87,7 +87,14 @@ Write-Host "USDC=$USDC  ORACLE=$ORACLE  tAAPL=$AAPL  tTSLA=$TSLA  tSPY=$SPY"
 Log "3/5  Deploy Stylus vault (cargo stylus deploy --no-verify)"
 Push-Location $VAULTDIR
 $deployLog = "$ROOT\vault-deploy.log"
-cargo stylus deploy --endpoint $RPC --private-key $PK --no-verify *>&1 | Tee-Object -FilePath $deployLog
+# Phase 2.2: initialize() is now the contract #[constructor], run atomically by
+# the deploy (no separate, front-runnable initialize tx). Args are owner, usdc,
+# oracle, agent — in that order, last on the command line.
+# NOTE: verify the exact cargo-stylus constructor flag/encoding at deploy time;
+# if --constructor-args needs a signature, add:
+#   --constructor-signature 'constructor(address,address,address,address)'
+cargo stylus deploy --endpoint $RPC --private-key $PK --no-verify `
+  --constructor-args $OWNER $USDC $ORACLE $AGENT *>&1 | Tee-Object -FilePath $deployLog
 Pop-Location
 # Parse the deployed address. cargo stylus prints "deployed code at address: 0x<40hex>"
 # AND a 64-hex tx hash, so anchor on the "address" keyword first, then fall back to a
@@ -104,8 +111,7 @@ Write-Host "VAULT=$VAULT"
 # ---------------------------------------------------------------------------
 # 4. Initialize + list collateral
 # ---------------------------------------------------------------------------
-Log "4/5  initialize + listCollateral"
-& $CAST send $VAULT "initialize(address,address,address,address)" $OWNER $USDC $ORACLE $AGENT --rpc-url $RPC --private-key $PK
+Log "4/5  listCollateral (init ran in the constructor at deploy — Phase 2.2)"
 # Conservative LTVs per blueprint: TSLA 40%, AAPL 50%, SPY 60%. liqBonus 5% (500 bps). 18 decimals.
 & $CAST send $VAULT "listCollateral(address,uint16,uint16,uint16,uint8)" $AAPL 5000 6500 500 18 --rpc-url $RPC --private-key $PK
 & $CAST send $VAULT "listCollateral(address,uint16,uint16,uint16,uint8)" $TSLA 4000 5500 500 18 --rpc-url $RPC --private-key $PK

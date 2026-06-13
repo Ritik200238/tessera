@@ -64,7 +64,13 @@ $USDC=$j.usdc; $ORACLE=$j.oracle
 $AAPL=($j.collateralTokens|?{$_.symbol -eq 'tAAPL'}).address
 $TSLA=($j.collateralTokens|?{$_.symbol -eq 'tTSLA'}).address
 $SPY =($j.collateralTokens|?{$_.symbol -eq 'tSPY'}).address
-& $CAST send $VAULT "initialize(address,address,address,address)" $OWNER $USDC $ORACLE $AGENT --rpc-url $RH --private-key $PK
+# PHASE 2.2 (do at the batched deploy): initialize() is now the #[constructor],
+# so this separate cast call no longer exists. BUT this script currently deploys
+# the vault (step 2) BEFORE the mocks (step 3), so the constructor args
+# (usdc/oracle) aren't known yet. REORDER for the constructor: deploy the forge
+# mocks FIRST, read their addresses, THEN `cargo stylus deploy ... --constructor-args
+# $OWNER $USDC $ORACLE $AGENT`. Until reordered, this RH deploy is incompatible
+# with the constructor build — see deploy-testnet.ps1 for the correct ordering.
 & $CAST send $VAULT "listCollateral(address,uint16,uint16,uint16,uint8)" $AAPL 5000 6500 500 18 --rpc-url $RH --private-key $PK
 & $CAST send $VAULT "listCollateral(address,uint16,uint16,uint16,uint8)" $TSLA 4000 5500 500 18 --rpc-url $RH --private-key $PK
 & $CAST send $VAULT "listCollateral(address,uint16,uint16,uint16,uint8)" $SPY  6000 7500 500 18 --rpc-url $RH --private-key $PK
