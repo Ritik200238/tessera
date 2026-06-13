@@ -71,7 +71,38 @@ export interface AgentHealth {
   ok: boolean;
   lastTickAt: string | null;
   errors24h: number;
+  /** The agent endpoint responded. */
   available: boolean;
+  /** NEXT_PUBLIC_AGENT_URL is set (we can even ask). Distinguishes "down" from "we can't tell". */
+  configured: boolean;
+}
+
+/**
+ * How long since the last tick before we treat protection as not-live. The agent
+ * polls ~10s; 3 min ≈ 18 missed ticks — unambiguously stalled, not a blip.
+ */
+export const AGENT_STALE_MS = 180_000;
+
+export type AgentStatus = "live" | "stale" | "down" | "unknown";
+
+/**
+ * Derive the user-facing protection status. Pure (takes `nowMs`) so a client
+ * banner can recompute it live against a fresh clock without re-fetching.
+ *   unknown — endpoint not configured; we genuinely can't tell (amber).
+ *   down    — configured but unreachable / not ok (red).
+ *   stale   — reachable but no tick in AGENT_STALE_MS (red).
+ *   live    — reachable + a recent tick.
+ */
+export function deriveAgentStatus(
+  h: Pick<AgentHealth, "available" | "configured" | "lastTickAt">,
+  nowMs: number,
+): AgentStatus {
+  if (!h.configured) return "unknown";
+  if (!h.available) return "down";
+  if (!h.lastTickAt) return "down";
+  const last = Date.parse(h.lastTickAt);
+  if (Number.isNaN(last) || nowMs - last > AGENT_STALE_MS) return "stale";
+  return "live";
 }
 
 export async function getAgentActions(limit = 50): Promise<AgentAction[]> {
@@ -92,20 +123,20 @@ export async function getAgentActions(limit = 50): Promise<AgentAction[]> {
 
 export async function getAgentHealth(): Promise<AgentHealth> {
   if (!env.agentUrl) {
-    return { ok: false, lastTickAt: null, errors24h: 0, available: false };
+    return { ok: false, lastTickAt: null, errors24h: 0, available: false, configured: false };
   }
   try {
     const res = await fetch(`${env.agentUrl}/health`, { next: { revalidate: 5 } });
     if (!res.ok) {
-      return { ok: false, lastTickAt: null, errors24h: 0, available: false };
+      return { ok: false, lastTickAt: null, errors24h: 0, available: false, configured: true };
     }
     const raw = (await res.json()) as unknown;
     const parsed = HealthSchema.safeParse(raw);
     if (!parsed.success) {
-      return { ok: false, lastTickAt: null, errors24h: 0, available: false };
+      return { ok: false, lastTickAt: null, errors24h: 0, available: false, configured: true };
     }
-    return { ...parsed.data, available: true };
+    return { ...parsed.data, available: true, configured: true };
   } catch {
-    return { ok: false, lastTickAt: null, errors24h: 0, available: false };
+    return { ok: false, lastTickAt: null, errors24h: 0, available: false, configured: true };
   }
 }

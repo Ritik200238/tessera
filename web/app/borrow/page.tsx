@@ -5,6 +5,7 @@ import { AgentControls } from "@/components/agent-controls";
 import { FaucetButton } from "@/components/faucet-button";
 import { ManagePosition } from "@/components/manage-position";
 import { GapRiskClock } from "@/components/gap-risk-clock";
+import { AgentProtectionBanner } from "@/components/agent-protection-banner";
 import { addresses } from "@/lib/addresses";
 
 export const metadata = { title: "Borrow" };
@@ -13,12 +14,13 @@ export const metadata = { title: "Borrow" };
 export default function BorrowPage() {
   return (
     <div className="space-y-12">
+      <AgentProtectionBanner />
       <header className="space-y-2">
         <h1 className="text-3xl font-semibold tracking-tight">Borrow against your stocks</h1>
         <p className="max-w-2xl text-sm text-[color:var(--color-muted-foreground)]">
           Three steps: post tokenized-stock collateral, borrow USDC against it, then switch on AI
-          protection so an overnight price gap can&apos;t liquidate you. You can stop after step 2 —
-          protection is optional, but recommended.
+          protection that works to head off an overnight price gap before it liquidates you (a severe
+          gap can still liquidate). You can stop after step 2 — protection is optional, but recommended.
         </p>
       </header>
 
