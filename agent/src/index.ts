@@ -19,7 +19,7 @@ import { AgentDB } from "./db/index.js";
 import { JsonlLog } from "./log/jsonl.js";
 import { AlertSnapshot } from "./log/alerts.js";
 import { action } from "./log/action.js";
-import { makeVaultClients } from "./vault-client.js";
+import { makeVaultClients, vaultAbi } from "./vault-client.js";
 import { makeLLMClient } from "./llm/client.js";
 import { runTick } from "./strategy/tick.js";
 import type { LiquidatorDeps } from "./strategy/liquidator.js";
@@ -90,6 +90,35 @@ async function main(): Promise<void> {
     vaultAddress: cfg.VAULT_ADDRESS as Address,
     privateKey: cfg.AGENT_PRIVATE_KEY as Hex,
   });
+
+  // 2.5 Archive-RPC probe. The tick reads HF/debt at a PINNED block; a non-archive
+  // RPC rejects state reads more than a few blocks back, which makes those reads
+  // return null and (without the blind-spot escalation) silently skip at-risk
+  // users. Probe historical-state support at startup and warn LOUDLY if missing —
+  // blind monitoring is worse than knowingly-degraded monitoring.
+  try {
+    const head = await publicClient.getBlockNumber();
+    const depth = 64n;
+    if (head > depth) {
+      await publicClient.readContract({
+        address: vaultAddress,
+        abi: vaultAbi,
+        functionName: "paused",
+        blockNumber: head - depth,
+      });
+      logger.info({ depth: Number(depth) }, "archive-RPC probe ok (historical state reads supported)");
+    }
+  } catch (e) {
+    logger.error(
+      { err: (e as Error).message },
+      "ARCHIVE-RPC PROBE FAILED — pinned-block HF reads may return null and silently skip at-risk users; point RPC_URL at an archive node",
+    );
+    void incidents.notify(
+      "critical",
+      "RPC may be non-archive",
+      "Historical state read failed at head-64; the agent risks going BLIND on pinned-block HF reads. Point RPC_URL at an archive node.",
+    );
+  }
 
   // 3. LLM — NVIDIA NIM open-model chain primary, Claude fallback, templates otherwise.
   const llm = makeLLMClient({
@@ -283,6 +312,7 @@ async function main(): Promise<void> {
   let backoffMs = 0;
   let consecutiveTickFailures = 0;
   let degraded = false;
+  let blindWarned = false;
   const MAX_BACKOFF = 60_000;
   const loop = async (): Promise<void> => {
     while (running) {
@@ -307,6 +337,22 @@ async function main(): Promise<void> {
         usersTracked = result.usersChecked;
         lastTickAt = new Date().toISOString();
         metrics.secondsSinceLastTick.set(0);
+        // Blind-spot escalation: if any tracked position's HF was unreadable, we
+        // can't see its risk — page (rate-limited), don't treat null as "fine".
+        if (result.healthReadFailures > 0) {
+          metrics.errorsTotal.inc({ where: "tick.readHealth" }, result.healthReadFailures);
+          if (!blindWarned) {
+            blindWarned = true;
+            void incidents.notify(
+              "critical",
+              "agent BLIND to positions",
+              `${result.healthReadFailures} tracked user(s) had an UNREADABLE health factor this tick — likely a non-archive or degraded RPC rejecting the pinned-block read. At-risk positions may be invisible. Check the RPC's archive support immediately.`,
+            );
+          }
+        } else if (blindWarned) {
+          blindWarned = false;
+          void incidents.notify("info", "agent health reads recovered", "all tracked HF reads succeeded again");
+        }
         if (degraded) {
           void incidents.notify(
             "info",

@@ -59,6 +59,11 @@ export interface TickResult {
   liquidated: number;
   autoRepaid: number;
   durationMs: number;
+  /** Tracked users whose HF could not be read this tick (e.g. non-archive RPC
+   *  rejecting the pinned-block read). NON-ZERO IS A RED FLAG: we are BLIND to
+   *  those positions' risk — the loop escalates this to a critical incident
+   *  rather than treating a silent null as "fine". */
+  healthReadFailures: number;
 }
 
 interface UserSnap {
@@ -179,6 +184,7 @@ export async function runTick(deps: TickDeps): Promise<TickResult> {
     liquidated: 0,
     autoRepaid: 0,
     durationMs: Date.now() - start,
+    healthReadFailures: 0,
   });
 
   if (deps.config.paused) {
@@ -222,10 +228,16 @@ export async function runTick(deps: TickDeps): Promise<TickResult> {
 
   // Triage: evict zero-debt, clear recovered, collect the at-risk subset.
   const atRisk: { user: Address; hf: bigint; debt: bigint }[] = [];
+  let healthReadFailures = 0;
   for (const user of users) {
     const s = snap.get(user);
     if (!s || s.hf === null) {
-      deps.log.append(action.error("tick.readHealth", `failed for ${user}`));
+      // A null HF means we are BLIND to this position — it may be liquidatable
+      // and we just can't see it (commonly a non-archive RPC rejecting the
+      // pinned-block read). Count it so the loop escalates, instead of silently
+      // skipping it as if it were fine.
+      healthReadFailures += 1;
+      deps.log.append(action.error("tick.readHealth", `HF unreadable for ${user} — BLIND to its risk this tick`));
       continue;
     }
     if (s.debt === 0n) {
@@ -300,5 +312,5 @@ export async function runTick(deps: TickDeps): Promise<TickResult> {
 
   const durationMs = Date.now() - start;
   deps.log.append(action.tick(users.length, durationMs));
-  return { block: blockNum, usersChecked: users.length, alerted, liquidated, autoRepaid, durationMs };
+  return { block: blockNum, usersChecked: users.length, alerted, liquidated, autoRepaid, durationMs, healthReadFailures };
 }
