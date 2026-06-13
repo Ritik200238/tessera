@@ -10,6 +10,65 @@ import { ViewModeToggle } from "@/components/view-mode";
 import { ChainBanner } from "@/components/chain-banner";
 import { PausedBanner } from "@/components/paused-banner";
 import { env } from "@/lib/env";
+import { brand, links, chain } from "@/lib/content";
+
+/**
+ * Footer information architecture. The header stays minimal (product actions
+ * only, BASE_NAV above); ALL informational/company/legal links live here,
+ * grouped into clear sections so the footer is the discovery hub — not a flat
+ * link dump and not crammed into the navbar.
+ */
+type FooterLink = { href: string; label: string; external?: boolean };
+const FOOTER_SECTIONS: { title: string; links: FooterLink[] }[] = [
+  {
+    title: "Product",
+    links: [
+      { href: "/borrow", label: "Borrow" },
+      { href: "/lend", label: "Earn" },
+      { href: "/dashboard", label: "Dashboard" },
+      { href: "/risk", label: "Markets & risk" },
+      { href: "/drill", label: "Live Drill" },
+      { href: "/status", label: "Status" },
+    ],
+  },
+  {
+    title: "Developers",
+    links: [
+      { href: "/docs", label: "Docs" },
+      { href: "/developers", label: "Developers" },
+      { href: links.github, label: "GitHub", external: true },
+      { href: "/security", label: "Security" },
+      { href: "/transparency", label: "Transparency" },
+    ],
+  },
+  {
+    title: "Company",
+    links: [
+      { href: "/about", label: "About" },
+      { href: "/blog", label: "Blog" },
+      { href: "/roadmap", label: "Roadmap" },
+      { href: "/why", label: "Why Tessera" },
+    ],
+  },
+  {
+    title: "Resources",
+    links: [
+      { href: "/faq", label: "FAQ" },
+      { href: "/litepaper", label: "Litepaper" },
+      { href: "/explore", label: "Explore" },
+      { href: "/sandbox", label: "Sandbox" },
+    ],
+  },
+  {
+    title: "Legal",
+    links: [
+      { href: "/terms", label: "Terms" },
+      { href: "/privacy", label: "Privacy" },
+      { href: "/disclaimer", label: "Disclaimer" },
+      { href: "/brand", label: "Brand & license" },
+    ],
+  },
+];
 
 // Clear, non-overlapping top-level nav. Collateral deposit is part of the
 // Borrow journey, not a peer destination. Admin is gated to the multisig
@@ -100,50 +159,63 @@ export function Shell({ children }: { children: ReactNode }) {
         {children}
       </main>
 
-      <footer className="border-t border-[color:var(--color-border)] mt-12">
-        <div className="mx-auto max-w-6xl flex flex-col md:flex-row md:items-center md:justify-between gap-3 px-4 py-6 text-sm text-[color:var(--color-muted-foreground)]">
-          <p className="mono text-xs">
-            © {new Date().getFullYear()} Tessera · No token, ever · Testnet only · Not financial advice.
-          </p>
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-            <Link className="whitespace-nowrap hover:text-[color:var(--color-foreground)]" href="/">
-              Home
-            </Link>
-            <Link className="whitespace-nowrap hover:text-[color:var(--color-foreground)]" href="/agent">
-              Activity
-            </Link>
-            <Link className="whitespace-nowrap hover:text-[color:var(--color-foreground)]" href="/status">
-              Status
-            </Link>
-            <Link className="whitespace-nowrap hover:text-[color:var(--color-foreground)]" href="/why">
-              Why Tessera
-            </Link>
-            <Link className="whitespace-nowrap hover:text-[color:var(--color-foreground)]" href="/security">
-              Security
-            </Link>
-            <Link className="whitespace-nowrap hover:text-[color:var(--color-foreground)]" href="/start">
-              Get started
-            </Link>
-            <Link className="whitespace-nowrap hover:text-[color:var(--color-foreground)]" href="/explore">
-              Explore
-            </Link>
-            <Link className="whitespace-nowrap hover:text-[color:var(--color-foreground)]" href="/sandbox">
-              Sandbox
-            </Link>
-            <Link className="whitespace-nowrap hover:text-[color:var(--color-foreground)]" href="/developers">
-              Developers
-            </Link>
-            <Link className="whitespace-nowrap hover:text-[color:var(--color-foreground)]" href="/roadmap">
-              Roadmap
-            </Link>
-            <Link className="whitespace-nowrap hover:text-[color:var(--color-foreground)]" href="/terms">
-              Terms &amp; Risk
-            </Link>
-            {isAdmin ? (
-              <Link className="whitespace-nowrap hover:text-[color:var(--color-foreground)]" href="/admin">
-                Admin
+      <footer className="border-t border-[color:var(--color-border)] mt-16">
+        <div className="mx-auto max-w-6xl px-4 py-12">
+          <div className="grid grid-cols-2 gap-8 sm:grid-cols-3 lg:grid-cols-6">
+            {/* Brand column */}
+            <div className="col-span-2 sm:col-span-3 lg:col-span-1">
+              <Link href="/" className="flex items-center gap-2.5">
+                <Mark size={22} />
+                <span className="text-base font-bold tracking-[-0.025em]">Tessera</span>
               </Link>
-            ) : null}
+              <p className="mt-3 text-xs leading-relaxed text-[color:var(--color-muted-foreground)] max-w-[40ch]">
+                {brand.tagline}
+              </p>
+            </div>
+            {FOOTER_SECTIONS.map((section) => (
+              <nav key={section.title} aria-label={section.title}>
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-[color:var(--color-foreground)]">
+                  {section.title}
+                </h3>
+                <ul className="mt-3 space-y-2">
+                  {section.links.map((l) => (
+                    <li key={l.href + l.label}>
+                      {l.external ? (
+                        <a
+                          href={l.href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm text-[color:var(--color-muted-foreground)] hover:text-[color:var(--color-foreground)] transition-colors"
+                        >
+                          {l.label} ↗
+                        </a>
+                      ) : (
+                        <Link
+                          href={l.href}
+                          className="text-sm text-[color:var(--color-muted-foreground)] hover:text-[color:var(--color-foreground)] transition-colors"
+                        >
+                          {l.label}
+                        </Link>
+                      )}
+                    </li>
+                  ))}
+                  {/* Admin link is gated and only shown in the Company column for the owner. */}
+                  {section.title === "Company" && isAdmin ? (
+                    <li>
+                      <Link href="/admin" className="text-sm text-[color:var(--color-muted-foreground)] hover:text-[color:var(--color-foreground)] transition-colors">
+                        Admin
+                      </Link>
+                    </li>
+                  ) : null}
+                </ul>
+              </nav>
+            ))}
+          </div>
+          <div className="mt-12 flex flex-col gap-2 border-t border-[color:var(--color-border)] pt-6 text-xs text-[color:var(--color-muted-foreground)] sm:flex-row sm:items-center sm:justify-between">
+            <p className="mono">
+              © {new Date().getFullYear()} Tessera · No token, ever · Testnet only · Not financial advice.
+            </p>
+            <p>Built on {chain.name}.</p>
           </div>
         </div>
       </footer>
