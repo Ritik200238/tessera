@@ -40,7 +40,7 @@ fn deploy(vm: &TestVM) -> TesseraVault {
     vm.set_sender(addr(OWNER));
     vm.set_block_timestamp(1_000_000);
     let mut v = TesseraVault::from(vm);
-    v.constructor(addr(OWNER), addr(USDC), addr(ORACLE), addr(AGENT))
+    v.initialize(addr(OWNER), addr(USDC), addr(ORACLE), addr(AGENT))
         .expect("initialize");
     v
 }
@@ -66,7 +66,7 @@ fn initialize_twice_reverts() {
     let vm = TestVM::default();
     let mut v = deploy(&vm);
     let err = v
-        .constructor(addr(OWNER), addr(USDC), addr(ORACLE), addr(AGENT))
+        .initialize(addr(OWNER), addr(USDC), addr(ORACLE), addr(AGENT))
         .unwrap_err();
     assert!(matches!(err, VaultError::NotOwner(_)));
 }
@@ -77,7 +77,7 @@ fn initialize_rejects_zero_owner() {
     vm.set_sender(addr(OWNER));
     let mut v = TesseraVault::from(&vm);
     let err = v
-        .constructor(Address::ZERO, addr(USDC), addr(ORACLE), addr(AGENT))
+        .initialize(Address::ZERO, addr(USDC), addr(ORACLE), addr(AGENT))
         .unwrap_err();
     assert!(matches!(err, VaultError::ZeroAddress(_)));
 }

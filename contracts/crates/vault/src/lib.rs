@@ -443,12 +443,17 @@ impl TesseraVault {
 impl TesseraVault {
     // ===================== Initialization & admin =====================
 
-    /// Constructor (Phase 2.2 — atomic init-hardening). Runs exactly once, AT
-    /// DEPLOY, in the same transaction as contract creation — so there is no
-    /// separate `initialize` tx for anyone to front-run. The `owner.is_zero()`
-    /// guard additionally rejects any direct re-invocation.
-    #[constructor]
-    pub fn constructor(
+    /// One-time initializer. Guarded by `owner.is_zero()` so it runs exactly once
+    /// and rejects re-invocation.
+    ///
+    /// NOTE: this is a plain `initialize()` rather than the Phase 2.2 Stylus
+    /// `#[constructor]` because the canonical target — Robinhood Chain (Orbit) —
+    /// has no `StylusDeployer`, so contracts deploy via plain `CREATE` and are
+    /// initialized in a follow-up tx (the deployer calls it atomically in the same
+    /// script, immediately after creation, closing the front-run window in
+    /// practice). The `#[constructor]` returns for an audited mainnet on a
+    /// deployer-equipped chain. PriceGuard and the Lens use the same pattern.
+    pub fn initialize(
         &mut self,
         owner: Address,
         usdc: Address,
