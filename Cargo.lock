@@ -3732,6 +3732,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "tessera-lens"
+version = "0.1.0"
+dependencies = [
+ "alloy-primitives",
+ "alloy-sol-types",
+ "interest-model",
+ "stylus-sdk",
+]
+
+[[package]]
+name = "tessera-priceguard"
+version = "0.1.0"
+dependencies = [
+ "alloy-primitives",
+ "alloy-sol-types",
+ "stylus-sdk",
+]
+
+[[package]]
 name = "tessera-vault"
 version = "0.1.0"
 dependencies = [

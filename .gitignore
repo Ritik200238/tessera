@@ -97,3 +97,5 @@ mcp/node_modules/
 # Secrets (belt-and-braces — never commit)
 .env.testnet
 render-drill-env.txt
+vault-opt.wasm
+vault-opt2.wasm
