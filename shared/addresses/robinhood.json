@@ -21,5 +21,7 @@
   ],
   "oracle": "0x65e6926BCD4EC600d4175019f20abAE07F95316D",
   "usdc": "0x753b9aC945Feb9dD0C5DD1861B8905e8E03B41dD",
-  "vault": "0xf10acf61b480c24102b303ebafb97d9392d693f2"
+  "vault": "0x4b13620b6bb6f82219605c33a60da169ca6a3724",
+  "priceguard": "0xa16c3cf2b2f25e7da774d45931947f62d5e3f185",
+  "lens": "0x9a682f2f8ea88258ee4c8aa3c3c75eaf22c40895"
 }
