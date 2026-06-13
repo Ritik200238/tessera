@@ -21,14 +21,23 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      # Robinhood Chain (Orbit, chain 46630) — where the full Tessera stack is
+      # deployed (the safety-hardened vault exceeds Sepolia's 24KB code limit).
       - key: CHAIN_ID
-        value: "421614"
+        value: "46630"
       - key: RPC_URL
-        value: https://sepolia-rollup.arbitrum.io/rpc
+        value: https://rpc.testnet.chain.robinhood.com/rpc
       - key: VAULT_ADDRESS
-        value: "0x72adaa00e2eaa98f62ee1c77e9b7714e0db57ba7"
+        value: "0x4b13620b6bb6f82219605c33a60da169ca6a3724"
       - key: USDC_ADDRESS
-        value: "0xf10aCF61b480c24102B303ebAFB97d9392d693F2"
+        value: "0x753b9aC945Feb9dD0C5DD1861B8905e8E03B41dD"
+      # RH MockOracle (vault prices through PriceGuard, which wraps this feed).
+      - key: ORACLE_ADDRESS
+        value: "0x65e6926BCD4EC600d4175019f20abAE07F95316D"
+      # Pin the deployer (holds the seeded RH test position) so the agent watches
+      # it immediately; the on-chain log scan also discovers other borrowers.
+      - key: AGENT_TRACKED_USERS
+        value: "0xF1d145384A77Ce10309eA96001BcD5bE19579124"
       - key: AGENT_CORS_ORIGINS
         value: https://tessera-web-delta.vercel.app
       # Secrets — entered in the Render dashboard on first deploy (never committed):
