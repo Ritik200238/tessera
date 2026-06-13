@@ -314,3 +314,68 @@ fn pow10(n: u8) -> U256 {
     }
     acc
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{normalize_price_8, pow10, price_deviation_exceeds};
+    use alloy_primitives::U256;
+
+    // ---- dual-feed deviation guard (moved here from the vault, Phase 5) ----
+
+    #[test]
+    fn deviation_guard_noop_when_disabled() {
+        assert!(!price_deviation_exceeds(U256::from(100), U256::from(200), 0));
+    }
+
+    #[test]
+    fn deviation_guard_within_tolerance_passes() {
+        // $200.00 vs $201.00 = 50bps; tolerance 50bps => not exceeded (strict >).
+        let p1 = U256::from(20_000_000_000u64);
+        let p2 = U256::from(20_100_000_000u64);
+        assert!(!price_deviation_exceeds(p1, p2, 50));
+        assert!(!price_deviation_exceeds(p2, p1, 50)); // order-independent
+    }
+
+    #[test]
+    fn deviation_guard_exceeds_tolerance_trips() {
+        // $200 vs $210 = 500bps; tolerance 50bps => exceeded both directions.
+        let p1 = U256::from(20_000_000_000u64);
+        let p2 = U256::from(21_000_000_000u64);
+        assert!(price_deviation_exceeds(p1, p2, 50));
+        assert!(price_deviation_exceeds(p2, p1, 50));
+    }
+
+    #[test]
+    fn deviation_guard_zero_price_is_safe() {
+        assert!(!price_deviation_exceeds(U256::ZERO, U256::from(100), 50));
+        assert!(!price_deviation_exceeds(U256::from(100), U256::ZERO, 50));
+    }
+
+    // ---- decimal normalization to 8dp ----
+
+    #[test]
+    fn normalize_passthrough_for_8_and_default() {
+        let p = U256::from(12_345_678u64);
+        assert_eq!(normalize_price_8(p, 0), p); // 0 => treated as the 8dp default
+        assert_eq!(normalize_price_8(p, 8), p);
+    }
+
+    #[test]
+    fn normalize_scales_up_low_decimal_feeds() {
+        // a 6dp feed reading 1.000000 => 1.00000000 at 8dp
+        assert_eq!(normalize_price_8(U256::from(1_000_000u64), 6), U256::from(100_000_000u64));
+    }
+
+    #[test]
+    fn normalize_scales_down_high_decimal_feeds() {
+        // an 18dp feed reading 1e18 => 1e8 at 8dp
+        let one_e18 = pow10(18);
+        assert_eq!(normalize_price_8(one_e18, 18), U256::from(100_000_000u64));
+    }
+
+    #[test]
+    fn pow10_matches_expected_powers() {
+        assert_eq!(pow10(0), U256::from(1u64));
+        assert_eq!(pow10(8), U256::from(100_000_000u64));
+    }
+}
