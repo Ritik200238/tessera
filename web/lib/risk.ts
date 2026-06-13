@@ -1,6 +1,6 @@
 import type { Address } from "viem";
 import { serverPublicClient } from "./server-rpc";
-import { vault, oracle } from "./contracts";
+import { vault, lens, oracle } from "./contracts";
 import { addresses } from "./addresses";
 import { assessRegime, hfToNumber } from "./regime";
 
@@ -96,7 +96,8 @@ export async function getPositionRisk(address: Address): Promise<PositionRisk> {
     contracts: [
       { address: vault.address, abi: vault.abi, functionName: "getHealthFactor", args: [address] },
       { address: vault.address, abi: vault.abi, functionName: "debtOf", args: [address] },
-      { address: vault.address, abi: vault.abi, functionName: "getSafetyScore", args: [address] },
+      // getSafetyScore moved to the Lens (falls back to the vault on older deploys).
+      { address: lens.address ?? vault.address, abi: lens.abi, functionName: "getSafetyScore", args: [address] },
     ],
     allowFailure: true,
   });

@@ -5,7 +5,7 @@ import { useAccount, useReadContracts, useWriteContract, useWaitForTransactionRe
 import { useChainGuard } from "@/lib/use-chain-guard";
 import { useQueryClient } from "@tanstack/react-query";
 import { formatUnits } from "viem";
-import { vault, oracle, isVaultDeployed } from "@/lib/contracts";
+import { vault, lens, oracle, isVaultDeployed } from "@/lib/contracts";
 import { addresses } from "@/lib/addresses";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
@@ -44,7 +44,7 @@ export function BorrowForm() {
   const { data } = useReadContracts({
     contracts: enabled
       ? [
-          { address: vault.address!, abi: vault.abi, functionName: "getAccountData", args: [address!] },
+          { address: (lens.address ?? vault.address)!, abi: lens.abi, functionName: "getAccountData", args: [address!] },
           { address: vault.address!, abi: vault.abi, functionName: "debtOf", args: [address!] },
           { address: vault.address!, abi: vault.abi, functionName: "borrowRateBps" },
           { address: vault.address!, abi: vault.abi, functionName: "getHealthFactor", args: [address!] },

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useAccount, useReadContract, useReadContracts, useWatchBlockNumber } from "wagmi";
 import { ArrowRight, Activity } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { vault, isVaultDeployed } from "@/lib/contracts";
+import { vault, lens, isVaultDeployed } from "@/lib/contracts";
 import { addresses } from "@/lib/addresses";
 import { activeChain } from "@/lib/chain";
 import { env } from "@/lib/env";
@@ -48,7 +48,7 @@ export function DashboardClient({ agentStatus }: { agentStatus: AgentStatusSumma
   const { data: aggregate, queryKey: aggKey } = useReadContracts({
     contracts: enabled
       ? [
-          { address: vaultAddress, abi: vault.abi, functionName: "getAccountData", args: [address!] },
+          { address: lens.address ?? vaultAddress, abi: lens.abi, functionName: "getAccountData", args: [address!] },
           { address: vaultAddress, abi: vault.abi, functionName: "debtOf", args: [address!] },
           { address: vaultAddress, abi: vault.abi, functionName: "supplyRateBps" },
           { address: vaultAddress, abi: vault.abi, functionName: "utilizationBps" },

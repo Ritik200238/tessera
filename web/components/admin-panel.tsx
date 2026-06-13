@@ -16,7 +16,7 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
 import { ConnectButton } from "./connect-button";
 import { HealthBadge } from "./health-badge";
-import { vault, isVaultDeployed } from "@/lib/contracts";
+import { vault, lens, isVaultDeployed } from "@/lib/contracts";
 import { addresses } from "@/lib/addresses";
 import { env } from "@/lib/env";
 import { classify } from "@/lib/health";
@@ -75,7 +75,8 @@ export function AdminPanel() {
   const reads = useMemo(() => {
     if (!vault.address) return [];
     return users.flatMap((u) => [
-      { address: vault.address!, abi: vault.abi, functionName: "getAccountData", args: [u] },
+      // getAccountData moved to the Lens (vault fallback for older deploys).
+      { address: (lens.address ?? vault.address)!, abi: lens.abi, functionName: "getAccountData", args: [u] },
     ]);
   }, [users]);
 

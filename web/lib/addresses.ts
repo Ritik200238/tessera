@@ -14,6 +14,10 @@ import { env } from "./env";
 
 export interface AddressBook {
   vault: `0x${string}` | null;
+  /** Read-only data provider (ERC-4626 quoting + account views). Null pre-deploy. */
+  lens: `0x${string}` | null;
+  /** Oracle policy router the vault prices through. Null pre-deploy. */
+  priceguard: `0x${string}` | null;
   usdc: `0x${string}` | null;
   oracle: `0x${string}` | null;
   /** Testnet faucet (mints test USDC + stocks). Null on mainnet. */
@@ -27,6 +31,8 @@ export interface AddressBook {
 
 const empty: AddressBook = {
   vault: null,
+  lens: null,
+  priceguard: null,
   usdc: null,
   oracle: null,
   faucet: null,
@@ -44,6 +50,8 @@ function tryLoad(envKey: string): AddressBook {
     const data = require(`../../shared/addresses/${envKey}.json`) as Partial<AddressBook>;
     return {
       vault: (data.vault ?? null) as AddressBook["vault"],
+      lens: (data.lens ?? null) as AddressBook["lens"],
+      priceguard: (data.priceguard ?? null) as AddressBook["priceguard"],
       usdc: (data.usdc ?? null) as AddressBook["usdc"],
       oracle: (data.oracle ?? null) as AddressBook["oracle"],
       faucet: (data.faucet ?? null) as AddressBook["faucet"],

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useAccount, useReadContract } from "wagmi";
-import { vault, isVaultDeployed } from "@/lib/contracts";
+import { vault, lens, isVaultDeployed } from "@/lib/contracts";
 import {
   assessRegime,
   hfToNumber,
@@ -34,8 +34,10 @@ export function ProtectionPreview() {
   }, []);
 
   const { data } = useReadContract({
-    address: vault.address ?? undefined,
-    abi: vault.abi,
+    // getAccountData moved to the Lens; fall back to the vault for older deploys
+    // (their vault still exposes it).
+    address: (lens.address ?? vault.address) ?? undefined,
+    abi: lens.abi,
     functionName: "getAccountData",
     args: address ? [address] : undefined,
     query: { enabled: isConnected && isVaultDeployed() && !!address, refetchInterval: 30_000 },

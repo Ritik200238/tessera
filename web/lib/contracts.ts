@@ -49,6 +49,73 @@ export function isVaultDeployed(): boolean {
   return addresses.vault !== null;
 }
 
+/**
+ * TesseraLens — the read-only data provider (`contracts/crates/lens`). The
+ * ERC-4626 quoting (`convertToShares`/`convertToAssets`/`preview*`) and the
+ * aggregate account views (`getAccountData`/`getSafetyScore`) moved here off the
+ * funds-holding vault, so the UI reads those derived numbers from the Lens. The
+ * Lens reuses the vault's raw getters + the same interest-model math, so the
+ * numbers are identical. Signatures mirror the vault's old ones exactly.
+ *
+ * Hand-written (`as const satisfies Abi`) like `oracleAbi`/`faucetAbi`: the
+ * Stylus `export-abi` path needs `solc`, which isn't in CI, and these few
+ * signatures are stable. Regenerate from `cargo stylus export-abi` when solc is
+ * available.
+ */
+export const lensAbi = [
+  {
+    type: "function",
+    name: "getAccountData",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "user", type: "address" }],
+    outputs: [{ type: "uint256" }, { type: "uint256" }, { type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "getHealthFactor",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "user", type: "address" }],
+    outputs: [{ type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "getSafetyScore",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "user", type: "address" }],
+    outputs: [{ type: "uint8" }],
+  },
+  {
+    type: "function",
+    name: "convertToAssets",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "shares", type: "uint256" }],
+    outputs: [{ type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "convertToShares",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "assets", type: "uint256" }],
+    outputs: [{ type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "previewRedeem",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "shares", type: "uint256" }],
+    outputs: [{ type: "uint256" }],
+  },
+] as const satisfies Abi;
+
+export const lens: { address: Address | null; abi: Abi } = {
+  address: addresses.lens,
+  abi: lensAbi,
+};
+
+export function isLensDeployed(): boolean {
+  return addresses.lens !== null;
+}
+
 /** Minimal MockOracle surface used by the Status page to read price freshness. */
 export const oracleAbi = [
   { type: "function", name: "maxAge", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] },
