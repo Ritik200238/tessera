@@ -343,12 +343,42 @@ async function main(): Promise<void> {
     }
   }, 1_000);
 
+  // On-chain agent heartbeat. Stamp vault.heartbeat() on a slow cadence so the
+  // permissionless backstop (once enabled, delay > 0) sees a live-but-IDLE agent
+  // and stays CLOSED — only a genuinely silent (dead/keyless) agent should open
+  // it. This is the HARD predecessor to enabling the backstop. Harmless today
+  // (backstop_delay_secs == 0 ⇒ the vault ignores the heartbeat), so it can ship
+  // ahead of enabling delay > 0. liquidate()/agentRepayFor() also stamp it, so
+  // this only matters on quiet (no-action) periods.
+  const HEARTBEAT_ABI = [
+    { type: "function", name: "heartbeat", stateMutability: "nonpayable", inputs: [], outputs: [] },
+  ] as const;
+  const stampHeartbeat = async (): Promise<void> => {
+    try {
+      const tx = await walletClient.writeContract({
+        address: vaultAddress,
+        abi: HEARTBEAT_ABI,
+        functionName: "heartbeat",
+        account,
+        chain: null,
+      });
+      metrics.heartbeatsTotal.inc({ status: "ok" });
+      logger.debug({ tx }, "on-chain heartbeat stamped");
+    } catch (e) {
+      metrics.heartbeatsTotal.inc({ status: "error" });
+      trackError("heartbeat", (e as Error).message);
+    }
+  };
+  void stampHeartbeat(); // stamp once at startup so a fresh deploy is immediately "alive"
+  const onchainHeartbeat = setInterval(() => void stampHeartbeat(), cfg.AGENT_HEARTBEAT_INTERVAL_MS);
+
   void loop();
 
   const shutdown = async (signal: string): Promise<void> => {
     logger.info({ signal }, "shutdown signal received");
     running = false;
     clearInterval(heartbeat);
+    clearInterval(onchainHeartbeat);
     await incidents.notify("warn", "agent stopping", `signal ${signal}`);
     await server.close();
     db.close();

@@ -56,6 +56,18 @@ export const metrics = {
     buckets: [0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10],
     registers: [registry],
   }),
+  heartbeatsTotal: new Counter({
+    name: "tessera_agent_heartbeats_total",
+    help: "On-chain agent heartbeat() stamps (keeps the permissionless backstop closed while the agent is alive but idle)",
+    labelNames: ["status"] as const,
+    registers: [registry],
+  }),
+  llmCallsTotal: new Counter({
+    name: "tessera_agent_llm_calls_total",
+    help: "Alert-copy generations by which path actually answered",
+    labelNames: ["outcome"] as const, // nim | claude | template
+    registers: [registry],
+  }),
 };
 
 /** Returns the full Prometheus exposition format string. */

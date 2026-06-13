@@ -10,6 +10,7 @@
 import type { Address } from "viem";
 import type { AlertLevel } from "../types.js";
 import type { TesseraLLM } from "./client.js";
+import { metrics } from "../metrics.js";
 
 export interface AlertFacts {
   user: Address;
@@ -57,7 +58,15 @@ export async function generateAlertCopy(
   llm: TesseraLLM,
   facts: AlertFacts,
 ): Promise<string> {
-  if (!llm.available) return templateAlertCopy(facts);
+  // NOTE: the LLM only writes the decorative SENTENCE. The load-bearing numbers
+  // (HF, safety score, repay amount) come from the deterministic facts/core and
+  // the template fallback below echoes those same facts — so a degraded LLM never
+  // corrupts the numbers, only the prose. The metric exposes how often we're on
+  // each path (visible at /metrics) so a silent slide to template is observable.
+  if (!llm.available) {
+    metrics.llmCallsTotal.inc({ outcome: "template" });
+    return templateAlertCopy(facts);
+  }
   try {
     const prompt = `Facts (JSON): ${JSON.stringify({
       level: facts.level,
@@ -66,9 +75,14 @@ export async function generateAlertCopy(
     })}\n\nWrite the alert sentence now.`;
     const text = await llm.complete(prompt, { system: SYSTEM_PROMPT, maxTokens: 120 });
     const cleaned = text.replace(/^["']|["']$/g, "").trim();
-    if (!cleaned) return templateAlertCopy(facts);
+    if (!cleaned) {
+      metrics.llmCallsTotal.inc({ outcome: "template" });
+      return templateAlertCopy(facts);
+    }
+    metrics.llmCallsTotal.inc({ outcome: (llm.provider ?? "").includes("Claude") ? "claude" : "nim" });
     return cleaned;
   } catch {
+    metrics.llmCallsTotal.inc({ outcome: "template" });
     return templateAlertCopy(facts);
   }
 }
