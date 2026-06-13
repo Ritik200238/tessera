@@ -53,6 +53,11 @@ const MAX_BORROW_RATE_BPS: u32 = 30_000;
 /// a withdrawal buffer of idle USDC always remains for lenders. 9500 = 95%.
 const MAX_UTIL_BPS: u64 = 9_500;
 
+/// Market-closed borrowing-power haircut (Phase 5): while PriceGuard reports the
+/// underlying market closed, new borrows get this fraction of normal LTV — 24/7
+/// borrowing stays available, with weekend/holiday gap-risk priced in. 8500 = 85%.
+const MARKET_CLOSED_LTV_BPS: u64 = 8_500;
+
 pub mod errors;
 pub mod events;
 pub mod interest;
@@ -103,26 +108,7 @@ fn mul_div_up(num: U256, den: U256) -> U256 {
     }
 }
 
-fn pow10_u256(n: u8) -> U256 {
-    let mut acc = U256::from(1u64);
-    for _ in 0..n {
-        acc = acc.saturating_mul(U256::from(10u64));
-    }
-    acc
-}
-
-/// Normalise a raw oracle answer to 8 decimals given the feed's decimals.
-/// `feed_decimals == 0` is treated as 8 (the default for Chainlink and the
-/// testnet MockOracle), so existing listings are unaffected.
-fn normalize_price_8(price: U256, feed_decimals: u8) -> U256 {
-    if feed_decimals == 0 || feed_decimals == 8 {
-        price
-    } else if feed_decimals < 8 {
-        price.saturating_mul(pow10_u256(8 - feed_decimals))
-    } else {
-        price.checked_div(pow10_u256(feed_decimals - 8)).unwrap_or(U256::ZERO)
-    }
-}
+// pow10_u256 / normalize_price_8 moved to the PriceGuard contract (Phase 5).
 
 // ---------- Internal helpers ----------
 
@@ -218,32 +204,28 @@ impl TesseraVault {
     }
 
     fn oracle_price(&mut self, asset: Address) -> Result<U256, VaultError> {
-        let oracle = self.config.oracle.get();
-        let max_age = self.config.max_price_age_secs.get().to::<u64>();
-        let now = self.now_ts();
-        // Read the configured feed decimals before the (mutable) oracle call.
-        let fd = self.config.asset_whitelist.get(asset).feed_decimals.get().to::<u8>();
-        let raw = oracle::price_usd_8(self, oracle, asset, now, max_age)?;
-        // Normalise any non-8-decimal feed to 8dp. Mainnet Chainlink feeds are
-        // NOT uniformly 8-decimal; the testnet mock is 8 (fd default 0 => 8), so
-        // this is a no-op there and a correctness guard on mainnet.
-        let p1 = normalize_price_8(raw, fd);
-        // Dual-oracle deviation guard (no-op unless configured): if a FRESH
-        // secondary feed disagrees with the primary beyond the tolerance, reject
-        // the price so no borrow / withdraw / liquidation runs on a possibly-
-        // manipulated feed. A stale/unavailable secondary falls back to the
-        // primary (no false freeze). Repay paths read no price, so debt reduction
-        // stays available regardless.
-        let secondary = self.config.secondary_oracle.get();
-        let max_dev = self.config.max_deviation_bps.get().to::<u64>();
-        if !secondary.is_zero() && max_dev > 0 {
-            if let Ok(raw2) = oracle::price_usd_8(self, secondary, asset, now, max_age) {
-                if price_deviation_exceeds(p1, normalize_price_8(raw2, fd), max_dev) {
-                    return Err(VaultError::OracleFailure(OracleFailure { asset }));
-                }
-            }
-        }
-        Ok(p1)
+        // Read through the PriceGuard router (Phase 5): it enforces staleness, the
+        // dual-feed deviation guard, and decimal normalization, returning a
+        // validated 8dp price (or reverting). `config.oracle` is the PriceGuard
+        // address. Moving this logic out of the vault is what keeps the core under
+        // the 24KB code-size ceiling.
+        let guard = self.config.oracle.get();
+        let pg = oracle::IPriceGuard::new(guard);
+        let cfg = Call::new_mutating(self);
+        pg.get_price(self.vm(), cfg, asset)
+            .map_err(|_| VaultError::OracleFailure(OracleFailure { asset }))
+    }
+
+    /// PriceGuard's halt flag (circuit breaker): when true, NEW risk is blocked.
+    fn oracle_halted(&mut self) -> bool {
+        let pg = oracle::IPriceGuard::new(self.config.oracle.get());
+        pg.halted(self.vm(), Call::new()).unwrap_or(false)
+    }
+
+    /// PriceGuard's market-closed flag: when true, new borrows are haircut.
+    fn oracle_market_closed(&mut self) -> bool {
+        let pg = oracle::IPriceGuard::new(self.config.oracle.get());
+        pg.market_closed(self.vm(), Call::new()).unwrap_or(false)
     }
 
     /// Aggregate the user's collateral into the legs the interest-model needs,
@@ -1370,7 +1352,17 @@ impl TesseraVault {
             // Stricter borrow-open gate (TDD §7.3): the loan must also fit within
             // each asset's MAX LTV, so a fresh position opens with a buffer below
             // the liquidation threshold — the time window the agent needs to act.
-            let ltv_coll_8 = self.collateral_legs_weighted(user, true)?;
+            // New-risk gating via PriceGuard (Phase 5). Halted (circuit breaker) =>
+            // block the borrow; market closed (weekend/holiday) => haircut borrowing
+            // power so 24/7 borrowing stays a feature with gap-risk priced in.
+            if self.oracle_halted() {
+                return Err(VaultError::OracleFailure(OracleFailure { asset: Address::ZERO }));
+            }
+            let haircut_bps: u64 = if self.oracle_market_closed() { MARKET_CLOSED_LTV_BPS } else { 10_000 };
+            let ltv_coll_8 = self
+                .collateral_legs_weighted(user, true)?
+                .saturating_mul(U256::from(haircut_bps))
+                / U256::from(10_000u64);
             let debt_usd_8 = self.user_debt(user).saturating_mul(U256::from(100u64));
             if health_factor(ltv_coll_8, debt_usd_8) < U256::from(WAD) {
                 return Err(VaultError::HealthFactorTooLow(HealthFactorTooLow {}));
@@ -1751,17 +1743,7 @@ pub(crate) fn backstop_allows(is_agent: bool, now_ts: u64, last_heartbeat: u64, 
     delay > 0 && now_ts.saturating_sub(last_heartbeat) > delay
 }
 
-/// Dual-oracle deviation guard. True when two fresh prices disagree by more than
-/// `max_bps` relative to the lower price. Pure; the live oracle path reverts
-/// price reads when this holds. `max_bps == 0` ⇒ disabled (no-op).
-pub(crate) fn price_deviation_exceeds(p1: U256, p2: U256, max_bps: u64) -> bool {
-    if max_bps == 0 || p1.is_zero() || p2.is_zero() {
-        return false;
-    }
-    let (lo, hi) = if p1 <= p2 { (p1, p2) } else { (p2, p1) };
-    // (hi − lo)/lo > max_bps/10000 ⇔ (hi − lo)*10000 > lo*max_bps
-    (hi - lo).saturating_mul(U256::from(10_000u64)) > lo.saturating_mul(U256::from(max_bps))
-}
+// price_deviation_exceeds (dual-oracle guard) moved to PriceGuard (Phase 5).
 
 #[cfg(test)]
 mod tests;
