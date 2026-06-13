@@ -1,35 +1,75 @@
-name: Agent keep-alive
+name: Agent keep-alive + watchdog
 
-# Render's free tier spins a service down after ~15 min idle. This pings the
-# agent's /health every 10 min to hold it awake. It reads the repo variable
-# AGENT_PING_URL and no-ops until you set it, so it's safe to merge before deploy.
+# Two jobs in one: (1) keep Render's free dyno awake by pinging /health every
+# 10 min; (2) WATCHDOG — if the agent is unreachable (after a retry) OR is up but
+# its last tick is stale, fire an incident webhook so a dead/stalled Watcher is
+# never silent. Both no-op until the repo vars/secrets are set, so this is safe
+# to merge before deploy.
 #
-# Set it at: repo Settings -> Secrets and variables -> Actions -> Variables ->
-#   AGENT_PING_URL = https://<your-render-app>.onrender.com/health
+# Configure at: repo Settings -> Secrets and variables -> Actions
+#   Variables: AGENT_PING_URL = https://<app>.onrender.com   (base URL, no /health)
+#   Secrets:   AGENT_INCIDENT_WEBHOOK_URL = <Slack/Discord incoming webhook>  (optional)
 #
-# (A purpose-built monitor like UptimeRobot's free 5-min check is more reliable if
-# you'd rather not depend on GitHub's cron timing.)
+# (A purpose-built monitor like UptimeRobot's free 5-min check is a good
+# additional layer if you'd rather not depend on GitHub's cron timing.)
 on:
   schedule:
     - cron: "*/10 * * * *"
   workflow_dispatch: {}
 
 jobs:
-  ping:
+  watchdog:
     runs-on: ubuntu-latest
+    env:
+      BASE: ${{ vars.AGENT_PING_URL }}
+      WEBHOOK: ${{ secrets.AGENT_INCIDENT_WEBHOOK_URL }}
+      STALE_SECS: "300" # alert if the last tick is older than 5 min (~30 missed ~10s ticks)
     steps:
-      - name: Ping agent /health
-        env:
-          URL: ${{ vars.AGENT_PING_URL }}
+      - name: Ping + watchdog
         run: |
-          if [ -z "$URL" ]; then
+          set -uo pipefail
+          if [ -z "${BASE:-}" ]; then
             echo "AGENT_PING_URL not set — skipping (set it once the agent is deployed)."
             exit 0
           fi
-          echo "Pinging $URL"
-          # Don't fail the run on a cold-start miss; the next tick wakes it.
-          if curl -fsS --max-time 40 "$URL" > /dev/null; then
-            echo "OK"
+          URL="${BASE%/}/health"
+
+          alert() {
+            echo "INCIDENT: $1"
+            if [ -n "${WEBHOOK:-}" ]; then
+              curl -fsS --max-time 20 -X POST -H 'Content-Type: application/json' \
+                --data "{\"text\":\"🔴 Tessera Watcher incident: $1 ($URL)\"}" "$WEBHOOK" >/dev/null \
+                && echo "webhook sent" || echo "webhook POST failed"
+            else
+              echo "(AGENT_INCIDENT_WEBHOOK_URL not set — alert not delivered)"
+            fi
+          }
+
+          # 1) Reachability with one retry (a single cold-start miss is not an incident).
+          BODY=""
+          for attempt in 1 2; do
+            BODY=$(curl -fsS --max-time 40 "$URL" 2>/dev/null) && break
+            echo "attempt $attempt: /health not 2xx"
+            [ "$attempt" = "1" ] && sleep 30
+          done
+          if [ -z "$BODY" ]; then
+            alert "agent /health unreachable after retry — Watcher may be DOWN"
+            exit 0
+          fi
+          echo "health: $BODY"
+
+          # 2) Freshness: the dyno can be UP but the tick loop stalled.
+          LAST=$(printf '%s' "$BODY" | jq -r '.lastTickAt // empty' 2>/dev/null || true)
+          if [ -z "$LAST" ] || [ "$LAST" = "null" ]; then
+            alert "agent up but lastTickAt is missing — tick loop may not be running"
+            exit 0
+          fi
+          LAST_EPOCH=$(date -u -d "$LAST" +%s 2>/dev/null || echo 0)
+          NOW_EPOCH=$(date -u +%s)
+          AGE=$(( NOW_EPOCH - LAST_EPOCH ))
+          echo "last tick ${AGE}s ago (threshold ${STALE_SECS}s)"
+          if [ "$LAST_EPOCH" -gt 0 ] && [ "$AGE" -gt "$STALE_SECS" ]; then
+            alert "agent STALLED — last tick ${AGE}s ago (> ${STALE_SECS}s); liquidations/auto-repays not firing"
           else
-            echo "ping did not return 2xx (service may be cold-starting) — non-fatal"
+            echo "OK — Watcher alive and ticking"
           fi

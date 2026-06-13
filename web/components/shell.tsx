@@ -136,6 +136,9 @@ export function Shell({ children }: { children: ReactNode }) {
             <Link className="whitespace-nowrap hover:text-[color:var(--color-foreground)]" href="/roadmap">
               Roadmap
             </Link>
+            <Link className="whitespace-nowrap hover:text-[color:var(--color-foreground)]" href="/terms">
+              Terms &amp; Risk
+            </Link>
             {isAdmin ? (
               <Link className="whitespace-nowrap hover:text-[color:var(--color-foreground)]" href="/admin">
                 Admin
