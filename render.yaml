@@ -28,7 +28,7 @@ services:
       - key: RPC_URL
         value: https://rpc.testnet.chain.robinhood.com/rpc
       - key: VAULT_ADDRESS
-        value: "0x4b13620b6bb6f82219605c33a60da169ca6a3724"
+        value: "0x8bf61ab5984ea1fc8944e645aea11f7c34887f6e"
       - key: USDC_ADDRESS
         value: "0x753b9aC945Feb9dD0C5DD1861B8905e8E03B41dD"
       # RH MockOracle (vault prices through PriceGuard, which wraps this feed).

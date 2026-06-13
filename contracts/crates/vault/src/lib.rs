@@ -134,8 +134,12 @@ impl TesseraVault {
         Ok(())
     }
 
-    /// Enforce the on-chain per-(user, UTC-day) auto-repay ceiling and return the
-    /// amount the agent is allowed to repay this call. `max == 0` disables the cap.
+    /// Enforce the on-chain auto-repay ceilings and return the amount the agent is
+    /// allowed to repay this call. Two layers: a per-(user, tx) cap applied first
+    /// (tighter, transactional), then a per-(user, UTC-day) cap. `initialize()`
+    /// lands non-zero defaults and both setters reject 0, so neither is the
+    /// fail-dangerous "unlimited" value on a deployed vault; 0 is still handled
+    /// safely (treated as "this layer not enforced") for defensive robustness.
     fn charge_daily_repay(&mut self, user: Address, amount: U256) -> Result<U256, VaultError> {
         // Per-tx cap first (defense-in-depth): bound any single auto-repay before
         // the daily accounting. 0 = no per-tx cap (still bounded by the daily cap).
