@@ -22,7 +22,7 @@ export default async function AgentPage() {
       <header className="space-y-2">
         <h1 className="text-3xl font-semibold tracking-tight">Agent activity</h1>
         <p className="text-sm text-[color:var(--color-muted-foreground)] max-w-2xl">
-          Tessera&apos;s autonomous agent polls the vault every block, alerts you in plain English
+          Tessera&apos;s autonomous agent polls the vault continuously (about every 10 seconds), alerts you in plain English
           when risk rises, and — when you enable Active Protection — auto-repays from your
           pre-approved USDC to prevent a liquidation. It liquidates only as a last resort below
           health factor 1.0. The deterministic core decides what to do; the agent can only act

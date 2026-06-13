@@ -55,7 +55,7 @@ export function YourStanding() {
       <CardHeader>
         <CardTitle>Where you stand</CardTitle>
         <CardDescription>
-          This wallet, right now ({reg.label}) — same math the agent runs every block.
+          This wallet, right now ({reg.label}) — the same math the agent runs each tick (~10s).
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3 text-sm">

@@ -314,8 +314,8 @@ export function DrillClient() {
           <p>
             <span className="font-medium text-[color:var(--color-foreground)]">Why this matters:</span> tokenized
             stocks gap while the underlying market is closed. A generic money market reacts after the damage; Tessera&apos;s
-            agent watches every block and repays <em>before</em> liquidation, from USDC the user pre-approved — it can
-            only ever reduce debt.
+            agent watches around the clock (~10s) and can repay <em>before</em> liquidation, from USDC the user
+            pre-approved — it can only ever reduce debt.
           </p>
           <p>
             <span className="font-medium text-[color:var(--color-foreground)]">Why it&apos;s honest:</span> the drill

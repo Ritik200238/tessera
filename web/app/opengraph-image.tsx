@@ -44,7 +44,7 @@ export default function OpengraphImage() {
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <div style={{ fontSize: 104, fontWeight: 800, color: INK, letterSpacing: -3 }}>Tessera</div>
           <div style={{ fontSize: 38, color: INK, lineHeight: 1.25, maxWidth: 1000 }}>
-            Borrow against tokenized stocks. An AI agent watches every position 24/7 and acts before a liquidation.
+            Borrow against tokenized stocks. An AI agent watches your position around the clock and acts to head off a liquidation.
           </div>
           <div style={{ fontSize: 26, color: MUTED, marginTop: 8 }}>
             Arbitrum Stylus · No token, ever · Non-custodial

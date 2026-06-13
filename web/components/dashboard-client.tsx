@@ -256,7 +256,8 @@ function Landing() {
           <p>
             Tessera turns your tokenized stocks into productive collateral. Borrow stablecoins
             against tAAPL, tTSLA, and tSPY — while our autonomous risk agent watches your
-            position 24/7, including weekends when traditional markets are closed.
+            position around the clock (re-checking about every 10 seconds), including weekends
+            when traditional markets are closed.
           </p>
           <p>
             Connect a wallet to see your portfolio Safety Score in real time. Everything you can do
@@ -285,8 +286,8 @@ function Landing() {
             Up to 40–60% of your collateral value — a conservative, per-asset limit that
             accounts for overnight and weekend gap risk — at a dynamic rate.
           </Step>
-          <Step n={3} title="AI keeps an eye on it — 24/7">
-            The agent watches your Safety Score every block and alerts you in plain English
+          <Step n={3} title="AI keeps an eye on it — around the clock">
+            The agent watches your Safety Score on a constant loop (~10s) and alerts you in plain English
             when risk rises. Switch on{" "}
             <span className="font-medium text-[color:var(--color-foreground)]">Active Protection</span>{" "}
             and it can auto-repay from USDC you pre-approve, restoring your position before a

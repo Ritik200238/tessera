@@ -46,7 +46,7 @@ export default function BorrowPage() {
       <Step
         n={3}
         title="Turn on Active Protection"
-        desc="Pre-approve USDC and the agent auto-repays to pull you back to safety before a liquidation. The allowance is your spending cap and your kill switch — revoke it anytime."
+        desc="Pre-approve USDC and the agent can auto-repay to pull you back toward safety before a liquidation (a severe gap can still liquidate). The allowance is your spending cap and your kill switch — revoke it anytime."
       >
         <AgentControls />
       </Step>

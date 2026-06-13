@@ -16,7 +16,7 @@ export default function SandboxPage() {
         <h1 className="text-3xl font-semibold tracking-tight">Gap sandbox</h1>
         <p className="max-w-2xl text-sm text-[color:var(--color-muted-foreground)]">
           Crash a position by any amount and watch exactly what Tessera&apos;s agent would do — the
-          same decision it makes on-chain every block. Then{" "}
+          same decision it makes on-chain each tick (~10s). Then{" "}
           <Link href="/drill" className="font-medium underline">run it for real on the Live Drill</Link>.
         </p>
       </header>

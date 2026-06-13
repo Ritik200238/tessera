@@ -63,7 +63,7 @@ export function ActionLog({ actions }: { actions: AgentAction[] }) {
         <div className="flex items-center gap-2 rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-muted)] px-3 py-2 text-xs text-[color:var(--color-muted-foreground)]">
           <span aria-hidden className="inline-block size-2 rounded-full" style={{ background: "var(--color-safe-fg)" }} />
           <span>
-            Monitoring every block — last checked{" "}
+            Monitoring continuously (~10s) — last checked{" "}
             <span className="font-mono">{formatTs(latestTick.ts)}</span>
             {latestTick.usersChecked > 0
               ? ` · ${latestTick.usersChecked} position${latestTick.usersChecked === 1 ? "" : "s"}`
@@ -74,8 +74,8 @@ export function ActionLog({ actions }: { actions: AgentAction[] }) {
 
       {substantive.length === 0 ? (
         <div className="rounded-xl border border-dashed border-[color:var(--color-border)] p-6 text-center text-sm text-[color:var(--color-muted-foreground)]">
-          No alerts or interventions needed recently — the agent is watching every block and will act
-          (and log it here) the moment risk rises.
+          No alerts or interventions needed recently — the agent is watching on a constant loop (~10s)
+          and will act (and log it here) the moment risk rises.
         </div>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-[color:var(--color-border)]">

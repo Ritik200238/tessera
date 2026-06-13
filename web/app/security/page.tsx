@@ -58,21 +58,19 @@ export default function SecurityPage() {
             not to us, not to a third party. There is no flow in which value leaves your control to
             anyone but your own debt.
           </Fact>
-          <Fact title="Permissionless backstop — live + proven on Robinhood Chain">
-            If the agent goes silent, a heartbeat-gated backstop lets <em>anyone</em> liquidate an
-            unhealthy position — running the identical close-factor + post-HF-improvement guards, so
-            it&apos;s provably as safe as an agent liquidation. The full vault carrying this backstop +
-            the dual-oracle deviation guard is ~1KB over Sepolia&apos;s 24KB code limit, so it runs
-            live on{" "}
-            <a className="font-medium underline" href="https://explorer.testnet.chain.robinhood.com/address/0xf10acf61b480c24102b303ebafb97d9392d693f2" target="_blank" rel="noopener noreferrer">
-              Robinhood Chain
-            </a>{" "}
-            (an Arbitrum Orbit L2 with a larger limit — and the native home of tokenized equities).
-            It&apos;s not just deployed, it&apos;s <strong>proven</strong>: a non-agent address
-            backstop-liquidated a stale-heartbeat position on-chain, health factor 0.94 → 1.20 —{" "}
+          <Fact title="Permissionless backstop — built and tested; disabled on testnet, enabled at mainnet">
+            If the agent goes silent, a heartbeat-gated backstop is designed to let <em>anyone</em>{" "}
+            liquidate an unhealthy position — running the identical close-factor + post-HF-improvement
+            guards, so it&apos;s provably as safe as an agent liquidation. It is implemented in the
+            vault and covered by tests, and was demonstrated on an earlier Robinhood Chain deployment
+            (a non-agent address backstop-liquidated a stale-heartbeat position, health factor
+            0.94 → 1.20 —{" "}
             <a className="font-medium underline" href="https://explorer.testnet.chain.robinhood.com/tx/0x1c2f6a9024c4ec3018d074510a6bee7eea8a06823a9c975e74f0fe62c4881c76" target="_blank" rel="noopener noreferrer">
-              verify the liquidation ↗
-            </a>.
+              demonstration tx ↗
+            </a>). <strong>On the current testnet vault it is DISABLED</strong> — liquidation is
+            agent-only — and it is enabled at mainnet only once the agent stamps an on-chain idle
+            heartbeat (so a merely-idle agent can never expose healthy positions). Until then, treat
+            liquidation as agent-only and best-effort.
           </Fact>
         </CardContent>
       </Card>
@@ -137,8 +135,10 @@ export default function SecurityPage() {
         <CardContent className="space-y-3 text-sm">
           <Fact title="What if the agent goes down?">
             Your on-chain protections (allowance cap, HF checks, the contract&apos;s own rules) don&apos;t
-            depend on it. While it&apos;s down, new alerts/auto-repays pause; the pre-mainnet backstop
-            exists so liquidations can still happen. Live heartbeat is on{" "}
+            depend on it. While it&apos;s down, new alerts/auto-repays pause. <strong>On testnet today
+            liquidation is agent-only</strong>, so if the agent is down no new liquidations happen until
+            it recovers — this is exactly why the permissionless backstop above is a hard pre-mainnet
+            gate. The live agent heartbeat is on{" "}
             <Link href="/status" className="font-medium underline">Status</Link>.
           </Fact>
           <Fact title="What if the oracle is stale?">
@@ -203,9 +203,11 @@ export default function SecurityPage() {
         <CardContent>
           <ol className="ml-5 list-decimal space-y-1 text-sm">
             <li>Independent audit complete</li>
-            <li>Permissionless, heartbeat-gated liquidation backstop live <em>(built + proven on Robinhood Chain; enabled per-chain at mainnet)</em></li>
+            <li><strong>Live, license-cleared price feed</strong> — real market data, not the testnet mock that holds last-close prices</li>
+            <li>Permissionless, heartbeat-gated liquidation backstop enabled <em>(built + tested; demonstrated on an earlier deployment; turned on per-chain at mainnet after the agent&apos;s on-chain idle heartbeat ships)</em></li>
+            <li>Per-user agent-repay caps set on-chain at deploy (daily + per-tx)</li>
             <li>Public bug bounty</li>
-            <li>Insurance / safety reserve seeded (from the reserve factor)</li>
+            <li>Insurance / safety reserve seeded + sized to a worst-case single-name gap</li>
             <li>Legal review of ToS + risk disclosure; US + sanctioned-jurisdiction geo-block</li>
             <li>Conservative per-asset TVL caps</li>
           </ol>

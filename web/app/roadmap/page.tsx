@@ -8,8 +8,8 @@ export const metadata = { title: "Roadmap" };
  * things; mainnet items are gates, not promises of dates.
  */
 const LIVE: [string, string][] = [
-  ["Stylus vault on Arbitrum Sepolia", "ERC-4626 USDC pool + tokenized-stock collateral, conservative per-asset LTVs"],
-  ["Autonomous risk agent", "watches every position each block; plain-English alerts; auto-repay from a user-approved cap"],
+  ["Stylus vault on Robinhood Chain (Arbitrum Orbit)", "ERC-4626 USDC pool + tokenized-stock collateral, conservative per-asset LTVs"],
+  ["Autonomous risk agent", "watches every position each tick (~10s); plain-English alerts; auto-repay from a user-approved cap"],
   ["Regime-aware protection", "protect bands widen automatically for after-hours / weekends / earnings — acts before the gap"],
   ["Live Drill", "one click: a real position gaps −33% and the production agent rescues it on-chain"],
   ["Reproducible proof", "CI-locked backtest: protection avoided liquidation in 75% of modeled gap liquidations"],

@@ -10,7 +10,7 @@ export default function StartPage() {
         <p className="max-w-2xl text-sm text-[color:var(--color-muted-foreground)]">
           Five steps, each a real on-chain transaction with free test funds. Progress is read from
           the chain itself — reload anytime, nothing is lost. By the end, an AI agent is watching
-          your loan every block.
+          your loan around the clock (re-checking about every 10s).
         </p>
       </header>
       <StartWalk />

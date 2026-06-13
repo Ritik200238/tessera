@@ -28,9 +28,9 @@ const mono = IBM_Plex_Mono({
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 // One canonical positioning sentence, used everywhere.
-const TITLE = "Tessera — an AI that protects your loan when the market crashes";
+const TITLE = "Tessera — an AI that works to protect your loan when the market moves";
 const DESCRIPTION =
-  "Tessera is an AI agent that automatically protects tokenized-stock lending positions during market crashes — repaying from funds you pre-approve, before a liquidation, not after. Live on Arbitrum. No token, ever.";
+  "Tessera is an AI agent that works to protect tokenized-stock lending positions during market stress — repaying from funds you pre-approve to head off a liquidation. Testnet on Robinhood Chain (Arbitrum Orbit). No token, ever.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),

@@ -22,9 +22,9 @@ export default function LendPage() {
           <ShieldCheck aria-hidden className="size-4" /> Your USDC funds an AI-protected pool.
         </p>
         <p className="mt-1 text-[color:var(--color-muted-foreground)]">
-          Every borrower position is watched 24/7 — the agent auto-repays and, only as a last
-          resort, liquidates risk <em>before</em> it becomes bad debt. That is what keeps lender
-          funds safe and the supply APY real.{" "}
+          Every borrower position is watched around the clock (re-checked ~10s) — the agent
+          auto-repays and, only as a last resort, liquidates risk before it becomes bad debt. That is
+          what helps keep lender funds safe and the supply APY real.{" "}
           <Link href="/agent" className="font-medium underline">See live agent activity →</Link>
         </p>
       </div>

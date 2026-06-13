@@ -97,7 +97,7 @@ export function StartWalk() {
       </Step>
 
       <Step n={5} title="Watch it work" done={false} active={activeStep === 4}
-        summary="Your position is now watched every block, 24/7.">
+        summary="Your position is now watched around the clock (re-checked about every 10s).">
         <div className="flex flex-wrap gap-3">
           <Link
             href="/dashboard"

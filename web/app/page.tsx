@@ -305,8 +305,10 @@ export default function LandingPage() {
               </h1>
               <p className="hsub">
                 Tessera lets you borrow cash against tokenized stocks — and an autonomous agent watches
-                the position 24/7, repaying from USDC you pre-approve to stop a liquidation <em>before</em>
-                {" "}it happens, not after. You hold the keys; it can only ever reduce your own debt.
+                the position around the clock (re-checking about every 10 seconds), and can repay from
+                USDC you pre-approve to head off a liquidation <em>before</em> it happens. You hold the
+                keys; it can only ever reduce your own debt. Protection isn&apos;t a guarantee — it needs
+                pre-approved USDC, and a severe gap can still liquidate.
               </p>
               <div className="hero-cta">
                 <Link className="lbtn brand lg arrow" href="/drill" onClick={() => track("landing_cta_click", { cta: "drill" })}>
@@ -677,10 +679,10 @@ export default function LandingPage() {
                     </svg>
                   </div>
                   <div>
-                    <h3>It watches, every block</h3>
+                    <h3>It watches, around the clock</h3>
                     <p>
-                      The agent reads your health factor on a constant loop — through nights, weekends, and market
-                      closures, when stocks can gap.
+                      The agent reads your health factor on a constant loop (about every 10 seconds) — through
+                      nights, weekends, and market closures, when stocks can gap.
                     </p>
                   </div>
                 </div>

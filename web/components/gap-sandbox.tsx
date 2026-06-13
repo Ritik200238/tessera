@@ -70,7 +70,7 @@ export function GapSandbox() {
       <CardHeader>
         <CardTitle>Drag the gap — watch the agent decide</CardTitle>
         <CardDescription>
-          No wallet, no spend. This runs the exact decision the live agent makes every block,
+          No wallet, no spend. This runs the exact decision the live agent makes each tick (~10s),
           on the regime-aware bands{reg ? ` (${reg.label})` : ""}.
         </CardDescription>
       </CardHeader>
