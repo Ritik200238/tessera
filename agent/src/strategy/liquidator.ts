@@ -41,6 +41,11 @@ export interface LiquidatorDeps {
   db: AgentDB;
   /** Max gas price the agent will pay, in gwei. */
   maxGasGwei: number;
+  /** Minimum repay (USDC, 6dp) the AGENT will spend gas to liquidate. Below this,
+   *  the liquidation bonus can't cover gas, so the agent skips (the now-enabled
+   *  permissionless backstop can still clear it). NOT an on-chain revert — that
+   *  would trap tiny underwater positions forever. Undefined/0 = no floor. */
+  minLiquidationRepay?: bigint;
 }
 
 export type LiquidationOutcome =
@@ -77,6 +82,27 @@ export async function tryLiquidate(
       }),
     );
     return outcome;
+  }
+
+  // 1.5 Min-profit gate (agent-side, NOT on-chain). Below this repay the bonus
+  // can't cover gas, so spending the agent's scarce float here is value-negative.
+  // Skip with a reason; the permissionless backstop / a sweep can still clear the
+  // dust. (An on-chain revert here would trap tiny underwater positions forever.)
+  const minRepay = deps.minLiquidationRepay ?? 0n;
+  if (minRepay > 0n && input.repayAmount < minRepay) {
+    const reason = `below min profitable repay: ${input.repayAmount} < ${minRepay}`;
+    deps.log.append(
+      action.liquidate({
+        user: input.borrower,
+        tx: ZERO_HASH,
+        repay: input.repayAmount,
+        seized: 0n,
+        token: input.collateralToken,
+        status: "skipped",
+        reason,
+      }),
+    );
+    return { kind: "skipped", reason };
   }
 
   // 2. USDC balance check

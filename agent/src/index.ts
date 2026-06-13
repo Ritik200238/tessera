@@ -190,6 +190,7 @@ async function main(): Promise<void> {
     log,
     db,
     maxGasGwei: currentConfig.maxGasGwei,
+    minLiquidationRepay: BigInt(cfg.AGENT_MIN_LIQUIDATION_REPAY),
   };
   const autoRepay: AutoRepayDeps = {
     publicClient,
