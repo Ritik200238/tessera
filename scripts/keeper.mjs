@@ -17,6 +17,7 @@
 import { readFileSync } from "node:fs";
 import { createWalletClient, createPublicClient, http } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
+import { validateBook } from "./validate-addresses.mjs";
 
 const RPC = process.env.RPC_URL ?? "https://sepolia-rollup.arbitrum.io/rpc";
 const PK = process.env.KEEPER_PRIVATE_KEY ?? process.env.DEPLOYER_PRIVATE_KEY;
@@ -49,29 +50,78 @@ const chain = { id: CHAIN_ID, name: process.env.CHAIN_NAME ?? "tessera-keeper-ch
 const wallet = createWalletClient({ account, chain, transport: http(RPC) });
 const pub = createPublicClient({ chain, transport: http(RPC) });
 
+/** Structured one-line JSON log (greppable, machine-parseable for the watchdog). */
+function jlog(fields) {
+  console.log(JSON.stringify({ ts: new Date().toISOString(), ...fields }));
+}
+
 async function send(functionName, args) {
   const hash = await wallet.writeContract({ address: book.oracle, abi: ORACLE_ABI, functionName, args });
   const rcpt = await pub.waitForTransactionReceipt({ hash });
-  return rcpt.status === "success";
+  return { ok: rcpt.status === "success", hash, gasUsed: rcpt.gasUsed?.toString() };
 }
 
+/**
+ * Re-stamp every feed. PER-TOKEN error isolation: one token's revert / nonce
+ * collision / RPC blip must NOT abort the whole refresh and leave later tokens
+ * unstamped (which would let them age past the staleness window and freeze the
+ * vault). Returns counts so the loop + watchdog can see partial failures.
+ */
 async function refresh() {
-  const stamp = new Date().toISOString();
+  let ok = 0;
+  let failed = 0;
   for (const t of book.collateralTokens ?? []) {
-    const ok = await send("setPrice", [t.address, BigInt(t.priceUsd8)]);
-    console.log(`[${stamp}] setPrice ${t.symbol} = $${(Number(t.priceUsd8) / 1e8).toFixed(2)} -> ${ok ? "ok" : "REVERT"}`);
+    const price = BigInt(t.priceUsd8);
+    try {
+      const r = await send("setPrice", [t.address, price]);
+      if (r.ok) {
+        ok += 1;
+        jlog({ evt: "setPrice", token: t.symbol, address: t.address, priceUsd8: t.priceUsd8, status: "ok", tx: r.hash, gasUsed: r.gasUsed });
+      } else {
+        failed += 1;
+        jlog({ evt: "setPrice", token: t.symbol, address: t.address, priceUsd8: t.priceUsd8, status: "reverted", tx: r.hash });
+      }
+    } catch (e) {
+      failed += 1;
+      jlog({ evt: "setPrice", token: t.symbol, address: t.address, priceUsd8: t.priceUsd8, status: "error", error: e?.shortMessage ?? e?.message ?? String(e) });
+    }
   }
+  jlog({ evt: "refresh", ok, failed, total: ok + failed });
+  return { ok, failed };
+}
+
+// Startup gate: refuse to run against a scrambled / mis-wired address book.
+// (Errors fail; stale-feed warnings are expected before the first stamp.)
+if (process.env.SKIP_ADDRESS_VALIDATION !== "1") {
+  const v = await validateBook(book, pub);
+  for (const w of v.warnings) jlog({ evt: "validate", level: "warn", msg: w });
+  if (!v.ok) {
+    for (const e of v.errors) jlog({ evt: "validate", level: "error", msg: e });
+    jlog({ evt: "exit", status: "error", reason: "address-book validation failed" });
+    process.exit(1);
+  }
+  jlog({ evt: "validate", status: "ok" });
 }
 
 if (MAX_AGE) {
-  console.log(`Setting oracle maxAge = ${MAX_AGE}s`);
-  await send("setMaxAge", [MAX_AGE]);
+  try {
+    const r = await send("setMaxAge", [MAX_AGE]);
+    jlog({ evt: "setMaxAge", maxAge: MAX_AGE.toString(), status: r.ok ? "ok" : "reverted", tx: r.hash });
+  } catch (e) {
+    jlog({ evt: "setMaxAge", maxAge: MAX_AGE.toString(), status: "error", error: e?.shortMessage ?? e?.message ?? String(e) });
+  }
 }
-await refresh();
+const first = await refresh();
+// One-shot mode (CI/GHA): exit non-zero if NOTHING got stamped, so a fully
+// broken run fails the job loudly instead of looking green.
+if (ONCE && first.ok === 0) {
+  jlog({ evt: "exit", status: "error", reason: "no feeds stamped" });
+  process.exit(1);
+}
 
 if (!ONCE) {
-  console.log(`Keeper loop started; refreshing every ${INTERVAL / 1000}s. Ctrl+C to stop.`);
+  jlog({ evt: "loop_start", intervalSec: INTERVAL / 1000 });
   setInterval(() => {
-    refresh().catch((e) => console.error("refresh failed:", e.message));
+    refresh().catch((e) => jlog({ evt: "refresh", status: "error", error: e?.message ?? String(e) }));
   }, INTERVAL);
 }
