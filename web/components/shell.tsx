@@ -103,7 +103,7 @@ export function Shell({ children }: { children: ReactNode }) {
       >
         Skip to content
       </a>
-      <header className="border-b border-[color:var(--color-border)] bg-[color:var(--canvas)]/80 backdrop-blur sticky top-0 z-30">
+      <header className="border-b border-[color:var(--color-border)] bg-[color:var(--canvas)]/80 backdrop-blur sticky top-0 z-30 print:hidden">
         <div className="mx-auto max-w-6xl flex items-center justify-between gap-6 px-4 py-3">
           <Link href="/" className="flex items-center gap-2.5">
             <Mark size={24} />
@@ -159,7 +159,7 @@ export function Shell({ children }: { children: ReactNode }) {
         {children}
       </main>
 
-      <footer className="border-t border-[color:var(--color-border)] mt-16">
+      <footer className="border-t border-[color:var(--color-border)] mt-16 print:hidden">
         <div className="mx-auto max-w-6xl px-4 py-12">
           <div className="grid grid-cols-2 gap-8 sm:grid-cols-3 lg:grid-cols-6">
             {/* Brand column */}
