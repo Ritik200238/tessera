@@ -54,7 +54,8 @@ coverage/
 lcov.info
 
 # Local reference clones (source-of-truth docs, reproducible upstream — not part of the product)
-docs/
+# Anchored to repo root so it does NOT match the product's docs route (web/app/docs).
+/docs/
 
 # Foundry installed dependencies (restore with `forge install`)
 contracts/solidity/lib/

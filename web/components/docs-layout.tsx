@@ -37,7 +37,6 @@ export function DocsLayout({ groups }: { groups: DocGroup[] }) {
     );
     headings.forEach((h) => observer.observe(h));
     return () => observer.disconnect();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allSlugs.join("|")]);
 
   return (
