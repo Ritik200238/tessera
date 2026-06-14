@@ -3,6 +3,11 @@
  * Base element resets (body, *, a, h1–4, p) are intentionally omitted here so
  * these landing styles never leak into the app shell. */
 
+/* Clip any sub-pixel horizontal overflow (e.g. the 2-col stats grid on phones)
+   so the landing never shows a horizontal scrollbar. `clip` (not `hidden`) keeps
+   the fixed nav viewport-anchored and doesn't create a scroll container. */
+.tsa { overflow-x: clip; }
+
 .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 32px; }
 @media (max-width: 600px) { .wrap { padding: 0 20px; } }
 
