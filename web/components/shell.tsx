@@ -55,6 +55,7 @@ const FOOTER_SECTIONS: { title: string; links: FooterLink[] }[] = [
     links: [
       { href: "/faq", label: "FAQ" },
       { href: "/litepaper", label: "Litepaper" },
+      { href: "/brand", label: "Brand Kit" },
       { href: "/explore", label: "Explore" },
       { href: "/sandbox", label: "Sandbox" },
     ],
@@ -65,7 +66,6 @@ const FOOTER_SECTIONS: { title: string; links: FooterLink[] }[] = [
       { href: "/terms", label: "Terms" },
       { href: "/privacy", label: "Privacy" },
       { href: "/disclaimer", label: "Disclaimer" },
-      { href: "/brand", label: "Brand & license" },
     ],
   },
 ];
