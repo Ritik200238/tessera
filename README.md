@@ -14,11 +14,11 @@ Tokenized stocks trade 24/7, but the market behind them doesn't — so they **ga
 [![Tests](https://img.shields.io/badge/tests-200%2B%20passing-0E8A5F?style=flat-square)](#testing)
 [![License](https://img.shields.io/badge/license-MIT-111214?style=flat-square)](#license)
 <br/>
-[![Network](https://img.shields.io/badge/Arbitrum%20Sepolia-live-0E8A5F?style=flat-square)](https://sepolia.arbiscan.io/address/0x72adaa00e2eaa98f62ee1c77e9b7714e0db57ba7)
+[![Network](https://img.shields.io/badge/Robinhood%20Chain%20%C2%B7%2046630-live-0E8A5F?style=flat-square)](https://explorer.testnet.chain.robinhood.com/address/0x8bf61ab5984ea1fc8944e645aea11f7c34887f6e)
 [![Token](https://img.shields.io/badge/token-none%2C%20ever-6E727A?style=flat-square)](#principles)
 [![Custody](https://img.shields.io/badge/custody-non--custodial-6E727A?style=flat-square)](#principles)
 
-**[Live deployment](#-live-on-arbitrum-sepolia) · [How it works](#-how-it-works) · [Architecture](#-architecture) · [Quickstart](#-quickstart) · [The agent](#-the-ai-agent)**
+**[Live deployment](#-live-on-robinhood-chain) · [How it works](#-how-it-works) · [Architecture](#-architecture) · [Quickstart](#-quickstart) · [The agent](#-the-ai-agent)**
 
 </div>
 
@@ -33,22 +33,24 @@ The hard problem with tokenized stocks is simple: **the token trades 24/7, but t
 It reads like Stripe or Linear, not like a memecoin: precise, calm, and honest about risk. **No token, ever** — no airdrops, points, or governance coin. Just yield and credit.
 
 > [!NOTE]
-> Tessera is **live on Arbitrum Sepolia (testnet)** and is **not audited**. Do not use it with mainnet funds. See [Security & status](#-security--status).
+> Tessera is **live on Robinhood Chain (chain 46630, testnet)** and is **not audited**. Do not use it with mainnet funds. See [Security & status](#-security--status).
 
 ---
 
-## 🟢 Live on Arbitrum Sepolia
+## 🟢 Live on Robinhood Chain
 
-The Stylus vault is deployed and **activated on-chain**, with the full loop — `lend → borrow → price-drop → liquidate` and `at-risk → auto-repay` — executed end-to-end on testnet.
+The **complete Stylus stack** — vault, PriceGuard oracle policy, and a read-only Lens — is deployed and activated on **Robinhood Chain** (an Arbitrum Orbit L2, chain `46630`, the native home of tokenized equities). The full loop runs end-to-end on-chain: `lend → borrow → price-drop → liquidate` and `at-risk → auto-repay`. Explorer: [Blockscout ↗](https://explorer.testnet.chain.robinhood.com).
 
 | Contract | Address | |
 |---|---|---|
-| **Vault** (Stylus) | `0x72adaa00e2eaa98f62ee1c77e9b7714e0db57ba7` | [Arbiscan ↗](https://sepolia.arbiscan.io/address/0x72adaa00e2eaa98f62ee1c77e9b7714e0db57ba7) |
-| MockUSDC (6dec) | `0xf10aCF61b480c24102B303ebAFB97d9392d693F2` | [Arbiscan ↗](https://sepolia.arbiscan.io/address/0xf10aCF61b480c24102B303ebAFB97d9392d693F2) |
-| Oracle (Chainlink-style) | `0xd7fC0f4EA57272C7F5150EDA47f6BC318a0eC0be` | [Arbiscan ↗](https://sepolia.arbiscan.io/address/0xd7fC0f4EA57272C7F5150EDA47f6BC318a0eC0be) |
-| tAAPL · tTSLA · tSPY | `0xb88B…0762` · `0x753b…41dD` · `0xFD0d…E8e8` | [Markets ↗](https://sepolia.arbiscan.io/address/0xb88BB7FB901Df495cF6228F9E4293b8F91660762) |
+| **Vault** (Stylus · Rust) | `0x8bf61ab5984ea1fc8944e645aea11f7c34887f6e` | [Blockscout ↗](https://explorer.testnet.chain.robinhood.com/address/0x8bf61ab5984ea1fc8944e645aea11f7c34887f6e) |
+| **PriceGuard** (Stylus · Rust) | `0xa16c3cf2b2f25e7da774d45931947f62d5e3f185` | [Blockscout ↗](https://explorer.testnet.chain.robinhood.com/address/0xa16c3cf2b2f25e7da774d45931947f62d5e3f185) |
+| **Lens** (Stylus · Rust, read-only) | `0x9a682f2f8ea88258ee4c8aa3c3c75eaf22c40895` | [Blockscout ↗](https://explorer.testnet.chain.robinhood.com/address/0x9a682f2f8ea88258ee4c8aa3c3c75eaf22c40895) |
+| Oracle (Chainlink-style mock) | `0x65e6926BCD4EC600d4175019f20abAE07F95316D` | [Blockscout ↗](https://explorer.testnet.chain.robinhood.com/address/0x65e6926BCD4EC600d4175019f20abAE07F95316D) |
+| MockUSDC (6dec) | `0x753b9aC945Feb9dD0C5DD1861B8905e8E03B41dD` | [Blockscout ↗](https://explorer.testnet.chain.robinhood.com/address/0x753b9aC945Feb9dD0C5DD1861B8905e8E03B41dD) |
+| tAAPL · tTSLA · tSPY | `0xFD0d…E8e8` · `0xd7fC…C0be` · `0x2A1f…6A0e` | [Blockscout ↗](https://explorer.testnet.chain.robinhood.com/address/0xFD0deB24BB217853A54a3D560cd3FdD794B9E8e8) |
 
-Addresses are also machine-readable in [`shared/addresses/testnet.json`](shared/addresses/testnet.json). The web app and agent read them from there — no live address is ever hard-coded.
+Addresses are machine-readable in [`shared/addresses/robinhood.json`](shared/addresses/robinhood.json) — the web app and agent read them from there, so no live address is hard-coded. Tessera is **also deployed to Arbitrum Sepolia** ([`testnet.json`](shared/addresses/testnet.json)); the live demo runs on Robinhood Chain.
 
 ---
 
@@ -56,12 +58,12 @@ Addresses are also machine-readable in [`shared/addresses/testnet.json`](shared/
 
 Live app: **[tessera-web-delta.vercel.app](https://tessera-web-delta.vercel.app)** — don't take our word for any of this; every claim is verifiable on-chain.
 
-- **🛡 [Live Drill](https://tessera-web-delta.vercel.app/drill)** — **you pick the crash** (−35 / −40 / −45%); one click opens a real loan, gaps its collateral, and the *production* agent rescues it on-chain in seconds (a verified run rescued in ~8s). Shown side-by-side: an unprotected borrower hit by the same gap — **liquidated**. Not a script; every step links to an Arbiscan tx.
+- **🛡 [Live Drill](https://tessera-web-delta.vercel.app/drill)** — **you pick the crash** (−35 / −40 / −45%); one click opens a real loan, gaps its collateral, and the *production* agent rescues it on-chain in seconds (a verified run rescued in ~8s). Shown side-by-side: an unprotected borrower hit by the same gap — **liquidated**. Not a script; every step links to a verifiable Robinhood Chain (Blockscout) transaction.
 - **🎚 [Drag-the-gap sandbox](https://tessera-web-delta.vercel.app/sandbox)** — no wallet: drag a crash 0 → −50% and watch the exact decision the agent makes (alert → auto-repay → liquidate), on the real regime engine.
 - **📊 [Proof, not promises](https://tessera-web-delta.vercel.app/transparency)** — a CI-locked backtest: across modeled overnight/weekend/earnings gaps, regime-aware protection **saved 3 of the 4 positions an unprotected lender would have lost**. If the number rots, the build fails. Reproduce: `pnpm --filter @tessera/web test gap-backtest`.
 - **🧭 [Explore (no wallet)](https://tessera-web-delta.vercel.app/explore)** · **[Guided start](https://tessera-web-delta.vercel.app/start)** — browse a real live position read-only, or open your own in five real-tx steps with free faucet funds.
 - **🤖 [Risk layer for agents](https://tessera-web-delta.vercel.app/developers)** — a public read-only Risk API (`GET /api/risk`, `GET /api/risk/:address`) and an [MCP server](mcp/) so *other* AI agents consume Tessera's risk signals. Run the live demo: `cd mcp && npm install && node demo-agent.mjs`.
-- **🟣 Live on Robinhood Chain too — with the full safety stack** — the native home of tokenized equities (Orbit L2, chain 46630) runs the *complete* vault, including the **permissionless backstop + dual-oracle guard** that are ~1KB over Sepolia's 24KB limit. And the backstop is **proven**: a non-agent address backstop-liquidated a stale-heartbeat position on-chain (HF 0.94 → 1.20) — [verify ↗](https://explorer.testnet.chain.robinhood.com/tx/0x1c2f6a9024c4ec3018d074510a6bee7eea8a06823a9c975e74f0fe62c4881c76).
+- **🛡 The full safety stack is on-chain** — the complete vault (≈25 KB, over a standard L2's 24 KB code limit) carries a **permissionless backstop liquidator** and a **dual-oracle deviation guard**. Both are built and CI-tested; the backstop is **disabled on testnet** (delay 0 — liquidation stays agent-only) and switches on at the audited mainnet build.
 - **🔍 [Verify every claim yourself](VERIFICATION.md)** — a copy-paste runbook: reproduce all 230+ tests, the CI-locked backtest, the property invariants, the Risk API, and the on-chain state. None of it needs our cooperation.
 
 ### The differentiator, in one line
@@ -74,7 +76,7 @@ Tokenized stocks gap while the market is closed. Tessera's agent is **regime-awa
 Not a Solidity app with an Arbitrum logo. The Arbitrum stack is load-bearing:
 
 - **Stylus vault (Rust → WASM).** The core contract is written in Rust and compiled to WASM via [Arbitrum Stylus](https://docs.arbitrum.io/stylus/stylus-gentle-introduction) — memory-safe by default, with the interest-rate and liquidation math property-tested in the *same language* that executes on-chain (the `interest-model` crate is shared between tests and the vault).
-- **The full safety stack lives on an Orbit chain.** The complete vault — including the **permissionless backstop liquidator + dual-oracle deviation guard** — compresses to ~25 KB, just over a standard L2's **24 KB** code-size ceiling. So it's deployed on **Robinhood Chain** (an Arbitrum Orbit L2, chain 46630, the native home of tokenized equities), where the backstop is **proven on-chain**: a non-agent address liquidated a stale-heartbeat position, HF 0.94 → 1.20 — [verify ↗](https://explorer.testnet.chain.robinhood.com/tx/0x1c2f6a9024c4ec3018d074510a6bee7eea8a06823a9c975e74f0fe62c4881c76).
+- **The full safety stack lives on an Orbit chain.** The complete vault — including the **permissionless backstop liquidator + dual-oracle deviation guard** — compresses to ~25 KB, just over a standard L2's **24 KB** code-size ceiling. So Tessera runs on **Robinhood Chain** (an Arbitrum Orbit L2, chain 46630, the native home of tokenized equities), where the whole safety-hardened vault fits unchanged. The backstop is built and CI-tested; it stays disabled on testnet (delay 0, agent-only) and switches on at the audited mainnet build.
 - **Chain-agnostic across Orbit.** The agent and UI are configured per-chain at build time; Tessera runs today on **both Arbitrum Sepolia and Robinhood Chain**, and the vault redeploys to any Orbit chain unchanged.
 
 ---
@@ -192,7 +194,7 @@ The brand is **quiet institutional minimalism** — paper-and-ink neutrals, a si
 | **Contracts** | Arbitrum Stylus · Rust → WASM · `stylus-sdk` · `alloy` · Foundry (mocks) |
 | **Agent** | TypeScript · viem · Hono · better-sqlite3 · NVIDIA NIM (Llama 3.3 70B) / Claude |
 | **Web** | Next.js 16 (Turbopack) · React · wagmi v2 · viem · ConnectKit · Tailwind v4 |
-| **Chain** | Arbitrum Sepolia (Robinhood Chain as the long-term target) |
+| **Chain** | Robinhood Chain (Arbitrum Orbit L2, chain 46630) · also deployed to Arbitrum Sepolia |
 | **Tooling** | pnpm/npm · Vitest · cargo · xwin + wasm-opt (Windows toolchain) |
 
 ---
