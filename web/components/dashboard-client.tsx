@@ -83,6 +83,9 @@ export function DashboardClient({ agentStatus }: { agentStatus: AgentStatusSumma
   const supplyBps = (aggregate?.[2]?.result as bigint | undefined) ?? 0n;
   const util = (aggregate?.[3]?.result as bigint | undefined) ?? 0n;
   const hasPosition = collateralValue > 0n || debt > 0n;
+  // Reads still resolving — avoid flashing a red "danger" tile (hf defaults to 0n)
+  // or "get started" before we actually know the position.
+  const loading = enabled && (hfData === undefined || aggregate === undefined);
 
   return (
     <div className="space-y-6">
@@ -90,7 +93,13 @@ export function DashboardClient({ agentStatus }: { agentStatus: AgentStatusSumma
       <PositionOutlook />
       <div className="grid items-start gap-6 lg:grid-cols-[1fr_1fr]">
         <div className="space-y-3">
-          {hasPosition ? (
+          {loading ? (
+            <Card>
+              <CardContent className="py-12 text-center text-sm text-[color:var(--color-muted-foreground)]">
+                Loading your position…
+              </CardContent>
+            </Card>
+          ) : hasPosition ? (
             <>
               <PositionTile
                 glyph={<Mark size={22} color="#fff" />}

@@ -6,6 +6,7 @@ import { useChainGuard } from "@/lib/use-chain-guard";
 import { erc20Abi, formatUnits } from "viem";
 import { vault } from "@/lib/contracts";
 import { addresses } from "@/lib/addresses";
+import { decodeTxError } from "@/lib/errors";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
@@ -64,7 +65,7 @@ export function ApprovalsPanel() {
           {isPending || mining ? "Revoking…" : "Revoke (disable protection)"}
         </Button>
         {error ? (
-          <p className="text-xs text-[color:var(--color-liquidating-fg)]">{(error as Error).message}</p>
+          <p className="text-xs text-[color:var(--color-liquidating-fg)]">{decodeTxError(error)}</p>
         ) : null}
         {mined ? <p className="text-xs text-[color:var(--color-safe-fg)]">Allowance updated on-chain.</p> : null}
       </CardContent>

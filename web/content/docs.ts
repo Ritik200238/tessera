@@ -274,29 +274,29 @@ export const docGroups: DocGroup[] = [
             ],
             "rows": [
               [
-                "Greater than 2.0",
+                "1.5 and above",
                 "Safe",
-                "You have a 2x cushion. You can borrow more."
-              ],
-              [
-                "1.5 to 2.0",
-                "Comfortable",
-                "You have a solid buffer. Using leverage safely."
+                "Comfortable cushion. You can borrow more."
               ],
               [
                 "1.2 to 1.5",
-                "Caution",
-                "Reasonable buffer. A moderate overnight gap could threaten you."
+                "Healthy",
+                "Solid buffer. Using leverage safely."
               ],
               [
-                "1.0 to 1.2",
-                "Danger",
-                "Close to liquidation. A small adverse price move liquidates you."
+                "1.1 to 1.2",
+                "Watch",
+                "Buffer is thinning — a moderate overnight gap could threaten you."
               ],
               [
-                "Less than 1.0",
-                "Liquidatable",
-                "You are being liquidated now."
+                "1.0 to 1.1",
+                "At risk",
+                "Close to liquidation. This is the band where the Watcher steps in to auto-repay."
+              ],
+              [
+                "Below 1.0",
+                "Liquidating",
+                "Liquidation can occur now."
               ]
             ]
           },
@@ -427,11 +427,11 @@ export const docGroups: DocGroup[] = [
           },
           {
             "type": "p",
-            "text": "The Watcher is a service that may experience downtime — a crashed process, network outage, or RPC latency. On testnet, if the Watcher is silent for more than 15 minutes and a position needs liquidation, a **permissionless backstop opens**: anyone can call `liquidate()` with identical economic guarantees (5% bonus, 50% close factor) that the Watcher would use."
+            "text": "The Watcher is a service that may experience downtime — a crashed process, network outage, or RPC latency. For exactly this case a **permissionless backstop** is built and tested: once enabled, if the Watcher's heartbeat goes silent past the configured delay, anyone can call `liquidate()` with identical economic guarantees (5% bonus, 50% close factor) that the Watcher would use. On testnet the delay is set to 0, so the backstop is off and liquidation is agent-only; turning it on is an explicit mainnet gate."
           },
           {
             "type": "p",
-            "text": "How this works: The Watcher stamps an on-chain heartbeat when it acts (the vault records the timestamp). If that heartbeat is older than 15 minutes (testnet; configurable at mainnet), the protocol permits permissionless liquidation using the same math. The backstop is not a weaker fallback — it is as fair as agent liquidation. If the Watcher is down 30 minutes and an underwater position exists, a permissionless liquidator can step in. The position is protected by the same on-chain math. Tessera remains safe even if the agent process fails."
+            "text": "How this works: The Watcher stamps an on-chain heartbeat when it acts (the vault records the timestamp). When the backstop is enabled, if that heartbeat is older than the configured delay (a design target of ~15 minutes), the protocol permits permissionless liquidation using the same math. The backstop is not a weaker fallback — it is as fair as agent liquidation, so a frozen agent can never trap an unhealthy position. It is built and CI-tested today and switches on at the audited mainnet build; on testnet, liquidation stays agent-only."
           },
           {
             "type": "h3",
@@ -1013,7 +1013,7 @@ export const docGroups: DocGroup[] = [
           },
           {
             "type": "p",
-            "text": "**The following are hard requirements before any mainnet deployment. Do not confuse shipped code with shipped safety.** (1) **Independent audit**: Testnet software has not been reviewed by external security professionals. A full third-party audit (Arbitrum Foundation grant-funded preferred) is non-negotiable before mainnet. (2) **Insurance / safety net**: On testnet, bad-debt losses go straight to lenders. Mainnet requires insurance (e.g., Sherlock) or an expanded safety reserve. (3) **Permissionless backstop enabled**: The backstop is proven on-chain but will be enabled at mainnet after audit passes. (4) **Real Chainlink oracle**: The testnet mock will be replaced with real Chainlink feeds (and secondary feeds for validation). (5) **US + sanctions geo-block**: The frontend will enforce legal compliance; UI is not available to US persons or sanctioned jurisdictions. (6) **Bug bounty**: A formal Immunefi or equivalent bounty will be live before mainnet. (7) **Mainnet TVL caps**: Caps per asset (e.g., $1M tAAPL supply max initially) to manage risk during the ramp."
+            "text": "**The following are hard requirements before any mainnet deployment. Do not confuse shipped code with shipped safety.** (1) **Independent audit**: Testnet software has not been reviewed by external security professionals. A full third-party audit (Arbitrum Foundation grant-funded preferred) is non-negotiable before mainnet. (2) **Insurance / safety net**: On testnet, bad-debt losses go straight to lenders. Mainnet requires insurance (e.g., Sherlock) or an expanded safety reserve. (3) **Permissionless backstop enabled**: The backstop is built and tested but stays disabled on testnet (delay 0, agent-only); it will be enabled at mainnet after the audit passes. (4) **Real Chainlink oracle**: The testnet mock will be replaced with real Chainlink feeds (and secondary feeds for validation). (5) **US + sanctions geo-block**: The frontend will enforce legal compliance; UI is not available to US persons or sanctioned jurisdictions. (6) **Bug bounty**: A formal Immunefi or equivalent bounty will be live before mainnet. (7) **Mainnet TVL caps**: Caps per asset (e.g., $1M tAAPL supply max initially) to manage risk during the ramp."
           },
           {
             "type": "h3",
@@ -1179,7 +1179,7 @@ export const docGroups: DocGroup[] = [
           },
           {
             "type": "p",
-            "text": "Tessera uses on-chain geolocation checks and wallet-based restrictions where possible. However, crypto is pseudonymous; final compliance responsibility rests with the user. By connecting a wallet, you confirm you are not a US person and are not in a sanctioned jurisdiction. Violations of these terms may result in position closure, fund recovery, or legal action."
+            "text": "At mainnet, Tessera will enforce eligibility through wallet-based and (where feasible) geolocation checks; on testnet today these are not yet active. Crypto is pseudonymous, so final compliance responsibility rests with the user regardless. By connecting a wallet, you confirm you are not a US person and are not in a sanctioned jurisdiction. Violations of these terms may result in position closure, fund recovery, or legal action."
           },
           {
             "type": "h3",

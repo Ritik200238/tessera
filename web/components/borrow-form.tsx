@@ -44,7 +44,7 @@ export function BorrowForm() {
   const tokens = addresses.collateralTokens;
   const BASE = 4; // index where the per-token reads begin
   const enabled = isConnected && vault.address !== null && address !== undefined;
-  const { data } = useReadContracts({
+  const { data, isLoading } = useReadContracts({
     contracts: enabled
       ? [
           { address: (lens.address ?? vault.address)!, abi: lens.abi, functionName: "getAccountData", args: [address!] },
@@ -61,6 +61,10 @@ export function BorrowForm() {
       : [],
     query: { enabled },
   });
+
+  // True while the on-chain reads are still resolving — used to show "—" instead
+  // of flashing $0 / health ∞ / "No collateral yet" before the data arrives.
+  const loading = enabled && (isLoading || data === undefined);
 
   const accountData = data?.[0]?.result as readonly [bigint, bigint, bigint] | undefined;
   // getAccountData[0] is collateral ALREADY weighted by each asset's liquidation
@@ -201,14 +205,14 @@ export function BorrowForm() {
         </CardHeader>
         <CardContent className="space-y-5">
           <div className="grid grid-cols-2 gap-3 text-sm">
-            <Stat label="Collateral value" value={formatUsd8(rawCollateral)} />
-            <Stat label="Borrowing power" value={formatUsd8(weightedCollateral)} hint="risk-adjusted" />
-            <Stat label="Current debt" value={formatUsd8(currentDebt8)} />
-            <Stat label="Current health" value={formatHealthFactor(currentHf)} />
-            <Stat label="Borrow APR" value={formatBps(borrowRateBps)} />
+            <Stat label="Collateral value" value={loading ? "—" : formatUsd8(rawCollateral)} />
+            <Stat label="Borrowing power" value={loading ? "—" : formatUsd8(weightedCollateral)} hint="risk-adjusted" />
+            <Stat label="Current debt" value={loading ? "—" : formatUsd8(currentDebt8)} />
+            <Stat label="Current health" value={loading ? "—" : formatHealthFactor(currentHf)} />
+            <Stat label="Borrow APR" value={loading ? "—" : formatBps(borrowRateBps)} />
           </div>
 
-          {isConnected && rawCollateral === 0n ? (
+          {isConnected && !loading && rawCollateral === 0n ? (
             <Alert tone="warning">
               <AlertTitle>No collateral yet</AlertTitle>
               <AlertDescription>

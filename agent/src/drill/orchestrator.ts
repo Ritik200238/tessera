@@ -1,7 +1,8 @@
 /**
  * Live Drill orchestrator — the judge-clickable "watch the AI save a position".
  *
- * Runs a REAL end-to-end protection drill on Arbitrum Sepolia, on an ISOLATED
+ * Runs a REAL end-to-end protection drill on the active chain (Robinhood Chain),
+ * on an ISOLATED
  * drill-only asset (listed on-chain but absent from the app's address book, so
  * its price moves can never touch a real user's position):
  *
@@ -266,7 +267,7 @@ export class DrillOrchestrator {
       this.step("reset", "Withdrew leftover drill collateral", tx);
     }
 
-    // 3. Open the position: 20 tDRILL ($2,000) collateral, borrow 720 USDC.
+    // 3. Open the position: 20 tDRILL ($2,000) collateral, borrow 550 USDC.
     const dep = await this.send(this.drill, d.vaultAddress, vaultAbi, "depositCollateral", [
       d.drillAsset,
       COLLATERAL,
@@ -274,10 +275,11 @@ export class DrillOrchestrator {
     this.step("deposit", "Deposited 20 tDRILL ($2,000) as collateral", dep);
     const bor = await this.send(this.drill, d.vaultAddress, vaultAbi, "borrow", [BORROW]);
     const hf0 = await this.read<bigint>("getHealthFactor", [me]);
+    const borrowedUsdc = Number(BORROW) / 1e6; // single source of truth — no hardcoded mismatch
     this.status.hf = this.fmtHf(hf0);
-    this.status.debt = "720";
+    this.status.debt = borrowedUsdc.toString();
     this.status.state = "position-open";
-    this.step("borrow", `Borrowed 720 USDC — health factor ${this.fmtHf(hf0)}`, bor);
+    this.step("borrow", `Borrowed ${borrowedUsdc} USDC — health factor ${this.fmtHf(hf0)}`, bor);
 
     // 4. The gap: the JUDGE-authored overnight-style drop.
     const g = this.gapPct;

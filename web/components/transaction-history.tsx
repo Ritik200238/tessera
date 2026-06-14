@@ -130,7 +130,9 @@ export function TransactionHistory() {
       </CardHeader>
       <CardContent className="text-sm">
         {err ? (
-          <p className="text-[color:var(--color-muted-foreground)]">Couldn&apos;t load history: {err}</p>
+          <p className="text-[color:var(--color-muted-foreground)]">
+            Couldn&apos;t load your transaction history right now — try refreshing in a moment.
+          </p>
         ) : rows === null ? (
           <p className="text-[color:var(--color-muted-foreground)]">Loading…</p>
         ) : rows.length === 0 ? (
