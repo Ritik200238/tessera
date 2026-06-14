@@ -631,7 +631,7 @@ export const posts: BlogPost[] = [
           "**It never custodies your funds.** It can only reduce your own debt, and only through an allowance you set and can revoke at any moment. Revoking that allowance is the single kill switch.",
           "**An AI model never decides to move money.** A deterministic core makes every financial decision from on-chain state; the language model only writes the human-readable alerts. The copy is AI; the choice to act is not.",
           "**Hard on-chain caps bound it.** Auto-repay is limited to 25,000 USDC per user per day and 10,000 USDC per user per transaction — enforced by the contract, not by the agent's own restraint.",
-          "**It can't disappear silently.** The agent stamps an on-chain heartbeat. If it goes truly quiet (more than 15 minutes on testnet), a permissionless backstop opens so the system isn't dependent on one piece of software staying alive. There is also an on-chain admin fail-safe."
+          "**It can't disappear silently.** The agent stamps an on-chain heartbeat, and a permissionless backstop is built so that — once enabled — anyone can step in if the agent goes quiet past the configured delay, meaning the system isn't dependent on one piece of software staying alive. On testnet the delay is 0 (backstop off, agent-only); enabling it is a mainnet gate. There is also an on-chain admin fail-safe."
         ]
       },
       {
@@ -781,7 +781,7 @@ export const posts: BlogPost[] = [
       },
       {
         "type": "p",
-        "text": "The piece we're most pleased with is the **heartbeat backstop**. The Watcher stamps an on-chain heartbeat as it runs. If it goes truly silent — more than 15 minutes on testnet — a permissionless backstop opens so the protocol's safety doesn't depend on our agent staying up. The system degrades to ordinary, anyone-can-call liquidation rather than to nothing. An autonomous agent you have to trust to never crash isn't a safety feature; one that fails safe is."
+        "text": "The piece we're most pleased with is the **heartbeat backstop**. The Watcher stamps an on-chain heartbeat as it runs. A permissionless backstop is built so that, once enabled, if the heartbeat goes silent past the configured delay, the system degrades to ordinary, anyone-can-call liquidation rather than to nothing — so the protocol's safety doesn't depend on our agent staying up. On testnet the delay is 0 (backstop off, agent-only); switching it on is an explicit mainnet gate. An autonomous agent you have to trust to never crash isn't a safety feature; one that fails safe is."
       },
       {
         "type": "p",
