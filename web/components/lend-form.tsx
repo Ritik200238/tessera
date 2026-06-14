@@ -24,7 +24,7 @@ const USDC_DECIMALS = 6;
 
 export function LendForm() {
   const { address, isConnected } = useAccount();
-  const { writeChainId } = useChainGuard();
+  const { writeChainId, wrongChain } = useChainGuard();
   const [mode, setMode] = useState<Mode>("deposit");
   const [amount, setAmount] = useState("");
 
@@ -126,7 +126,7 @@ export function LendForm() {
   // the user gets a clear message instead of an on-chain InsufficientLiquidity revert.
   const exceedsLiquidity = mode === "withdraw" && parsed > 0n && parsed > idleAssets;
   const canSubmit =
-    isConnected && isVaultDeployed() && parsed > 0n && !exceedsLiquidity && !isPending && !isMining;
+    isConnected && isVaultDeployed() && parsed > 0n && !exceedsLiquidity && !isPending && !isMining && !wrongChain;
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1.2fr_1fr]">

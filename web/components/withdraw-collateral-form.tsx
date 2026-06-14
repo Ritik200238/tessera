@@ -27,7 +27,7 @@ interface CollateralToken {
  *  health below the safe threshold — that revert is decoded into plain English. */
 export function WithdrawCollateralForm({ tokens }: { tokens: CollateralToken[] }) {
   const { address, isConnected } = useAccount();
-  const { writeChainId } = useChainGuard();
+  const { writeChainId, wrongChain } = useChainGuard();
   const queryClient = useQueryClient();
   const [tokenIdx, setTokenIdx] = useState(0);
   const [amount, setAmount] = useState("");
@@ -55,7 +55,7 @@ export function WithdrawCollateralForm({ tokens }: { tokens: CollateralToken[] }
 
   const { writeContract, isPending, error, data: txHash, reset } = useWriteContract();
   const { isLoading: isMining, isSuccess: isMined } = useWaitForTransactionReceipt({ hash: txHash });
-  const canSubmit = enabled && isVaultDeployed() && parsed > 0n && !isPending && !isMining;
+  const canSubmit = enabled && isVaultDeployed() && parsed > 0n && !isPending && !isMining && !wrongChain;
 
   function withdraw() {
     if (!vaultAddr || !token) return;

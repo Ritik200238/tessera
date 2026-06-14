@@ -35,7 +35,7 @@ const MAX_LTV_BPS = 6000n; // 60% — the highest per-asset max LTV (SPY)
 
 export function BorrowForm() {
   const { address, isConnected } = useAccount();
-  const { writeChainId } = useChainGuard();
+  const { writeChainId, wrongChain } = useChainGuard();
   const [ltvBps, setLtvBps] = useState<number>(2500); // start at 25%
 
   const tokens = addresses.collateralTokens;
@@ -149,7 +149,7 @@ export function BorrowForm() {
   }, [additionalUsd8]);
 
   const canBorrow =
-    isConnected && isVaultDeployed() && borrowAmount6 > 0n && !isPending && !isMining;
+    isConnected && isVaultDeployed() && borrowAmount6 > 0n && !isPending && !isMining && !wrongChain;
 
   // Mandatory gap-risk acknowledgment before a FIRST borrow (debt == 0). The
   // modal models off-hours drops on the exact position being signed.

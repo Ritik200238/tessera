@@ -23,7 +23,7 @@ const USDC_DECIMALS = 6;
 /** Repay (partially or fully) the connected wallet's USDC debt. */
 export function RepayForm() {
   const { address, isConnected } = useAccount();
-  const { writeChainId } = useChainGuard();
+  const { writeChainId, wrongChain } = useChainGuard();
   const queryClient = useQueryClient();
   const [amount, setAmount] = useState("");
   const vaultAddr = vault.address ?? undefined;
@@ -65,7 +65,7 @@ export function RepayForm() {
   const needsApproval = parsed > 0n && ((allowance as bigint | undefined) ?? 0n) < parsed;
   const { writeContract, isPending, error, data: txHash, reset } = useWriteContract();
   const { isLoading: isMining, isSuccess: isMined } = useWaitForTransactionReceipt({ hash: txHash });
-  const canSubmit = enabled && isVaultDeployed() && parsed > 0n && !isPending && !isMining;
+  const canSubmit = enabled && isVaultDeployed() && parsed > 0n && !isPending && !isMining && !wrongChain;
 
   function approve() {
     if (!usdcAddr || !vaultAddr) return;

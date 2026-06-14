@@ -31,7 +31,7 @@ export function AgentControls() {
   const usdc = addresses.usdc;
   const [amount, setAmount] = useState("");
   const { address, isConnected } = useAccount();
-  const { writeChainId } = useChainGuard();
+  const { writeChainId, wrongChain } = useChainGuard();
   const { writeContract, data: txHash, isPending, error, reset } = useWriteContract();
   const { isLoading: isMining, isSuccess: isMined } = useWaitForTransactionReceipt({ hash: txHash });
 
@@ -89,7 +89,7 @@ export function AgentControls() {
     });
   }
 
-  const canEnable = ready && isVaultDeployed() && parsed > 0n && !isPending && !isMining;
+  const canEnable = ready && isVaultDeployed() && parsed > 0n && !isPending && !isMining && !wrongChain;
 
   return (
     <Card>
@@ -200,7 +200,7 @@ export function AgentControls() {
                 <button
                   type="button"
                   onClick={() => setCap(0n)}
-                  disabled={!isVaultDeployed() || isPending || isMining}
+                  disabled={!isVaultDeployed() || isPending || isMining || wrongChain}
                   className="inline-flex h-10 items-center rounded-md border border-[color:var(--color-border)] px-4 text-sm font-medium text-[color:var(--color-liquidating-fg)] hover:bg-[color:var(--color-muted)] disabled:opacity-50"
                 >
                   Kill switch (disable)
