@@ -282,7 +282,7 @@ export default function LandingPage() {
               <span>{mkt.s}</span>
             </span>
             <Link className="lbtn primary" href="/dashboard">
-              Connect wallet
+              Open app
             </Link>
           </div>
         </div>
@@ -357,10 +357,6 @@ export default function LandingPage() {
                 <div className="float-card" style={{ top: "-18px", right: "-6px" }}>
                   <span className="l">Supply APY</span>
                   <span className="v" style={{ color: "var(--safe)" }}>{apy}</span>
-                </div>
-                <div className="float-card" style={{ bottom: "6px", left: "-22px" }}>
-                  <span className="l">Health factor</span>
-                  <span className="v" style={{ color: "var(--safe)" }}>1.94</span>
                 </div>
               </div>
             </div>
@@ -899,7 +895,8 @@ export default function LandingPage() {
                 <p>
                   The full backstop + dual-oracle vault is 25 KB — over a standard L2&apos;s 24 KB code
                   ceiling — so the complete safety stack is deployed on Robinhood Chain, an Arbitrum
-                  Orbit L2, and a permissionless backstop liquidation is proven there on-chain.
+                  Orbit L2. The permissionless backstop is built and tested; it stays disabled on
+                  testnet (agent-only) and switches on at the audited mainnet build.
                 </p>
               </div>
               <div className="pill reveal">
@@ -992,7 +989,7 @@ export default function LandingPage() {
             </div>
             <div className="foot-bot">
               <span className="mono">© 2026 Tessera · Built on Arbitrum · Stylus</span>
-              <span className="mono">Testnet · Arbitrum Sepolia · No token, ever</span>
+              <span className="mono">Testnet · Robinhood Chain (Orbit) · No token, ever</span>
             </div>
           </div>
         </footer>

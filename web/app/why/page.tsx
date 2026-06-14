@@ -28,7 +28,7 @@ const PERSONAS = [
     who: "The agent economy (B2B)",
     sub: "other AI agents & apps touching tokenized RWAs",
     pain: "Any agent managing on-chain positions needs a trustworthy risk read before it acts — and there's no standard risk layer for tokenized equities.",
-    fit: "Tessera exposes its risk engine as a public Risk API + an MCP server, so any agent can consult it. That demand is demonstrable today.",
+    fit: "Tessera exposes its risk engine as a public Risk API + an MCP server, so any agent can consult it — a capability that's live today, ahead of the demand it's built for.",
   },
 ];
 
@@ -145,9 +145,9 @@ export default function WhyPage() {
             </p>
             <ul className="space-y-1.5">
               {[
-                "The protocol is live on two Arbitrum chains (Sepolia + Robinhood Chain), with a backstop liquidation proven on-chain.",
+                "The protocol is live on Robinhood Chain (chain 46630) and deploys unchanged across Arbitrum Orbit chains.",
                 "The production agent rescues real positions — the Live Drill is that exact path, on demand.",
-                "The risk engine is already consumable by external AI agents through the Risk API + MCP server.",
+                "The risk engine is consumable by external AI agents through the Risk API + MCP server.",
               ].map((r) => (
                 <li key={r} className="flex gap-2">
                   <span aria-hidden className="text-[color:var(--color-safe-fg)]">✓</span>

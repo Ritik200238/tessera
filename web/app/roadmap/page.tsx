@@ -12,7 +12,7 @@ const LIVE: [string, string][] = [
   ["Autonomous risk agent", "watches every position each tick (~10s); plain-English alerts; auto-repay from a user-approved cap"],
   ["Regime-aware protection", "protect bands widen automatically for after-hours / weekends / earnings — acts before the gap"],
   ["Live Drill", "one click: a real position gaps −33% and the production agent rescues it on-chain"],
-  ["Reproducible proof", "CI-locked backtest: protection avoided liquidation in 75% of modeled gap liquidations"],
+  ["Reproducible proof", "CI-locked gap backtest: the protection logic is replayed against modeled overnight gaps every build, with the result pinned so it can't silently drift"],
   ["Radical transparency", "public decision records, track record, status, risk params — verifiable on-chain"],
 ];
 

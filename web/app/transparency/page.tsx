@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
 // What a skeptical reviewer should know before trusting anything here — stated
 // up front rather than discovered. Each row is exactly as honest as it can be.
 const REAL = [
-  "The Stylus vault, its rules, and every lend / borrow / repay / liquidate tx — live on Arbitrum Sepolia.",
+  "The Stylus vault, its rules, and every lend / borrow / repay / liquidate tx — live on Robinhood Chain (chain 46630).",
   "The AI agent's decision logic and its auto-repay / liquidation transactions (the Live Drill is the production path, not a script).",
   "The agent's safety boundary: it can only reduce your own debt from an allowance you control.",
   "The reproducible gap backtest below — its number is locked by CI; the build fails if it drifts.",

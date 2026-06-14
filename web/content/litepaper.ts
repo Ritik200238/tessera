@@ -83,7 +83,7 @@ export const litepaperBlocks: Block[] = [
     "items": [
       "**Deterministic decisions, AI words.** A deterministic core decides whether and how much to repay — never a language model. The model only writes the human-readable alert. Money never moves on a probabilistic guess.",
       "**On-chain spending caps.** Auto-repay is bounded by limits enforced by the contract itself: at most 10,000 USDC per user per transaction and 25,000 USDC per user per day. These are on-chain, not promises in code the agent runs.",
-      "**A silence backstop.** The Watcher stamps an on-chain heartbeat. If it goes truly silent — more than 15 minutes on testnet — a permissionless backstop opens so the protocol is never dependent on a single agent staying online."
+      "**A silence backstop.** The Watcher stamps an on-chain heartbeat. A permissionless backstop is built and tested so that, once enabled, anyone can liquidate if the agent goes silent past the configured delay — so the protocol is never dependent on a single agent staying online. On testnet the delay is 0 (backstop off, agent-only); switching it on is an explicit mainnet gate."
     ]
   },
   {

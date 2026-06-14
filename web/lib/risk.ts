@@ -1,5 +1,6 @@
 import type { Address } from "viem";
 import { serverPublicClient } from "./server-rpc";
+import { activeChain } from "./chain";
 import { vault, lens, oracle } from "./contracts";
 import { addresses } from "./addresses";
 import { assessRegime, hfToNumber } from "./regime";
@@ -73,7 +74,7 @@ export async function getMarketRisk(): Promise<MarketRisk> {
     }),
   );
   return {
-    chain: "arbitrum-sepolia",
+    chain: activeChain.name,
     asOf: new Date().toISOString(),
     regime: reg.regime,
     regimeLabel: reg.label,

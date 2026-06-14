@@ -25,8 +25,9 @@ export default function SecurityPage() {
       <Alert tone="warning">
         <AlertTitle>Testnet · not audited · do not use real funds</AlertTitle>
         <AlertDescription>
-          Tessera runs on Arbitrum Sepolia with mock tokens and a mock Chainlink-style oracle. An
-          independent audit is a hard gate before any mainnet deployment with real money.
+          Tessera runs on Robinhood Chain (an Arbitrum Orbit L2, chain 46630) with mock tokens and a
+          mock Chainlink-style oracle. An independent audit is a hard gate before any mainnet
+          deployment with real money.
         </AlertDescription>
       </Alert>
 
@@ -178,8 +179,8 @@ export default function SecurityPage() {
           <Fact title="15% reserve factor">
             Of the interest borrowers pay, 85% flows to lenders (your supply APY) and 15% is set
             aside as a protocol reserve — the entire business model. <em>(The on-chain skim and
-            reserve accounting are built and CI-tested; they go live on the next testnet deploy,
-            together with the insolvency waterfall below.)</em>
+            reserve accounting are implemented in the vault and CI-tested, alongside the insolvency
+            waterfall below.)</em>
           </Fact>
           <Fact title="The reserve is first-loss capital, not a treasury">
             By design the reserve is drawn down to absorb bad debt <em>before</em> any loss reaches
@@ -189,8 +190,8 @@ export default function SecurityPage() {
           </Fact>
           <Fact title="Protection is funded by you, liquidation by the liquidator">
             Auto-repay spends <em>your</em> pre-approved USDC to save <em>your</em> position — never
-            protocol funds. Liquidation is funded by the liquidator, who earns a 5% bonus; the
-            protocol takes a small cut of that bonus on the risk events it absorbs.
+            protocol funds. Liquidation is funded by the liquidator, who earns the 5% bonus in full —
+            the protocol takes none of it. Revenue is the reserve factor, nothing else.
           </Fact>
         </CardContent>
       </Card>

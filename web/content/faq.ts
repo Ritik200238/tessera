@@ -213,7 +213,7 @@ export const faqGroups: FaqGroup[] = [
         "answer": [
           {
             "type": "p",
-            "text": "The agent stamps an on-chain **heartbeat** as it runs. If it goes truly silent for more than **15 minutes** (on testnet), a permissionless backstop opens so anyone can step in and keep positions safe — the protocol doesn't depend on our agent staying up."
+            "text": "The agent stamps an on-chain **heartbeat** as it runs. A permissionless backstop is built and tested so that, once enabled, anyone can step in and liquidate if the agent goes silent past the configured delay — so the protocol doesn't depend on our agent staying up. On testnet the delay is set to 0 (backstop off, liquidation is agent-only); turning it on is an explicit mainnet gate."
           },
           {
             "type": "p",

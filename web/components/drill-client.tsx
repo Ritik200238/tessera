@@ -11,7 +11,7 @@ import { track } from "@/lib/analytics";
 /**
  * Live Drill — watch the production agent save a real on-chain position.
  * Polls /api/drill while a drill runs and renders each step with its real tx
- * hash. Everything shown is a real Arbitrum Sepolia transaction on an isolated
+ * hash. Everything shown is a real Robinhood Chain transaction on an isolated
  * drill-only asset; step 4 is the same code path that protects real users.
  */
 interface DrillStep {
@@ -136,7 +136,7 @@ export function DrillClient() {
           <CardDescription>
             <strong>You</strong> pick the crash. One click opens a real loan and gaps its collateral
             by the size you choose, then the <em>production</em> AI agent rescues it on-chain —
-            usually inside a minute. Real transactions on Arbitrum Sepolia, on an isolated drill
+            usually inside a minute. Real transactions on Robinhood Chain, on an isolated drill
             asset that can&apos;t touch real users. The rescue is not a script.
           </CardDescription>
         </CardHeader>
@@ -322,8 +322,8 @@ export function DrillClient() {
           <p>
             <span className="font-medium text-[color:var(--color-foreground)]">Why it&apos;s honest:</span> the drill
             asset (tDRILL) is listed on the same live vault with the same rules, but isolated from real users. The
-            rescue is performed by the production agent loop — not a demo script — and every step links to an Arbitrum
-            Sepolia transaction you can verify.
+            rescue is performed by the production agent loop — not a demo script — and every step links to a Robinhood
+            Chain transaction you can verify.
           </p>
         </CardContent>
       </Card>

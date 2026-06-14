@@ -10,7 +10,7 @@ export const docGroups: DocGroup[] = [
         "blocks": [
           {
             "type": "p",
-            "text": "Tessera is a DeFi lending protocol for tokenized stocks on Robinhood Chain. Borrow USDC against tAAPL, tTSLA, or tSPY; earn USDC yield by supplying liquidity. The autonomous AI agent called the Watcher monitors every position 24/7 and prevents liquidations before they happen."
+            "text": "Tessera is a DeFi lending protocol for tokenized stocks on Robinhood Chain. Borrow USDC against tAAPL, tTSLA, or tSPY; earn USDC yield by supplying liquidity. The autonomous AI agent called the Watcher monitors every position around the clock and works to head off liquidations before they happen — though it cannot guarantee protection against a severe enough gap."
           },
           {
             "type": "h3",
@@ -620,7 +620,7 @@ export const docGroups: DocGroup[] = [
           },
           {
             "type": "p",
-            "text": "Tessera's vault contract is written in Rust (Arbitrum Stylus) and the oracle router (PriceGuard) is Solidity. Both are testnet software and have not been audited by a third party. Real bugs — reentrancy, arithmetic overflow, access-control errors — are possible and could lead to loss of funds."
+            "text": "Tessera's vault contract and the oracle router (PriceGuard) are both written in Rust (Arbitrum Stylus). Both are testnet software and have not been audited by a third party. Real bugs — reentrancy, arithmetic overflow, access-control errors — are possible and could lead to loss of funds."
           },
           {
             "type": "p",
@@ -1228,15 +1228,15 @@ export const docGroups: DocGroup[] = [
               ],
               [
                 "PriceGuard",
-                "Solidity",
+                "Rust (Stylus)",
                 "Oracle policy, market hours, gap detection",
                 "On-chain"
               ],
               [
                 "Lens",
-                "TypeScript (read-only)",
+                "Rust (Stylus), read-only",
                 "Fetch prices, HF, liquidation data",
-                "Public"
+                "On-chain"
               ],
               [
                 "Watcher",
@@ -1271,7 +1271,7 @@ export const docGroups: DocGroup[] = [
           },
           {
             "type": "h3",
-            "text": "2. PriceGuard (Solidity)"
+            "text": "2. PriceGuard (Rust / Stylus)"
           },
           {
             "type": "p",
@@ -1293,11 +1293,11 @@ export const docGroups: DocGroup[] = [
           },
           {
             "type": "h3",
-            "text": "3. Lens (TypeScript, read-only)"
+            "text": "3. Lens (Rust / Stylus, read-only)"
           },
           {
             "type": "p",
-            "text": "Lens is a public TypeScript library that reads data from the vault (no write permissions). It is used by the Watcher, the web UI, and any external agent to fetch:"
+            "text": "Lens is a public read-only Stylus (Rust) contract that reads data from the vault (no write permissions). It is used by the Watcher, the web UI, and any external agent to fetch:"
           },
           {
             "type": "list",
