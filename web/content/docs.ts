@@ -1,4 +1,4 @@
-import type { DocGroup } from "@/components/docs-layout";
+import type { DocGroup } from "@/lib/docs";
 
 export const docGroups: DocGroup[] = [
   {

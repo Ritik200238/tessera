@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { posts } from "@/content/blog";
+import { flatSections } from "@/lib/docs";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 
@@ -46,5 +47,10 @@ export default function sitemap(): MetadataRoute.Sitemap {
     lastModified: new Date(`${p.date}T00:00:00Z`),
     changeFrequency: "yearly",
   }));
-  return [...base, ...blog];
+  const docs: MetadataRoute.Sitemap = flatSections.map((s) => ({
+    url: `${SITE_URL}/docs/${s.slug}`,
+    lastModified: now,
+    changeFrequency: "monthly",
+  }));
+  return [...base, ...blog, ...docs];
 }
