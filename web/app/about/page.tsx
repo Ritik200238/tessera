@@ -12,6 +12,21 @@ export const metadata = {
   },
 };
 
+/** Initials avatar in Tessera Blue — clean, photo-free, on-brand. */
+function Avatar({ name }: { name: string }) {
+  const initials = name
+    .split(" ")
+    .map((w) => w[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+  return (
+    <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-[color:var(--color-primary)] text-base font-bold text-[color:var(--color-primary-foreground)]">
+      {initials}
+    </div>
+  );
+}
+
 export default function AboutPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-16 py-4">
@@ -70,50 +85,66 @@ export default function AboutPage() {
       {/* Team */}
       <section className="space-y-6">
         <h2 className="text-2xl font-semibold tracking-tight">The team</h2>
-        {team.length > 0 ? (
-          <div className="grid gap-4 sm:grid-cols-2">
-            {team.map((m) => (
-              <Card key={m.name}>
-                <CardHeader>
-                  <CardTitle className="text-base">{m.name}</CardTitle>
-                  <p className="text-sm text-[color:var(--color-muted-foreground)]">{m.role}</p>
-                </CardHeader>
-                {m.bio || m.links?.length ? (
-                  <CardContent className="space-y-2 text-sm leading-relaxed text-[color:var(--color-muted-foreground)]">
-                    {m.bio ? <p>{m.bio}</p> : null}
-                    {m.links?.length ? (
-                      <div className="flex flex-wrap gap-3">
-                        {m.links.map((l) => (
-                          <a key={l.href} href={l.href} target="_blank" rel="noopener noreferrer" className="text-[color:var(--color-primary)] underline underline-offset-2 hover:opacity-80">
-                            {l.label} ↗
-                          </a>
-                        ))}
-                      </div>
-                    ) : null}
-                  </CardContent>
-                ) : null}
-              </Card>
-            ))}
-          </div>
-        ) : (
-          <Card>
-            <CardContent className="space-y-3 py-6 text-sm leading-relaxed text-[color:var(--color-muted-foreground)]">
-              <p>
-                Tessera is built by a small, founder-led team building in public. We keep the team page
-                deliberately lean — judge us by what we ship: the{" "}
-                <a href={links.github} target="_blank" rel="noopener noreferrer" className="text-[color:var(--color-primary)] underline underline-offset-2 hover:opacity-80">
-                  open-source code ↗
-                </a>
-                , the live protocol, and the{" "}
-                <Link href="/transparency" className="text-[color:var(--color-primary)] underline underline-offset-2 hover:opacity-80">
-                  on-chain transparency page
-                </Link>
-                .
-              </p>
-              <p>Founder bios are coming soon.</p>
+        <p className="max-w-2xl leading-relaxed text-[color:var(--color-muted-foreground)]">
+          Founder-led and building in the open — a small team with a high bar. Judge us by what we
+          ship: the{" "}
+          <a href={links.github} target="_blank" rel="noopener noreferrer" className="font-medium text-[color:var(--color-primary)] underline underline-offset-2 hover:opacity-80">
+            open-source code ↗
+          </a>
+          , the live protocol, and the{" "}
+          <Link href="/transparency" className="font-medium text-[color:var(--color-primary)] underline underline-offset-2 hover:opacity-80">
+            on-chain transparency page
+          </Link>
+          .
+        </p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          {team.map((m) => (
+            <Card key={m.name}>
+              <CardContent className="flex gap-4 p-6">
+                <Avatar name={m.name} />
+                <div className="min-w-0">
+                  <p className="font-semibold text-[color:var(--color-foreground)]">{m.name}</p>
+                  <p className="text-sm font-medium text-[color:var(--color-primary)]">{m.role}</p>
+                  {m.bio ? (
+                    <p className="mt-2 text-sm leading-relaxed text-[color:var(--color-muted-foreground)]">{m.bio}</p>
+                  ) : null}
+                  {m.links?.length ? (
+                    <div className="mt-3 flex flex-wrap gap-3">
+                      {m.links.map((l) => (
+                        <a key={l.href} href={l.href} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-[color:var(--color-primary)] underline underline-offset-2 hover:opacity-80">
+                          {l.label} ↗
+                        </a>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+
+          {/* Open roles — honest signal of growth (no placeholder names). */}
+          <Card className="border-dashed bg-transparent">
+            <CardContent className="flex gap-4 p-6">
+              <div className="flex size-12 shrink-0 items-center justify-center rounded-full border border-dashed border-[color:var(--color-border)] text-xl text-[color:var(--color-muted-foreground)]">
+                +
+              </div>
+              <div className="min-w-0">
+                <p className="font-semibold text-[color:var(--color-foreground)]">Join the team</p>
+                <p className="text-sm font-medium text-[color:var(--color-muted-foreground)]">
+                  Protocol · Frontend · AI agents
+                </p>
+                <p className="mt-2 text-sm leading-relaxed text-[color:var(--color-muted-foreground)]">
+                  We&apos;re growing the founding team. If you build serious DeFi, Rust on Stylus, or
+                  autonomous agents, say hello at{" "}
+                  <a href={`mailto:${links.contactEmail}`} className="font-medium text-[color:var(--color-primary)] underline underline-offset-2 hover:opacity-80">
+                    {links.contactEmail}
+                  </a>
+                  .
+                </p>
+              </div>
             </CardContent>
           </Card>
-        )}
+        </div>
       </section>
 
       {/* Contact */}

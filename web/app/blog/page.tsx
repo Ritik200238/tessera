@@ -42,9 +42,10 @@ export default function BlogPage() {
             <p className="mt-2 leading-relaxed text-[color:var(--color-muted-foreground)]">{p.excerpt}</p>
             <Link
               href={`/blog/${p.slug}`}
-              className="mt-3 inline-block text-sm font-medium text-[color:var(--color-primary)] hover:opacity-80"
+              className="group/rm mt-4 inline-flex items-center gap-1.5 rounded-full bg-[color:var(--blue-wash)] px-4 py-1.5 text-sm font-semibold text-[color:var(--color-primary)] transition-colors hover:bg-[color:var(--color-primary)] hover:text-[color:var(--color-primary-foreground)]"
             >
-              Read more →
+              Read more
+              <span aria-hidden className="transition-transform group-hover/rm:translate-x-0.5">→</span>
             </Link>
           </article>
         ))}

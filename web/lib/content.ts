@@ -119,7 +119,17 @@ export interface TeamMember {
  *
  * TODO(founder): add you + your co-founder here (name + role; bio optional).
  */
-export const team: TeamMember[] = [];
+export const team: TeamMember[] = [
+  {
+    name: "Ritik Pandey",
+    role: "Founder · Protocol & Full-Stack Engineer",
+    bio: "Designs and builds the entire stack end to end — the Rust/Stylus vault and oracle, the autonomous Watcher agent, and the web app. Building Tessera in the open.",
+    links: [
+      { label: "X", href: "https://x.com/UseTessera" },
+      { label: "GitHub", href: "https://github.com/Ritik200238" },
+    ],
+  },
+];
 
 /** Values shown on the About page (minimal, credibility-through-substance). */
 export const values = [
