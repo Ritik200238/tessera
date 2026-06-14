@@ -9,6 +9,7 @@ import {
   useWaitForTransactionReceipt,
 } from "wagmi";
 import { useChainGuard } from "@/lib/use-chain-guard";
+import { usePaused } from "@/lib/use-paused";
 import { useQueryClient } from "@tanstack/react-query";
 import { vault, isVaultDeployed } from "@/lib/contracts";
 import { addresses } from "@/lib/addresses";
@@ -16,6 +17,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { WrongChainNotice } from "@/components/wrong-chain-notice";
 import { decodeTxError } from "@/lib/errors";
 
 const USDC_DECIMALS = 6;
@@ -24,6 +26,7 @@ const USDC_DECIMALS = 6;
 export function RepayForm() {
   const { address, isConnected } = useAccount();
   const { writeChainId, wrongChain } = useChainGuard();
+  const paused = usePaused();
   const queryClient = useQueryClient();
   const [amount, setAmount] = useState("");
   const vaultAddr = vault.address ?? undefined;
@@ -65,7 +68,7 @@ export function RepayForm() {
   const needsApproval = parsed > 0n && ((allowance as bigint | undefined) ?? 0n) < parsed;
   const { writeContract, isPending, error, data: txHash, reset } = useWriteContract();
   const { isLoading: isMining, isSuccess: isMined } = useWaitForTransactionReceipt({ hash: txHash });
-  const canSubmit = enabled && isVaultDeployed() && parsed > 0n && !isPending && !isMining && !wrongChain;
+  const canSubmit = enabled && isVaultDeployed() && parsed > 0n && !isPending && !isMining && !wrongChain && !paused;
 
   function approve() {
     if (!usdcAddr || !vaultAddr) return;
@@ -116,6 +119,8 @@ export function RepayForm() {
             Wallet balance: {balance !== undefined ? `${formatUnits(balance as bigint, USDC_DECIMALS)} USDC` : "—"}
           </p>
         </div>
+
+        <WrongChainNotice />
 
         {error ? (
           <Alert tone="danger">

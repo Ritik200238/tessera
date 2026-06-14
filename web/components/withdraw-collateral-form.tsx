@@ -11,10 +11,12 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { vault, isVaultDeployed } from "@/lib/contracts";
 import { useChainGuard } from "@/lib/use-chain-guard";
+import { usePaused } from "@/lib/use-paused";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { WrongChainNotice } from "@/components/wrong-chain-notice";
 import { decodeTxError } from "@/lib/errors";
 
 interface CollateralToken {
@@ -28,6 +30,7 @@ interface CollateralToken {
 export function WithdrawCollateralForm({ tokens }: { tokens: CollateralToken[] }) {
   const { address, isConnected } = useAccount();
   const { writeChainId, wrongChain } = useChainGuard();
+  const paused = usePaused();
   const queryClient = useQueryClient();
   const [tokenIdx, setTokenIdx] = useState(0);
   const [amount, setAmount] = useState("");
@@ -55,7 +58,7 @@ export function WithdrawCollateralForm({ tokens }: { tokens: CollateralToken[] }
 
   const { writeContract, isPending, error, data: txHash, reset } = useWriteContract();
   const { isLoading: isMining, isSuccess: isMined } = useWaitForTransactionReceipt({ hash: txHash });
-  const canSubmit = enabled && isVaultDeployed() && parsed > 0n && !isPending && !isMining && !wrongChain;
+  const canSubmit = enabled && isVaultDeployed() && parsed > 0n && !isPending && !isMining && !wrongChain && !paused;
 
   function withdraw() {
     if (!vaultAddr || !token) return;
@@ -118,6 +121,8 @@ export function WithdrawCollateralForm({ tokens }: { tokens: CollateralToken[] }
             Deposited: {token ? `${formatUnits(depositedBn, token.decimals)} ${token.symbol}` : "—"}
           </p>
         </div>
+
+        <WrongChainNotice />
 
         {error ? (
           <Alert tone="danger">

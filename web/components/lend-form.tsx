@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { parseUnits, formatUnits, erc20Abi } from "viem";
 import { useAccount, useReadContract, useReadContracts, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { useChainGuard } from "@/lib/use-chain-guard";
+import { usePaused } from "@/lib/use-paused";
 import { useQueryClient } from "@tanstack/react-query";
 import { vault, isVaultDeployed } from "@/lib/contracts";
 import { addresses } from "@/lib/addresses";
@@ -11,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { WrongChainNotice } from "@/components/wrong-chain-notice";
 import { ValueCard } from "./value-card";
 import { ConnectButton } from "./connect-button";
 import { formatBps } from "@/lib/format";
@@ -25,6 +27,7 @@ const USDC_DECIMALS = 6;
 export function LendForm() {
   const { address, isConnected } = useAccount();
   const { writeChainId, wrongChain } = useChainGuard();
+  const paused = usePaused();
   const [mode, setMode] = useState<Mode>("deposit");
   const [amount, setAmount] = useState("");
 
@@ -126,7 +129,7 @@ export function LendForm() {
   // the user gets a clear message instead of an on-chain InsufficientLiquidity revert.
   const exceedsLiquidity = mode === "withdraw" && parsed > 0n && parsed > idleAssets;
   const canSubmit =
-    isConnected && isVaultDeployed() && parsed > 0n && !exceedsLiquidity && !isPending && !isMining && !wrongChain;
+    isConnected && isVaultDeployed() && parsed > 0n && !exceedsLiquidity && !isPending && !isMining && !wrongChain && !paused;
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1.2fr_1fr]">
@@ -204,6 +207,8 @@ export function LendForm() {
               </AlertDescription>
             </Alert>
           ) : null}
+          <WrongChainNotice />
+
           {error ? (
             <Alert tone="danger">
               <AlertTitle>Transaction failed</AlertTitle>

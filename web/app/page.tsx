@@ -134,6 +134,7 @@ export default function LandingPage() {
   const rootRef = useRef<HTMLDivElement>(null);
   const [introDone, setIntroDone] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [mkt, setMkt] = useState<{ s: string; open: boolean }>({ s: "—", open: false });
 
   // simulator state
@@ -262,7 +263,7 @@ export default function LandingPage() {
   return (
     <div className="tsa" ref={rootRef}>
       {/* ============ NAV ============ */}
-      <div className={`nav${scrolled ? " scrolled" : ""}`}>
+      <div className={`nav${scrolled ? " scrolled" : ""}${menuOpen ? " menu-open" : ""}`}>
         <div className="wrap nav-in">
           <Link className="brand" href="/">
             <Mark size={24} />
@@ -284,8 +285,32 @@ export default function LandingPage() {
             <Link className="lbtn primary" href="/dashboard">
               Open app
             </Link>
+            <button
+              type="button"
+              className="nav-burger"
+              aria-label={menuOpen ? "Close menu" : "Open menu"}
+              aria-expanded={menuOpen}
+              onClick={() => setMenuOpen((o) => !o)}
+            >
+              <span className={`burger-box${menuOpen ? " open" : ""}`}>
+                <span /><span /><span />
+              </span>
+            </button>
           </div>
         </div>
+        {menuOpen ? (
+          <nav className="nav-menu" aria-label="Mobile">
+            <Link href="/drill" onClick={() => setMenuOpen(false)}>Live Drill</Link>
+            <Link href="/why" onClick={() => setMenuOpen(false)}>Why Tessera</Link>
+            <a href="#how" onClick={() => setMenuOpen(false)}>How it works</a>
+            <a href="#agent" onClick={() => setMenuOpen(false)}>AI protection</a>
+            <a href="#markets" onClick={() => setMenuOpen(false)}>Markets</a>
+            <a href="#risk" onClick={() => setMenuOpen(false)}>Risk</a>
+            <Link className="lbtn primary nav-menu-cta" href="/dashboard" onClick={() => setMenuOpen(false)}>
+              Open app
+            </Link>
+          </nav>
+        ) : null}
       </div>
 
       <main id="top">

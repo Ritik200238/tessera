@@ -27,10 +27,36 @@ export function GapAckModal({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
-  const confirmRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const cancelRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
-    if (open) confirmRef.current?.focus();
+    if (!open) return;
+    // Restore focus to whatever opened the modal when it closes.
+    const prevFocused = document.activeElement as HTMLElement | null;
+    cancelRef.current?.focus(); // focus the non-destructive action, not "borrow"
+    return () => prevFocused?.focus?.();
   }, [open]);
+
+  function trapFocus(e: React.KeyboardEvent) {
+    if (e.key === "Escape") {
+      onCancel();
+      return;
+    }
+    if (e.key !== "Tab" || !panelRef.current) return;
+    const f = panelRef.current.querySelectorAll<HTMLElement>(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+    );
+    const first = f[0];
+    const last = f[f.length - 1];
+    if (!first || !last) return;
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  }
 
   if (!open) return null;
 
@@ -45,11 +71,12 @@ export function GapAckModal({
       aria-modal="true"
       aria-labelledby="gap-ack-title"
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-      onKeyDown={(e) => {
-        if (e.key === "Escape") onCancel();
-      }}
+      onKeyDown={trapFocus}
     >
-      <div className="w-full max-w-md rounded-xl border border-[color:var(--color-border)] bg-[color:var(--canvas,white)] p-6 shadow-xl">
+      <div
+        ref={panelRef}
+        className="w-full max-w-md rounded-xl border border-[color:var(--color-border)] bg-[color:var(--canvas,white)] p-6 shadow-xl"
+      >
         <h2 id="gap-ack-title" className="text-lg font-semibold tracking-tight">
           Stocks gap. Here&apos;s what that means for this loan.
         </h2>
@@ -88,13 +115,14 @@ export function GapAckModal({
 
         <div className="mt-5 flex flex-wrap items-center justify-end gap-3">
           <button
+            ref={cancelRef}
             type="button"
             onClick={onCancel}
             className="rounded-md px-4 py-2 text-sm font-medium text-[color:var(--color-muted-foreground)] hover:bg-[color:var(--color-muted)]"
           >
             Go back
           </button>
-          <Button ref={confirmRef} onClick={onConfirm}>
+          <Button onClick={onConfirm}>
             I understand gap risk — borrow
           </Button>
         </div>

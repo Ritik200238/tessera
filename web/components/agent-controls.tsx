@@ -4,11 +4,13 @@ import { useEffect, useMemo, useState } from "react";
 import { erc20Abi, formatUnits, parseUnits } from "viem";
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { useChainGuard } from "@/lib/use-chain-guard";
+import { usePaused } from "@/lib/use-paused";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { WrongChainNotice } from "@/components/wrong-chain-notice";
 import { vault, isVaultDeployed } from "@/lib/contracts";
 import { addresses } from "@/lib/addresses";
 import { decodeTxError } from "@/lib/errors";
@@ -32,6 +34,7 @@ export function AgentControls() {
   const [amount, setAmount] = useState("");
   const { address, isConnected } = useAccount();
   const { writeChainId, wrongChain } = useChainGuard();
+  const paused = usePaused();
   const { writeContract, data: txHash, isPending, error, reset } = useWriteContract();
   const { isLoading: isMining, isSuccess: isMined } = useWaitForTransactionReceipt({ hash: txHash });
 
@@ -89,7 +92,7 @@ export function AgentControls() {
     });
   }
 
-  const canEnable = ready && isVaultDeployed() && parsed > 0n && !isPending && !isMining && !wrongChain;
+  const canEnable = ready && isVaultDeployed() && parsed > 0n && !isPending && !isMining && !wrongChain && !paused;
 
   return (
     <Card>
@@ -167,6 +170,8 @@ export function AgentControls() {
           </Alert>
         ) : null}
 
+        <WrongChainNotice />
+
         {error ? (
           <Alert tone="danger">
             <AlertTitle>Transaction failed</AlertTitle>
@@ -200,7 +205,7 @@ export function AgentControls() {
                 <button
                   type="button"
                   onClick={() => setCap(0n)}
-                  disabled={!isVaultDeployed() || isPending || isMining || wrongChain}
+                  disabled={!isVaultDeployed() || isPending || isMining || wrongChain || paused}
                   className="inline-flex h-10 items-center rounded-md border border-[color:var(--color-border)] px-4 text-sm font-medium text-[color:var(--color-liquidating-fg)] hover:bg-[color:var(--color-muted)] disabled:opacity-50"
                 >
                   Kill switch (disable)

@@ -3,12 +3,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { useAccount, useReadContracts, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { useChainGuard } from "@/lib/use-chain-guard";
+import { usePaused } from "@/lib/use-paused";
 import { useQueryClient } from "@tanstack/react-query";
 import { formatUnits } from "viem";
 import { vault, lens, oracle, isVaultDeployed } from "@/lib/contracts";
 import { addresses } from "@/lib/addresses";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { WrongChainNotice } from "@/components/wrong-chain-notice";
 import { Button } from "@/components/ui/button";
 import { SafetyScore } from "./safety-score";
 import { HealthBadge } from "./health-badge";
@@ -36,6 +38,7 @@ const MAX_LTV_BPS = 6000n; // 60% — the highest per-asset max LTV (SPY)
 export function BorrowForm() {
   const { address, isConnected } = useAccount();
   const { writeChainId, wrongChain } = useChainGuard();
+  const paused = usePaused();
   const [ltvBps, setLtvBps] = useState<number>(2500); // start at 25%
 
   const tokens = addresses.collateralTokens;
@@ -149,7 +152,7 @@ export function BorrowForm() {
   }, [additionalUsd8]);
 
   const canBorrow =
-    isConnected && isVaultDeployed() && borrowAmount6 > 0n && !isPending && !isMining && !wrongChain;
+    isConnected && isVaultDeployed() && borrowAmount6 > 0n && !isPending && !isMining && !wrongChain && !paused;
 
   // Mandatory gap-risk acknowledgment before a FIRST borrow (debt == 0). The
   // modal models off-hours drops on the exact position being signed.
@@ -298,6 +301,8 @@ export function BorrowForm() {
               <AlertDescription>The borrow button will be enabled after deploy.</AlertDescription>
             </Alert>
           ) : null}
+
+          <WrongChainNotice />
 
           {error ? (
             <Alert tone="danger">
