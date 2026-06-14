@@ -6,6 +6,7 @@ import { Mark } from "@/components/mark";
 import { useProtocolStats, formatUsdcUsd } from "@/lib/protocol";
 import { track } from "@/lib/analytics";
 import { MarketsGrid } from "@/components/markets-grid";
+import { SiteFooter } from "@/components/site-footer";
 import { runGapBacktest } from "@/lib/gap-backtest";
 import { addresses } from "@/lib/addresses";
 import "./landing.css";
@@ -973,51 +974,8 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* ============ FOOTER ============ */}
-        <footer className="lfoot">
-          <div className="wrap">
-            <div className="foot-top">
-              <div className="foot-brand">
-                <Link className="brand" href="/" style={{ textDecoration: "none" }}>
-                  <Mark size={22} />
-                  <span className="wm">Tessera</span>
-                </Link>
-                <p>
-                  Autonomous financial infrastructure for 24/7 tokenized equity markets. Not available in the US or
-                  sanctioned jurisdictions.
-                </p>
-                <span className="notoken" style={{ marginTop: 16 }}>
-                  {CHECK} No token, ever
-                </span>
-              </div>
-              <div className="foot-cols">
-                <div className="fcol">
-                  <h5>Protocol</h5>
-                  <a href="#markets">Markets</a>
-                  <a href="#risk">Risk</a>
-                  <Link href="/transparency">Transparency</Link>
-                  <Link href="/status">Status</Link>
-                </div>
-                <div className="fcol">
-                  <h5>Learn</h5>
-                  <a href="#how">How it works</a>
-                  <a href="#agent">AI protection</a>
-                  <Link href="/dashboard">Dashboard</Link>
-                </div>
-                <div className="fcol">
-                  <h5>App</h5>
-                  <Link href="/lend">Lend</Link>
-                  <Link href="/borrow">Borrow</Link>
-                  <Link href="/agent">Activity</Link>
-                </div>
-              </div>
-            </div>
-            <div className="foot-bot">
-              <span className="mono">© 2026 Tessera · Built on Arbitrum · Stylus</span>
-              <span className="mono">Testnet · Robinhood Chain (Orbit) · No token, ever</span>
-            </div>
-          </div>
-        </footer>
+        {/* ============ FOOTER (shared, consistent with the rest of the site) ============ */}
+        <SiteFooter />
       </main>
     </div>
   );
