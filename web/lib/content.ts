@@ -88,8 +88,8 @@ export const watcher = {
 
 export const links = {
   github: "https://github.com/Ritik200238/tessera",
-  /** X handle — set when live. */
-  x: "https://x.com/", // TODO(founder): set the real handle
+  /** X handle. */
+  x: "https://x.com/UseTessera",
   explorer: "https://explorer.testnet.chain.robinhood.com",
   /** Contact for the About page + footer. */
   contactEmail: "hello@tessera.xyz", // TODO(founder): set the real address once the domain is live

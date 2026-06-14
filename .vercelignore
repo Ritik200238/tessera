@@ -9,7 +9,9 @@
 # Heavy / irrelevant to the web build
 .git
 **/node_modules
-docs
+# Anchored to repo root so it excludes ONLY the reference-clones dir, NOT the
+# product's docs route (web/app/docs) — an unanchored "docs" 404s that page.
+/docs
 target
 **/target
 .next
